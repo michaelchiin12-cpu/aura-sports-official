@@ -69,6 +69,20 @@
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px; }
         .stat-card { background: var(--bg-main); border: 1px solid var(--border); border-radius: 6px; padding: 15px; text-align: center; }
         .stat-card .val { font-size: 1.3rem; font-weight: bold; margin-top: 5px; color: var(--primary); }
+
+        /* --- STYLES UNTUK ROUND ROBIN + KNOCKOUT --- */
+        .rr-team-chip { background: var(--bg-main); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; display:flex; justify-content:space-between; align-items:center; }
+        .rr-round-title { color: var(--primary); font-weight:bold; margin: 12px 0 6px; font-size: 0.95rem; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+        .rr-fixture-row { display:flex; justify-content:space-between; align-items:center; background: var(--bg-main); border:1px solid var(--border); border-radius:6px; padding:8px 10px; margin-bottom:6px; font-size:0.9rem; }
+        .rr-fixture-row .rr-fx-teams { flex:1; }
+        .rr-status-pill { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 6px; }
+        .rr-status-pending { background: rgba(156,163,175,0.2); color: var(--text-muted); }
+        .rr-status-ongoing { background: rgba(245,158,11,0.2); color: #fcd34d; }
+        .rr-status-finished { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+        .ko-round-block { margin-bottom: 18px; }
+        .ko-match-card { background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+        .ko-team-line { display:flex; justify-content:space-between; align-items:center; padding: 4px 0; }
+        .ko-team-line.winner { color: var(--success); font-weight:bold; }
     </style>
 </head>
 <body>
@@ -286,11 +300,20 @@
         </div>
     </div>
 
-    <!-- ================= TAB 3: ROUND ROBIN + KNOCKOUT (Segera Hadir) ================= -->
+    <!-- ================= TAB 3: ROUND ROBIN + KNOCKOUT ================= -->
     <div id="tab-roundrobin" class="tab-content">
-        <div class="card" style="text-align:center; padding:40px 20px;">
-            <h2 style="margin-bottom:10px;">⚔️ Round Robin + Knockout</h2>
-            <p style="color: var(--text-muted);">Fitur ini masih dalam pengembangan — segera hadir.</p>
+        <div class="container">
+            <!-- Panel Kiri: Setup Tim & Klasemen -->
+            <div>
+                <div class="card" id="rrSetupCard"></div>
+                <div class="card" id="rrStandingsCard"></div>
+            </div>
+            <!-- Panel Kanan: Jadwal, Lapangan Aktif, Knockout -->
+            <div>
+                <div class="card" id="rrScheduleCard"></div>
+                <div class="card" id="rrCourtsCard"></div>
+                <div class="card" id="rrKnockoutCard"></div>
+            </div>
         </div>
     </div>
 
@@ -319,6 +342,15 @@
     let financeSettings = { payPerPlay: 0 };
     let timers = {};
 
+    // --- State Round Robin + Knockout ---
+    let rrTeams = [];              // { id, name, members: [nama...], stats:{played,win,draw,loss,pf,pa,pts} }
+    let rrMatches = [];            // fixture round robin: { id, teamAId, teamBId, round, scoreA, scoreB, status, court, time, isRunning }
+    let rrSettings = { qualifyCount: 4, totalCourts: 2 };
+    let rrPhase = 'setup';         // setup | roundrobin | knockout | finished
+    let rrBracket = [];            // [{ roundName, matches:[{id,teamAId,teamBId,scoreA,scoreB,status,winnerId,time,isRunning}] }]
+    let rrTimers = {};
+    let koTimers = {};
+
     // Ambil state terbaru dari Supabase
     async function loadState() {
         const { data, error } = await supabaseClient
@@ -338,6 +370,11 @@
         activeMatches = data.active_matches || [];
         financeTransactions = data.finance_transactions || [];
         financeSettings = data.finance_settings || { payPerPlay: 0 };
+        rrTeams = data.rr_teams || [];
+        rrMatches = data.rr_matches || [];
+        rrSettings = data.rr_settings || { qualifyCount: 4, totalCourts: 2 };
+        rrPhase = data.rr_phase || 'setup';
+        rrBracket = data.rr_bracket || [];
     }
 
     // Dengarkan perubahan realtime dari pengguna lain yang terhubung
@@ -356,6 +393,11 @@
                 activeMatches = row.active_matches || [];
                 financeTransactions = row.finance_transactions || [];
                 financeSettings = row.finance_settings || { payPerPlay: 0 };
+                rrTeams = row.rr_teams || [];
+                rrMatches = row.rr_matches || [];
+                rrSettings = row.rr_settings || { qualifyCount: 4, totalCourts: 2 };
+                rrPhase = row.rr_phase || 'setup';
+                rrBracket = row.rr_bracket || [];
                 init();
             })
             .subscribe();
@@ -382,6 +424,56 @@
         });
     }
 
+    // Sinkronisasi timer untuk pertandingan Round Robin yang sedang berjalan
+    function rrSyncTimers() {
+        Object.keys(rrTimers).forEach(matchId => {
+            const match = rrMatches.find(m => m.id === matchId);
+            if (!match || !match.isRunning) {
+                clearInterval(rrTimers[matchId]);
+                delete rrTimers[matchId];
+            }
+        });
+        rrMatches.forEach(match => {
+            if (match.status === 'ongoing' && match.isRunning && !rrTimers[match.id]) {
+                rrTimers[match.id] = setInterval(() => {
+                    match.time++;
+                    const el = document.getElementById(`rr-timer-${match.id}`);
+                    if (el) el.innerText = formatTime(match.time);
+                }, 1000);
+            }
+        });
+    }
+
+    // Sinkronisasi timer untuk pertandingan babak Knockout yang sedang berjalan
+    function koSyncTimers() {
+        Object.keys(koTimers).forEach(matchId => {
+            const match = findKoMatchById(matchId);
+            if (!match || !match.isRunning) {
+                clearInterval(koTimers[matchId]);
+                delete koTimers[matchId];
+            }
+        });
+        rrBracket.forEach(round => {
+            round.matches.forEach(match => {
+                if (match.status === 'ongoing' && match.isRunning && !koTimers[match.id]) {
+                    koTimers[match.id] = setInterval(() => {
+                        match.time++;
+                        const el = document.getElementById(`ko-timer-${match.id}`);
+                        if (el) el.innerText = formatTime(match.time);
+                    }, 1000);
+                }
+            });
+        });
+    }
+
+    function findKoMatchById(matchId) {
+        for (const round of rrBracket) {
+            const m = round.matches.find(x => x.id === matchId);
+            if (m) return m;
+        }
+        return null;
+    }
+
     // --- Inisialisasi ---
     function init() {
         // Pastikan setiap pemain memiliki properti deposit
@@ -396,6 +488,14 @@
         syncTimers();
 
         document.getElementById('payPerPlayFee').value = financeSettings.payPerPlay || 0;
+
+        renderRRSetup();
+        renderRRStandings();
+        renderRRSchedule();
+        renderRRCourts();
+        renderRRKnockout();
+        rrSyncTimers();
+        koSyncTimers();
     }
 
     // Simpan seluruh state ke Supabase (satu baris bersama) lalu broadcast otomatis
@@ -410,6 +510,11 @@
                 active_matches: activeMatches,
                 finance_transactions: financeTransactions,
                 finance_settings: financeSettings,
+                rr_teams: rrTeams,
+                rr_matches: rrMatches,
+                rr_settings: rrSettings,
+                rr_phase: rrPhase,
+                rr_bracket: rrBracket,
                 updated_at: new Date().toISOString()
             })
             .eq('id', STATE_ROW_ID);
@@ -954,7 +1059,7 @@
     }
 
     function exportData() {
-        const data = { players, matchesHistory, activeMatches, financeTransactions, financeSettings };
+        const data = { players, matchesHistory, activeMatches, financeTransactions, financeSettings, rrTeams, rrMatches, rrSettings, rrPhase, rrBracket };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -975,6 +1080,11 @@
                 if(data.activeMatches) activeMatches = data.activeMatches;
                 if(data.financeTransactions) financeTransactions = data.financeTransactions;
                 if(data.financeSettings) financeSettings = data.financeSettings;
+                if(data.rrTeams) rrTeams = data.rrTeams;
+                if(data.rrMatches) rrMatches = data.rrMatches;
+                if(data.rrSettings) rrSettings = data.rrSettings;
+                if(data.rrPhase) rrPhase = data.rrPhase;
+                if(data.rrBracket) rrBracket = data.rrBracket;
                 saveData();
                 alert('Data backup berhasil di-import sepenuhnya!');
             } catch (err) {
@@ -992,6 +1102,475 @@
             link.href = canvas.toDataURL('image/png');
             link.click();
         });
+    }
+
+    // ================= ROUND ROBIN + KNOCKOUT =================
+
+    // --- Setup Tim ---
+    function addRRTeam(e) {
+        e.preventDefault();
+        if (rrPhase !== 'setup') return alert('Turnamen sudah berjalan. Reset turnamen dulu untuk mengubah daftar tim.');
+        const name = document.getElementById('rrTeamName').value.trim();
+        const membersRaw = document.getElementById('rrTeamMembers').value.trim();
+        if (!name) return;
+        if (rrTeams.find(t => t.name.toLowerCase() === name.toLowerCase())) {
+            return alert('Nama tim sudah ada!');
+        }
+        const members = membersRaw ? membersRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+        rrTeams.push({
+            id: 'rrt-' + Date.now(),
+            name, members,
+            stats: { played: 0, win: 0, draw: 0, loss: 0, pf: 0, pa: 0, pts: 0 }
+        });
+        document.getElementById('rrTeamForm').reset();
+        saveData();
+    }
+
+    function deleteRRTeam(id) {
+        if (rrPhase !== 'setup') return alert('Turnamen sudah berjalan. Reset turnamen dulu untuk mengubah daftar tim.');
+        if (!confirm('Hapus tim ini dari turnamen?')) return;
+        rrTeams = rrTeams.filter(t => t.id !== id);
+        saveData();
+    }
+
+    function rrGetTeamName(teamId) {
+        if (!teamId) return 'BYE';
+        const t = rrTeams.find(x => x.id === teamId);
+        return t ? t.name : 'Tim Dihapus';
+    }
+
+    // --- Generate Jadwal Round Robin (metode lingkaran / circle method) ---
+    function generateRoundRobinPairs(teamIds) {
+        let ids = [...teamIds];
+        if (ids.length % 2 !== 0) ids.push(null); // BYE jika ganjil
+        const n = ids.length;
+        const rounds = n - 1;
+        const half = n / 2;
+        let arr = ids.slice();
+        const schedule = [];
+        for (let r = 0; r < rounds; r++) {
+            for (let i = 0; i < half; i++) {
+                const a = arr[i], b = arr[n - 1 - i];
+                if (a !== null && b !== null) schedule.push({ teamAId: a, teamBId: b, round: r + 1 });
+            }
+            const fixed = arr[0];
+            const rest = arr.slice(1);
+            rest.unshift(rest.pop());
+            arr = [fixed, ...rest];
+        }
+        return schedule;
+    }
+
+    function generateRRSchedule() {
+        if (rrTeams.length < 2) return alert('Minimal 2 tim untuk membuat jadwal Round Robin!');
+        if (rrMatches.length > 0) {
+            if (!confirm('Jadwal sudah pernah dibuat. Membuat ulang akan menghapus semua jadwal & skor round robin yang ada (tim tidak dihapus). Lanjutkan?')) return;
+        }
+        const qualifyCount = parseInt(document.getElementById('rrQualifyCount').value) || 4;
+        const totalCourts = parseInt(document.getElementById('rrTotalCourts').value) || 1;
+        rrSettings = { qualifyCount, totalCourts };
+
+        const pairs = generateRoundRobinPairs(rrTeams.map(t => t.id));
+        rrMatches = pairs.map((p, idx) => ({
+            id: 'rr-' + Date.now() + '-' + idx,
+            teamAId: p.teamAId,
+            teamBId: p.teamBId,
+            round: p.round,
+            scoreA: 0, scoreB: 0,
+            status: 'pending', // pending | ongoing | finished
+            court: null,
+            time: 0,
+            isRunning: false
+        }));
+        rrTeams.forEach(t => t.stats = { played: 0, win: 0, draw: 0, loss: 0, pf: 0, pa: 0, pts: 0 });
+        rrBracket = [];
+        rrPhase = 'roundrobin';
+        saveData();
+    }
+
+    // --- Kontrol Pertandingan Round Robin (mirip Round Mix, level tim) ---
+    function startRRMatch(matchId) {
+        const match = rrMatches.find(m => m.id === matchId);
+        if (!match || match.status !== 'pending') return;
+        const maxCourts = parseInt(rrSettings.totalCourts) || 1;
+        const usedCourts = rrMatches.filter(m => m.status === 'ongoing').map(m => m.court);
+        let freeCourt = null;
+        for (let c = 1; c <= maxCourts; c++) {
+            if (!usedCourts.includes(c)) { freeCourt = c; break; }
+        }
+        if (!freeCourt) return alert('Semua lapangan Round Robin sedang digunakan! Selesaikan pertandingan lain dulu, atau tambah jumlah lapangan di pengaturan.');
+        match.status = 'ongoing';
+        match.court = freeCourt;
+        match.time = 0;
+        match.isRunning = false;
+        saveData();
+    }
+
+    function rrCancelMatch(matchId) {
+        const match = rrMatches.find(m => m.id === matchId);
+        if (!match) return;
+        if (!confirm('Batalkan pertandingan ini dan kembalikan ke jadwal (skor tidak disimpan)?')) return;
+        clearInterval(rrTimers[matchId]); delete rrTimers[matchId];
+        match.status = 'pending';
+        match.court = null;
+        match.scoreA = 0; match.scoreB = 0; match.time = 0; match.isRunning = false;
+        saveData();
+    }
+
+    function rrUpdateScore(matchId, team, delta) {
+        const match = rrMatches.find(m => m.id === matchId);
+        if (!match) return;
+        if (team === 'A') match.scoreA = Math.max(0, match.scoreA + delta);
+        else match.scoreB = Math.max(0, match.scoreB + delta);
+        saveData();
+    }
+
+    function rrToggleTimer(matchId) {
+        const match = rrMatches.find(m => m.id === matchId);
+        if (!match) return;
+        match.isRunning = !match.isRunning;
+        if (match.isRunning) {
+            rrTimers[matchId] = setInterval(() => {
+                match.time++;
+                const el = document.getElementById(`rr-timer-${matchId}`);
+                if (el) el.innerText = formatTime(match.time);
+            }, 1000);
+        } else {
+            clearInterval(rrTimers[matchId]);
+        }
+        saveData();
+    }
+
+    function rrFinishMatch(matchId) {
+        const match = rrMatches.find(m => m.id === matchId);
+        if (!match) return;
+        clearInterval(rrTimers[matchId]); delete rrTimers[matchId];
+        match.status = 'finished';
+        match.isRunning = false;
+
+        const teamA = rrTeams.find(t => t.id === match.teamAId);
+        const teamB = rrTeams.find(t => t.id === match.teamBId);
+        if (teamA && teamB) {
+            teamA.stats.played++; teamB.stats.played++;
+            teamA.stats.pf += match.scoreA; teamA.stats.pa += match.scoreB;
+            teamB.stats.pf += match.scoreB; teamB.stats.pa += match.scoreA;
+            if (match.scoreA > match.scoreB) {
+                teamA.stats.win++; teamA.stats.pts += 3; teamB.stats.loss++;
+            } else if (match.scoreB > match.scoreA) {
+                teamB.stats.win++; teamB.stats.pts += 3; teamA.stats.loss++;
+            } else {
+                teamA.stats.draw++; teamB.stats.draw++; teamA.stats.pts += 1; teamB.stats.pts += 1;
+            }
+        }
+        saveData();
+    }
+
+    function getRRStandings() {
+        return [...rrTeams].sort((a, b) => {
+            if (b.stats.pts !== a.stats.pts) return b.stats.pts - a.stats.pts;
+            const gdA = a.stats.pf - a.stats.pa, gdB = b.stats.pf - b.stats.pa;
+            if (gdB !== gdA) return gdB - gdA;
+            return b.stats.pf - a.stats.pf;
+        });
+    }
+
+    // --- Babak Knockout ---
+    function nextPowerOfTwo(n) {
+        let p = 1;
+        while (p < n) p *= 2;
+        return p;
+    }
+
+    function getRoundName(size) {
+        if (size <= 2) return 'Final';
+        if (size === 4) return 'Semifinal';
+        if (size === 8) return 'Perempatfinal';
+        if (size === 16) return 'Babak 16 Besar';
+        return `Babak ${size} Besar`;
+    }
+
+    function buildKnockoutRound(seedIds) {
+        const size = nextPowerOfTwo(seedIds.length);
+        const seeds = [...seedIds];
+        while (seeds.length < size) seeds.push(null); // slot BYE
+        const matches = [];
+        for (let i = 0; i < size / 2; i++) {
+            const a = seeds[i];
+            const b = seeds[size - 1 - i];
+            const isBye = (!a || !b);
+            matches.push({
+                id: 'ko-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6) + '-' + i,
+                teamAId: a, teamBId: b,
+                scoreA: 0, scoreB: 0,
+                status: isBye ? 'finished' : 'pending',
+                winnerId: isBye ? (a || b) : null,
+                time: 0, isRunning: false
+            });
+        }
+        return { roundName: getRoundName(size), matches };
+    }
+
+    function startKnockout() {
+        const belumSelesai = rrMatches.some(m => m.status !== 'finished');
+        if (belumSelesai) {
+            if (!confirm('Masih ada pertandingan Round Robin yang belum selesai. Tetap mulai babak Knockout berdasarkan klasemen saat ini?')) return;
+        }
+        const standings = getRRStandings();
+        const n = Math.max(2, parseInt(rrSettings.qualifyCount) || 4);
+        if (standings.length < 2) return alert('Minimal 2 tim untuk memulai babak Knockout!');
+        const qualifiers = standings.slice(0, Math.min(n, standings.length)).map(t => t.id);
+        rrBracket = [buildKnockoutRound(qualifiers)];
+        rrPhase = 'knockout';
+        saveData();
+    }
+
+    function koStartMatch(matchId) {
+        const match = findKoMatchById(matchId);
+        if (!match || match.status !== 'pending') return;
+        match.status = 'ongoing';
+        match.time = 0;
+        match.isRunning = false;
+        saveData();
+    }
+
+    function koUpdateScore(matchId, team, delta) {
+        const match = findKoMatchById(matchId);
+        if (!match) return;
+        if (team === 'A') match.scoreA = Math.max(0, match.scoreA + delta);
+        else match.scoreB = Math.max(0, match.scoreB + delta);
+        saveData();
+    }
+
+    function koToggleTimer(matchId) {
+        const match = findKoMatchById(matchId);
+        if (!match) return;
+        match.isRunning = !match.isRunning;
+        if (match.isRunning) {
+            koTimers[matchId] = setInterval(() => {
+                match.time++;
+                const el = document.getElementById(`ko-timer-${matchId}`);
+                if (el) el.innerText = formatTime(match.time);
+            }, 1000);
+        } else {
+            clearInterval(koTimers[matchId]);
+        }
+        saveData();
+    }
+
+    function koFinishMatch(matchId) {
+        const match = findKoMatchById(matchId);
+        if (!match || match.status === 'finished') return;
+        if (match.scoreA === match.scoreB) {
+            return alert('Skor imbang tidak valid untuk babak gugur. Tentukan pemenang dulu (misal via poin tambahan/rubber game), lalu selesaikan.');
+        }
+        clearInterval(koTimers[matchId]); delete koTimers[matchId];
+        match.status = 'finished';
+        match.isRunning = false;
+        match.winnerId = match.scoreA > match.scoreB ? match.teamAId : match.teamBId;
+
+        const roundIdx = rrBracket.findIndex(r => r.matches.some(m => m.id === matchId));
+        const round = rrBracket[roundIdx];
+        const allDone = round.matches.every(m => m.status === 'finished');
+        if (allDone) {
+            const winners = round.matches.map(m => m.winnerId);
+            if (winners.length === 1) {
+                rrPhase = 'finished';
+            } else if (roundIdx === rrBracket.length - 1) {
+                rrBracket.push(buildKnockoutRound(winners));
+            }
+        }
+        saveData();
+    }
+
+    function resetRoundRobinTournament() {
+        if (!confirm('Reset seluruh turnamen Round Robin + Knockout? Daftar tim, jadwal, skor, dan bracket akan dihapus semua.')) return;
+        Object.values(rrTimers).forEach(clearInterval); rrTimers = {};
+        Object.values(koTimers).forEach(clearInterval); koTimers = {};
+        rrTeams = [];
+        rrMatches = [];
+        rrBracket = [];
+        rrSettings = { qualifyCount: 4, totalCourts: 2 };
+        rrPhase = 'setup';
+        saveData();
+    }
+
+    // --- Rendering ---
+    function renderRRSetup() {
+        const card = document.getElementById('rrSetupCard');
+        const locked = rrPhase !== 'setup';
+        card.innerHTML = `
+            <h2>⚔️ Setup Turnamen Round Robin</h2>
+            ${locked ? `<p style="font-size:0.85rem; color: var(--warning); margin-bottom:10px;">Turnamen sedang berjalan (fase: ${rrPhase === 'roundrobin' ? 'Round Robin' : rrPhase === 'knockout' ? 'Knockout' : 'Selesai'}). Reset turnamen untuk mengubah daftar tim / pengaturan.</p>` : ''}
+            <form id="rrTeamForm" onsubmit="addRRTeam(event)" class="flex-row" style="${locked ? 'opacity:0.5; pointer-events:none;' : ''}">
+                <input type="text" id="rrTeamName" placeholder="Nama Tim" required style="flex:1;">
+                <input type="text" id="rrTeamMembers" placeholder="Anggota (pisah koma, opsional)" style="flex:2;">
+                <button type="submit">+ Tambah Tim</button>
+            </form>
+            <div style="margin-top:10px; max-height:220px; overflow-y:auto;">
+                ${rrTeams.length === 0 ? '<p style="color:var(--text-muted); font-size:0.9rem;">Belum ada tim terdaftar.</p>' : rrTeams.map(t => `
+                    <div class="rr-team-chip">
+                        <div>
+                            <strong>${t.name}</strong>
+                            ${t.members.length ? `<div style="font-size:0.8rem; color:var(--text-muted);">${t.members.join(', ')}</div>` : ''}
+                        </div>
+                        ${locked ? '' : `<button onclick="deleteRRTeam('${t.id}')" class="btn-danger" style="padding:4px 8px;">-</button>`}
+                    </div>
+                `).join('')}
+            </div>
+            <hr style="border-color: var(--border); margin: 15px 0;">
+            <div class="flex-row">
+                <input type="number" id="rrQualifyCount" placeholder="Jumlah Tim Lolos Knockout" value="${rrSettings.qualifyCount || 4}" min="2" style="flex:1;" ${locked ? 'disabled' : ''}>
+                <input type="number" id="rrTotalCourts" placeholder="Jumlah Lapangan" value="${rrSettings.totalCourts || 2}" min="1" style="flex:1;" ${locked ? 'disabled' : ''}>
+            </div>
+            ${locked ? `<button onclick="resetRoundRobinTournament()" class="btn-danger" style="width:100%; margin-top:10px;">Reset Turnamen</button>`
+                     : `<button onclick="generateRRSchedule()" class="btn-success" style="width:100%; margin-top:10px; padding:10px;">Buat Jadwal Round Robin</button>`}
+        `;
+    }
+
+    function renderRRStandings() {
+        const card = document.getElementById('rrStandingsCard');
+        const standings = getRRStandings();
+        card.innerHTML = `
+            <h2>Klasemen Round Robin</h2>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tim</th><th>M</th><th>W</th><th>D</th><th>L</th><th>PF</th><th>PA</th><th>SG</th><th>Poin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${standings.length === 0 ? '<tr><td colspan="9" style="color:var(--text-muted);">Belum ada data.</td></tr>' : standings.map(t => `
+                            <tr>
+                                <td>${t.name}</td>
+                                <td>${t.stats.played}</td>
+                                <td style="color:var(--success)">${t.stats.win}</td>
+                                <td>${t.stats.draw}</td>
+                                <td style="color:var(--danger)">${t.stats.loss}</td>
+                                <td>${t.stats.pf}</td>
+                                <td>${t.stats.pa}</td>
+                                <td>${t.stats.pf - t.stats.pa}</td>
+                                <td style="font-weight:bold; color:var(--primary);">${t.stats.pts}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            ${rrPhase === 'roundrobin' ? `<button onclick="startKnockout()" class="btn-success" style="width:100%; margin-top:15px; padding:10px;">Mulai Babak Knockout (Top ${rrSettings.qualifyCount})</button>` : ''}
+        `;
+    }
+
+    function renderRRSchedule() {
+        const card = document.getElementById('rrScheduleCard');
+        if (rrPhase === 'setup') {
+            card.innerHTML = `<h2>Jadwal Pertandingan</h2><p style="color:var(--text-muted); font-size:0.9rem;">Daftarkan minimal 2 tim, lalu klik "Buat Jadwal Round Robin" untuk membuat jadwal otomatis (setiap tim saling bertemu satu kali).</p>`;
+            return;
+        }
+        const rounds = [...new Set(rrMatches.map(m => m.round))].sort((a, b) => a - b);
+        card.innerHTML = `
+            <h2>Jadwal &amp; Hasil Round Robin</h2>
+            <div style="max-height:420px; overflow-y:auto;">
+            ${rounds.map(r => `
+                <div class="rr-round-title">Ronde ${r}</div>
+                ${rrMatches.filter(m => m.round === r).map(m => `
+                    <div class="rr-fixture-row">
+                        <div class="rr-fx-teams">
+                            ${rrGetTeamName(m.teamAId)} <span style="color:var(--text-muted);">vs</span> ${rrGetTeamName(m.teamBId)}
+                            ${m.status === 'finished' ? `<strong style="color:var(--primary);"> &mdash; ${m.scoreA} : ${m.scoreB}</strong>` : ''}
+                            <span class="rr-status-pill rr-status-${m.status}">${m.status === 'pending' ? 'Belum Main' : m.status === 'ongoing' ? 'Lap. ' + m.court : 'Selesai'}</span>
+                        </div>
+                        ${m.status === 'pending' ? `<button onclick="startRRMatch('${m.id}')" class="btn-success" style="padding:5px 10px;">Mulai</button>` : ''}
+                    </div>
+                `).join('')}
+            `).join('')}
+            </div>
+        `;
+    }
+
+    function renderRRCourts() {
+        const card = document.getElementById('rrCourtsCard');
+        const ongoing = rrMatches.filter(m => m.status === 'ongoing');
+        if (rrPhase === 'setup') { card.innerHTML = ''; return; }
+        card.innerHTML = `
+            <h2>Lapangan Round Robin Berjalan</h2>
+            ${ongoing.length === 0 ? '<p style="color:var(--text-muted); font-size:0.9rem;">Tidak ada pertandingan yang sedang berjalan.</p>' : ongoing.map(m => `
+                <div class="court">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:10px;">
+                        <h3 style="color:var(--primary);">Lapangan ${m.court} &middot; Ronde ${m.round}</h3>
+                        <div class="flex-row">
+                            <button onclick="rrToggleTimer('${m.id}')" class="${m.isRunning ? 'btn-warning' : 'btn-success'}">${m.isRunning ? 'Pause' : 'Start'}</button>
+                        </div>
+                    </div>
+                    <div class="timer-display" id="rr-timer-${m.id}">${formatTime(m.time)}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
+                        <div style="flex:1; text-align:center;">
+                            <div style="font-weight:bold; margin-bottom:6px;">${rrGetTeamName(m.teamAId)}</div>
+                            <div style="font-size:2rem; font-weight:bold;">${m.scoreA}</div>
+                            <div class="flex-row" style="justify-content:center; margin-top:6px;">
+                                <button onclick="rrUpdateScore('${m.id}', 'A', -1)" style="background:var(--border); color:#fff; padding:5px 10px;">-1</button>
+                                <button onclick="rrUpdateScore('${m.id}', 'A', 1)" class="btn-success" style="padding:5px 10px;">+1</button>
+                            </div>
+                        </div>
+                        <div style="color:var(--text-muted); font-weight:bold;">VS</div>
+                        <div style="flex:1; text-align:center;">
+                            <div style="font-weight:bold; margin-bottom:6px;">${rrGetTeamName(m.teamBId)}</div>
+                            <div style="font-size:2rem; font-weight:bold;">${m.scoreB}</div>
+                            <div class="flex-row" style="justify-content:center; margin-top:6px;">
+                                <button onclick="rrUpdateScore('${m.id}', 'B', -1)" style="background:var(--border); color:#fff; padding:5px 10px;">-1</button>
+                                <button onclick="rrUpdateScore('${m.id}', 'B', 1)" class="btn-success" style="padding:5px 10px;">+1</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-row" style="justify-content:space-between; margin-top:15px;">
+                        <button onclick="rrCancelMatch('${m.id}')" class="btn-danger">Batal</button>
+                        <button onclick="rrFinishMatch('${m.id}')" class="btn-success" style="padding:10px 20px;">Selesai Match</button>
+                    </div>
+                </div>
+            `).join('')}
+        `;
+    }
+
+    function renderRRKnockout() {
+        const card = document.getElementById('rrKnockoutCard');
+        if (rrPhase !== 'knockout' && rrPhase !== 'finished') { card.innerHTML = ''; return; }
+
+        const champion = rrPhase === 'finished' && rrBracket.length ? rrGetTeamName(rrBracket[rrBracket.length - 1].matches[0].winnerId) : null;
+
+        card.innerHTML = `
+            <h2>${rrPhase === 'finished' ? '🏆 Turnamen Selesai' : '☠️ Babak Knockout'}</h2>
+            ${champion ? `<div style="text-align:center; padding:20px; font-size:1.4rem; color:var(--primary); font-weight:bold;">🏆 Juara: ${champion} 🏆</div>` : ''}
+            ${rrBracket.map(round => `
+                <div class="ko-round-block">
+                    <div class="rr-round-title">${round.roundName}</div>
+                    ${round.matches.map(m => `
+                        <div class="ko-match-card">
+                            <div class="ko-team-line ${m.status === 'finished' && m.winnerId === m.teamAId ? 'winner' : ''}">
+                                <span>${rrGetTeamName(m.teamAId)}</span>
+                                <span>${m.teamAId ? m.scoreA : ''}</span>
+                            </div>
+                            <div class="ko-team-line ${m.status === 'finished' && m.winnerId === m.teamBId ? 'winner' : ''}">
+                                <span>${rrGetTeamName(m.teamBId)}</span>
+                                <span>${m.teamBId ? m.scoreB : ''}</span>
+                            </div>
+                            ${(!m.teamAId || !m.teamBId) ? '<div style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">Otomatis lolos (BYE)</div>' : `
+                                ${m.status === 'pending' ? `<button onclick="koStartMatch('${m.id}')" class="btn-success" style="width:100%; margin-top:8px;">Mulai Pertandingan</button>` : ''}
+                                ${m.status === 'ongoing' ? `
+                                    <div class="timer-display" id="ko-timer-${m.id}" style="margin:8px 0;">${formatTime(m.time)}</div>
+                                    <div class="flex-row" style="justify-content:space-between;">
+                                        <button onclick="koToggleTimer('${m.id}')" class="${m.isRunning ? 'btn-warning' : 'btn-success'}" style="flex:1;">${m.isRunning ? 'Pause' : 'Start'}</button>
+                                    </div>
+                                    <div class="flex-row" style="justify-content:space-between; margin-top:6px;">
+                                        <div class="flex-row"><button onclick="koUpdateScore('${m.id}','A',-1)" style="background:var(--border); color:#fff;">-1</button><button onclick="koUpdateScore('${m.id}','A',1)" class="btn-success">+1 A</button></div>
+                                        <div class="flex-row"><button onclick="koUpdateScore('${m.id}','B',1)" class="btn-success">+1 B</button><button onclick="koUpdateScore('${m.id}','B',-1)" style="background:var(--border); color:#fff;">-1</button></div>
+                                    </div>
+                                    <button onclick="koFinishMatch('${m.id}')" class="btn-success" style="width:100%; margin-top:8px;">Selesai Match</button>
+                                ` : ''}
+                            `}
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('')}
+        `;
     }
 
     // Jalankan aplikasi saat load: ambil data bersama dari Supabase, render, lalu dengarkan perubahan realtime
