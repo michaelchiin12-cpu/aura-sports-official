@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA SPORT MANAGER</title>
+    <!-- Library html2canvas untuk fitur Export Klasemen ke Gambar -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Supabase JS client - untuk penyimpanan data bersama + sinkronisasi realtime antar pengguna -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            /* Tema Warna: Hitam, Emas, dan Putih menyesuaikan Logo */
+            --bg-main: #000000;      /* Hitam pekat */
+            --bg-card: #111111;      /* Abu-abu sangat gelap */
+            --primary: #c89f4c;      /* Warna emas */
+            --primary-hover: #e0b865;
+            
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text-main: #ffffff;    
+            --text-muted: #9ca3af;
+            --border: #333333;       
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-main); color: var(--text-main); padding: 20px; }
+        .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
+        
+        .card { background-color: var(--bg-card); padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; }
+        .card h2 { margin-bottom: 15px; font-size: 1.2rem; color: var(--primary); }
+        
+        input, select, button { padding: 8px 12px; margin: 5px 0; border-radius: 5px; border: 1px solid var(--border); background-color: var(--bg-main); color: var(--text-main); }
+        button { background-color: var(--primary); color: #000; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background-color: var(--primary-hover); }
+        button.btn-danger { background-color: var(--danger); color: #fff; }
+        button.btn-success { background-color: var(--success); color: #fff; }
+        button.btn-warning { background-color: var(--warning); color: #000; }
+        
+        .flex-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background-color: var(--bg-main); color: var(--primary); }
+        
+        .badge { padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; }
+        .badge-adv { background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .badge-int { background-color: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+        .badge-beg { background-color: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+
+        .court { border: 2px solid var(--primary); padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .team-box { display: flex; justify-content: space-between; margin-bottom: 10px; background: var(--bg-main); padding: 10px; border-radius: 5px;}
+        .player-score-controls { display: flex; gap: 5px; margin-top: 5px;}
+        .player-score-controls button { padding: 4px 8px; font-size: 0.8rem;}
+        
+        .timer-display { font-size: 1.5rem; font-weight: bold; text-align: center; margin: 10px 0; letter-spacing: 2px; color: var(--primary); }
+
+        /* --- STYLES UNTUK TAB & FITUR KEUANGAN --- */
+        .nav-tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { padding: 12px 24px; font-size: 1rem; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+        .tab-btn.active { background: var(--primary); color: #000; border-color: var(--primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .stat-card { background: var(--bg-main); border: 1px solid var(--border); border-radius: 6px; padding: 15px; text-align: center; }
+        .stat-card .val { font-size: 1.3rem; font-weight: bold; margin-top: 5px; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <img src="1000748590.png" alt="Logo Aura Sport" style="width: 120px; height: auto; margin-bottom: 10px;">
+        <h1 style="color: var(--primary);">AURA SPORT MANAGER</h1>
+        <div class="flex-row" style="justify-content: center; margin-top: 10px;">
+            <button onclick="exportData()">Export Backup (JSON)</button>
+            <input type="file" id="importFile" accept=".json" onchange="importData(event)" style="display:none;">
+            <button onclick="document.getElementById('importFile').click()" class="btn-warning">Import Backup</button>
+            <button onclick="clearMatchDataOnly()" class="btn-warning">Reset Pertandingan Saja</button>
+            <button onclick="clearAllData()" class="btn-danger">Reset Total Aplikasi</button>
+        </div>
+    </div>
+
+    <!-- Navigasi Utama System Tab -->
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('match')">🎮 Pertandingan & Klasemen</button>
+        <button class="tab-btn" onclick="switchTab('finance')">💰 Keuangan & Deposit</button>
+    </div>
+
+    <!-- ================= TAB 1: PERTANDINGAN & KLASEMEN ================= -->
+    <div id="tab-match" class="tab-content active">
+        <div class="container">
+            <!-- Panel Kiri: Pengaturan, Pemain, Antrean -->
+            <div>
+                <div class="card">
+                    <h2>Pengaturan Olahraga</h2>
+                    <div class="flex-row">
+                        <select id="sportType" onchange="toggleCustomSport()">
+                            <option value="Badminton">Badminton</option>
+                            <option value="Futsal">Futsal</option>
+                            <option value="Volly">Volly</option>
+                            <option value="Basket">Basket</option>
+                            <option value="Custom">Custom...</option>
+                        </select>
+                        <input type="text" id="customSportName" placeholder="Nama Olahraga" style="display:none;">
+                        <input type="number" id="playersPerTeam" placeholder="Pemain per Tim" value="2" min="1" max="11" style="width: 130px;">
+                        <input type="number" id="totalCourts" placeholder="Jumlah Lapangan" value="1" min="1" max="10" style="width: 140px;">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Registrasi Pemain</h2>
+                    <form id="playerForm" onsubmit="addPlayer(event)" class="flex-row">
+                        <input type="text" id="playerName" placeholder="Nama Pemain" required style="flex:2;">
+                        <select id="playerGender" required style="flex:1;">
+                            <option value="L">L</option>
+                            <option value="P">P</option>
+                        </select>
+                        <select id="playerLevel" required style="flex:1;">
+                            <option value="3">Advanced</option>
+                            <option value="2">Intermediate</option>
+                            <option value="1">Beginner</option>
+                        </select>
+                        <button type="submit">+ Tambah</button>
+                    </form>
+                    
+                    <table id="playersTable">
+                        <thead>
+                            <tr>
+                                <th>Nama</th>
+                                <th>L/P</th>
+                                <th>Level</th>
+                                <th>Saldo</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="playersList"></tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h2>Daftar Antrean (Waiting List)</h2>
+                    <p style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted);">Diurutkan berdasarkan yang paling sedikit bermain.</p>
+                    <div id="queueList" class="flex-row"></div>
+                </div>
+            </div>
+
+            <!-- Panel Kanan: Pertandingan & Klasemen -->
+            <div>
+                <div class="card">
+                    <h2>Manajemen Lapangan</h2>
+                    <button onclick="generateMatches()" class="btn-success" style="width: 100%; margin-bottom: 15px; padding: 12px; font-size: 1.1rem;">Acak Pertandingan Baru</button>
+                    <div id="courtsContainer"></div>
+                </div>
+
+                <div class="card" id="standingsCard">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2>Klasemen Pemain</h2>
+                        <button onclick="exportStandingsToImage()" class="btn-warning">Download Klasemen</button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="standingsTable">
+                            <thead>
+                                <tr>
+                                    <th>Nama</th>
+                                    <th>Main</th>
+                                    <th>Menang</th>
+                                    <th>WR %</th>
+                                    <th>Point</th>
+                                    <th>Out</th>
+                                    <th>Fault</th>
+                                </tr>
+                            </thead>
+                            <tbody id="standingsList"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Riwayat Pemain</h2>
+                    <input type="text" id="historyFilter" placeholder="Cari nama pemain..." onkeyup="renderHistory()" style="width: 100%; margin-bottom: 10px;">
+                    <div id="historyList" style="max-height: 300px; overflow-y: auto; font-size: 0.9rem;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= TAB 2: KEUANGAN & DEPOSIT ================= -->
+    <div id="tab-finance" class="tab-content">
+        <div class="container">
+            <!-- Panel Kiri Tab Keuangan: Form Transaksi & Otomatisasi -->
+            <div>
+                <div class="card">
+                    <h2>Top Up / Tarik Saldo Deposit</h2>
+                    <form onsubmit="handleTransactionSubmit(event)">
+                        <div class="flex-row">
+                            <select id="finPlayerSelect" required style="width: 100%;">
+                                <option value="">-- Pilih Pemain --</option>
+                            </select>
+                        </div>
+                        <div class="flex-row">
+                            <select id="finType" required style="flex: 1;">
+                                <option value="in">Top Up (Masuk)</option>
+                                <option value="out">Tarik Saldo (Keluar)</option>
+                            </select>
+                            <input type="number" id="finAmount" placeholder="Nominal (Rp)" required style="flex: 2;">
+                        </div>
+                        <input type="text" id="finDesc" placeholder="Keterangan (misal: Transfer BCA, Cash, dll)" style="width: 100%;">
+                        <button type="submit" class="btn-success" style="width: 100%; margin-top: 10px;">Simpan Transaksi</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Otomatisasi Potongan Permainan</h2>
+                    <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">Set biaya per game untuk otomatis memotong deposit pemain saat pertandingan selesai.</div>
+                    <div class="flex-row">
+                        <input type="number" id="payPerPlayFee" placeholder="Biaya per Match/Pemain (Rp)" style="flex: 2;">
+                        <button onclick="savePayPerPlaySetting()" style="flex: 1;">Simpan Tarif</button>
+                    </div>
+                    <hr style="border-color: var(--border); margin: 15px 0;">
+                    <p style="font-weight: bold; font-size: 0.9rem; margin-bottom: 5px;">Bagi Rata Biaya Sewa Lapangan Venue</p>
+                    <div class="flex-row">
+                        <input type="number" id="totalVenueCost" placeholder="Total Sewa Venue (Rp)" style="flex: 2;">
+                        <button onclick="splitVenueCost()" class="btn-warning" style="flex: 1;">Potong Semua Pemain</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Manajemen Data Keuangan</h2>
+                    <div class="flex-row">
+                        <button onclick="exportFinanceCSV()" style="flex:1;">Export Mutasi (CSV)</button>
+                        <button onclick="clearFinanceDataOnly()" class="btn-danger" style="flex:1;">Reset Keuangan Saja</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel Kanan Tab Keuangan: Ringkasan & Filter Mutasi -->
+            <div>
+                <div class="card">
+                    <h2>Ringkasan Saldo & Filter Mutasi</h2>
+                    <div class="flex-row" style="margin-bottom: 15px;">
+                        <select id="filterPlayerFinance" onchange="renderFinance()" style="width: 100%;">
+                            <option value="ALL">-- Tampilkan Mutasi Semua Pemain --</option>
+                        </select>
+                    </div>
+
+                    <div class="stat-grid">
+                        <div class="stat-card">
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Total Deposit Komunitas</div>
+                            <div class="val" id="statTotalCommunity">Rp 0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Total Pengeluaran/Pakai</div>
+                            <div class="val" id="statTotalSpent" style="color: var(--danger);">Rp 0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">Sisa Saldo Pemain Terpilih</div>
+                            <div class="val" id="statSelectedBalance" style="color: var(--success);">Rp 0</div>
+                        </div>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Nama</th>
+                                    <th>Keterangan</th>
+                                    <th>Masuk</th>
+                                    <th>Keluar</th>
+                                    <th>Saldo Berjalan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mutationList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // ================= KONEKSI SUPABASE (Data Bersama + Realtime) =================
+    // GANTI dua nilai di bawah ini dengan Project URL dan anon public key
+    // dari Supabase project kamu (Settings -> API di dashboard Supabase).
+    const SUPABASE_URL = 'GANTI_DENGAN_SUPABASE_PROJECT_URL';
+    const SUPABASE_ANON_KEY = 'GANTI_DENGAN_SUPABASE_ANON_KEY';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const STATE_ROW_ID = 1; // baris tunggal tempat seluruh state aplikasi disimpan
+
+    // --- State Management ---
+    let players = [];
+    let matchesHistory = [];
+    let activeMatches = [];
+    let financeTransactions = [];
+    let financeSettings = { payPerPlay: 0 };
+    let timers = {};
+
+    // Ambil state terbaru dari Supabase
+    async function loadState() {
+        const { data, error } = await supabaseClient
+            .from('sport_manager_state')
+            .select('*')
+            .eq('id', STATE_ROW_ID)
+            .single();
+
+        if (error) {
+            console.error('Gagal memuat data dari Supabase:', error);
+            alert('Gagal terhubung ke database. Cek koneksi internet atau konfigurasi Supabase URL/Key.');
+            return;
+        }
+
+        players = data.players || [];
+        matchesHistory = data.matches_history || [];
+        activeMatches = data.active_matches || [];
+        financeTransactions = data.finance_transactions || [];
+        financeSettings = data.finance_settings || { payPerPlay: 0 };
+    }
+
+    // Dengarkan perubahan realtime dari pengguna lain yang terhubung
+    function subscribeRealtime() {
+        supabaseClient
+            .channel('sport_manager_state_changes')
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'sport_manager_state',
+                filter: `id=eq.${STATE_ROW_ID}`
+            }, (payload) => {
+                const row = payload.new;
+                players = row.players || [];
+                matchesHistory = row.matches_history || [];
+                activeMatches = row.active_matches || [];
+                financeTransactions = row.finance_transactions || [];
+                financeSettings = row.finance_settings || { payPerPlay: 0 };
+                init();
+            })
+            .subscribe();
+    }
+
+    // Pastikan timer lokal berjalan/berhenti sesuai flag isRunning tiap match
+    // (waktu tidak di-tick per detik ke server, hanya base value + status saat start/pause)
+    function syncTimers() {
+        Object.keys(timers).forEach(matchId => {
+            const match = activeMatches.find(m => m.id === matchId);
+            if (!match || !match.isRunning) {
+                clearInterval(timers[matchId]);
+                delete timers[matchId];
+            }
+        });
+        activeMatches.forEach(match => {
+            if (match.isRunning && !timers[match.id]) {
+                timers[match.id] = setInterval(() => {
+                    match.time++;
+                    const el = document.getElementById(`timer-${match.id}`);
+                    if (el) el.innerText = formatTime(match.time);
+                }, 1000);
+            }
+        });
+    }
+
+    // --- Inisialisasi ---
+    function init() {
+        // Pastikan setiap pemain memiliki properti deposit
+        players.forEach(p => { if(p.deposit === undefined) p.deposit = 0; });
+        
+        renderPlayers();
+        renderQueue();
+        renderCourts();
+        renderStandings();
+        renderHistory();
+        renderFinance();
+        syncTimers();
+
+        document.getElementById('payPerPlayFee').value = financeSettings.payPerPlay || 0;
+    }
+
+    // Simpan seluruh state ke Supabase (satu baris bersama) lalu broadcast otomatis
+    // ke semua client lain yang terhubung lewat Realtime.
+    async function saveData() {
+        init(); // render optimis di layar sendiri dulu, tanpa nunggu respons server
+        const { error } = await supabaseClient
+            .from('sport_manager_state')
+            .update({
+                players,
+                matches_history: matchesHistory,
+                active_matches: activeMatches,
+                finance_transactions: financeTransactions,
+                finance_settings: financeSettings,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', STATE_ROW_ID);
+
+        if (error) {
+            console.error('Gagal menyimpan ke Supabase:', error);
+            alert('Gagal menyimpan perubahan ke server: ' + error.message);
+        }
+    }
+
+    // --- Navigasi Tab ---
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        if(tabName === 'match') {
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            document.getElementById('tab-match').classList.add('active');
+        } else {
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            document.getElementById('tab-finance').classList.add('active');
+        }
+    }
+
+    // --- Fitur Pemain ---
+    function addPlayer(e) {
+        e.preventDefault();
+        const name = document.getElementById('playerName').value.trim();
+        const gender = document.getElementById('playerGender').value;
+        const level = parseInt(document.getElementById('playerLevel').value);
+        
+        if(players.find(p => p.name.toLowerCase() === name.toLowerCase())) {
+            alert('Nama pemain sudah ada!'); return;
+        }
+
+        players.push({
+            id: Date.now().toString(),
+            name, gender, level,
+            status: 'active',
+            deposit: 0,
+            stats: { played: 0, wins: 0, points: 0, out: 0, fault: 0 }
+        });
+        
+        document.getElementById('playerForm').reset();
+        saveData();
+    }
+
+    function toggleStatus(id) {
+        const p = players.find(x => x.id === id);
+        if(p.status === 'playing') return alert('Pemain sedang bertanding!');
+        p.status = p.status === 'active' ? 'resting' : 'active';
+        saveData();
+    }
+
+    function deletePlayer(id) {
+        if(confirm('Hapus pemain ini?')) {
+            players = players.filter(p => p.id !== id);
+            saveData();
+        }
+    }
+
+    function formatRupiah(num) {
+        return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+    }
+
+    // --- Tampilan UI ---
+    function getLevelBadge(level) {
+        if(level === 3) return '<span class="badge badge-adv">Adv</span>';
+        if(level === 2) return '<span class="badge badge-int">Int</span>';
+        return '<span class="badge badge-beg">Beg</span>';
+    }
+
+    function renderPlayers() {
+        const tbody = document.getElementById('playersList');
+        tbody.innerHTML = players.map(p => `
+            <tr>
+                <td>${p.name}</td>
+                <td>${p.gender}</td>
+                <td>${getLevelBadge(p.level)}</td>
+                <td style="color:${p.deposit < 0 ? 'var(--danger)' : 'var(--success)'}; font-weight:bold;">${formatRupiah(p.deposit)}</td>
+                <td>
+                    <button onclick="toggleStatus('${p.id}')" class="${p.status === 'active' ? 'btn-success' : p.status === 'playing' ? 'btn-warning' : 'btn-danger'}" ${p.status==='playing'?'disabled':''} style="padding: 4px 8px; font-size: 0.8rem; color: ${p.status==='playing'?'#000':'#fff'}">
+                        ${p.status.toUpperCase()}
+                    </button>
+                </td>
+                <td>
+                    <button onclick="deletePlayer('${p.id}')" class="btn-danger" style="padding: 4px 8px;">-</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function renderQueue() {
+        const queueDiv = document.getElementById('queueList');
+        const queue = players
+            .filter(p => p.status === 'active')
+            .sort((a, b) => a.stats.played - b.stats.played);
+            
+        queueDiv.innerHTML = queue.map(p => `
+            <div style="background: var(--bg-card); padding: 5px 10px; border: 1px solid var(--border); border-radius: 4px;">
+                ${p.name} (${p.stats.played}x)
+            </div>
+        `).join('');
+    }
+
+    // --- Algoritma Matchmaking Dinamis ---
+    function generateMatches() {
+        const teamSize = parseInt(document.getElementById('playersPerTeam').value);
+        const maxCourts = parseInt(document.getElementById('totalCourts').value);
+        const requiredPlayersPerMatch = teamSize * 2;
+        
+        let availableQueue = players
+            .filter(p => p.status === 'active')
+            .sort((a, b) => a.stats.played - b.stats.played);
+
+        if(availableQueue.length < requiredPlayersPerMatch) {
+            alert(`Pemain aktif tidak cukup. Butuh ${requiredPlayersPerMatch}, tersedia ${availableQueue.length}.`);
+            return;
+        }
+
+        let courtsToFill = maxCourts - activeMatches.length;
+        if(courtsToFill <= 0) {
+            alert('Semua lapangan sedang digunakan!');
+            return;
+        }
+
+        for(let i=0; i<courtsToFill; i++) {
+            if(availableQueue.length < requiredPlayersPerMatch) break;
+            
+            let matchPlayers = availableQueue.splice(0, requiredPlayersPerMatch);
+            matchPlayers.sort((a, b) => b.level - a.level);
+            
+            let teamA = [], teamB = [];
+            let scoreA = 0, scoreB = 0;
+
+            matchPlayers.forEach((p) => {
+                if(scoreA <= scoreB && teamA.length < teamSize) {
+                    teamA.push(p); scoreA += p.level;
+                } else if(teamB.length < teamSize) {
+                    teamB.push(p); scoreB += p.level;
+                } else {
+                    teamA.push(p); scoreA += p.level;
+                }
+            });
+
+            [...teamA, ...teamB].forEach(p => {
+                const playerRef = players.find(x => x.id === p.id);
+                if(playerRef) playerRef.status = 'playing';
+            });
+
+            activeMatches.push({
+                id: Date.now().toString() + i,
+                courtName: `Lapangan ${activeMatches.length + 1}`,
+                teamA: teamA.map(p => ({...p, matchPoints: 0, matchOuts: 0, matchFaults: 0})),
+                teamB: teamB.map(p => ({...p, matchPoints: 0, matchOuts: 0, matchFaults: 0})),
+                scoreA: 0, scoreB: 0, time: 0, isRunning: false
+            });
+        }
+        saveData();
+    }
+
+    // --- Kontrol Pertandingan ---
+    function updateScore(matchId, team, playerIdx, type, isMinus) {
+        const match = activeMatches.find(m => m.id === matchId);
+        const player = match[team][playerIdx];
+        const val = isMinus ? -1 : 1;
+
+        if(type === 'point') {
+            player.matchPoints += val;
+            if(team === 'teamA') match.scoreA += val; else match.scoreB += val;
+        } else if(type === 'out') {
+            player.matchOuts += val;
+            if(team === 'teamA') match.scoreB += val; else match.scoreA += val;
+        } else if(type === 'fault') {
+            player.matchFaults += val;
+            if(team === 'teamA') match.scoreB += val; else match.scoreA += val;
+        }
+        saveData();
+    }
+
+    function manualScore(matchId) {
+        const match = activeMatches.find(m => m.id === matchId);
+        const sA = prompt("Masukkan Skor Tim A:", match.scoreA);
+        const sB = prompt("Masukkan Skor Tim B:", match.scoreB);
+        if(sA !== null && sB !== null) {
+            match.scoreA = parseInt(sA) || 0;
+            match.scoreB = parseInt(sB) || 0;
+            saveData();
+        }
+    }
+
+    function toggleTimer(matchId) {
+        const match = activeMatches.find(m => m.id === matchId);
+        match.isRunning = !match.isRunning;
+        
+        if(match.isRunning) {
+            timers[matchId] = setInterval(() => {
+                match.time++;
+                document.getElementById(`timer-${matchId}`).innerText = formatTime(match.time);
+            }, 1000);
+        } else {
+            clearInterval(timers[matchId]);
+        }
+        saveData();
+    }
+
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const s = (seconds % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    }
+
+    function finishMatch(matchId, isSkip = false) {
+        clearInterval(timers[matchId]);
+        const match = activeMatches.find(m => m.id === matchId);
+        
+        if(!isSkip) {
+            const winner = match.scoreA > match.scoreB ? 'A' : (match.scoreB > match.scoreA ? 'B' : 'Draw');
+            const fee = parseInt(financeSettings.payPerPlay) || 0;
+
+            const updatePlayerStats = (p, team) => {
+                const ref = players.find(x => x.id === p.id);
+                if(ref) {
+                    ref.stats.played += 1;
+                    ref.stats.points += p.matchPoints;
+                    ref.stats.out += p.matchOuts;
+                    ref.stats.fault += p.matchFaults;
+                    if(winner === team) ref.stats.wins += 1;
+                    ref.status = 'active';
+
+                    // Otomatis Potong Deposit jika Tarif Pay-Per-Play Aktif
+                    if(fee > 0) {
+                        ref.deposit -= fee;
+                        financeTransactions.push({
+                            id: Date.now().toString() + Math.random().toString().slice(2,5),
+                            date: new Date().toLocaleString('id-ID'),
+                            playerId: ref.id,
+                            playerName: ref.name,
+                            type: 'out',
+                            amount: fee,
+                            desc: `Otomatis Match (${match.courtName})`
+                        });
+                    }
+                }
+            };
+
+            match.teamA.forEach(p => updatePlayerStats(p, 'A'));
+            match.teamB.forEach(p => updatePlayerStats(p, 'B'));
+            
+            matchesHistory.push({ date: new Date().toLocaleString(), ...match });
+        } else {
+            [...match.teamA, ...match.teamB].forEach(p => {
+                const ref = players.find(x => x.id === p.id);
+                if(ref) ref.status = 'active';
+            });
+        }
+
+        activeMatches = activeMatches.filter(m => m.id !== matchId);
+        activeMatches.forEach((m, idx) => m.courtName = `Lapangan ${idx + 1}`);
+        saveData();
+    }
+
+    function renderCourts() {
+        const container = document.getElementById('courtsContainer');
+        container.innerHTML = activeMatches.map(match => `
+            <div class="court">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px;">
+                    <h3 style="color:var(--primary);">${match.courtName}</h3>
+                    <div class="flex-row">
+                        <button onclick="toggleTimer('${match.id}')" class="${match.isRunning ? 'btn-warning' : 'btn-success'}">${match.isRunning ? 'Pause' : 'Start'}</button>
+                        <button onclick="manualScore('${match.id}')" style="background-color: var(--primary); color: #000;">Edit Skor</button>
+                    </div>
+                </div>
+                
+                <div class="timer-display" id="timer-${match.id}">${formatTime(match.time)}</div>
+                
+                <div style="display:flex; justify-content:center; gap:30px; margin-bottom:15px;">
+                    <div style="font-size:2rem; font-weight:bold; color:var(--text-main);">${match.scoreA}</div>
+                    <div style="font-size:2rem; font-weight:bold; color:var(--primary);">-</div>
+                    <div style="font-size:2rem; font-weight:bold; color:var(--text-main);">${match.scoreB}</div>
+                </div>
+
+                <div class="team-box">
+                    <div style="flex:1;">
+                        <div style="font-weight:bold; margin-bottom:10px; border-bottom:1px solid var(--border); color:var(--primary);">TIM A</div>
+                        ${match.teamA.map((p, idx) => `
+                            <div style="margin-bottom:10px; font-size:0.9rem;">
+                                <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
+                                <div class="player-score-controls">
+                                    <button class="btn-success" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', false)">+Point</button>
+                                    <button class="btn-warning" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'out', false)">+Out</button>
+                                    <button class="btn-danger" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'fault', false)">+Fault</button>
+                                    <button onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', true)" style="background:var(--border); color:#fff">-</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="width:20px; text-align:center; font-weight:bold; color:var(--text-muted); align-self:center;">VS</div>
+                    <div style="flex:1; text-align:right;">
+                        <div style="font-weight:bold; margin-bottom:10px; border-bottom:1px solid var(--border); color:var(--primary);">TIM B</div>
+                        ${match.teamB.map((p, idx) => `
+                            <div style="margin-bottom:10px; font-size:0.9rem;">
+                                <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
+                                <div class="player-score-controls" style="justify-content:flex-end;">
+                                    <button onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', true)" style="background:var(--border); color:#fff">-</button>
+                                    <button class="btn-danger" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'fault', false)">+Fault</button>
+                                    <button class="btn-warning" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'out', false)">+Out</button>
+                                    <button class="btn-success" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', false)">+Point</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="flex-row" style="justify-content:space-between; margin-top:15px;">
+                    <button onclick="finishMatch('${match.id}', true)" class="btn-danger">Skip/Batal (Tidak Imbang)</button>
+                    <button onclick="finishMatch('${match.id}', false)" class="btn-success" style="padding:10px 20px;">Selesai Match</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // --- Klasemen & Riwayat ---
+    function renderStandings() {
+        const tbody = document.getElementById('standingsList');
+        const sorted = [...players].sort((a, b) => {
+            if(b.stats.wins !== a.stats.wins) return b.stats.wins - a.stats.wins;
+            return b.stats.points - a.stats.points;
+        });
+
+        tbody.innerHTML = sorted.map(p => {
+            const wr = p.stats.played > 0 ? Math.round((p.stats.wins / p.stats.played) * 100) : 0;
+            return `
+                <tr>
+                    <td>${p.name}</td>
+                    <td>${p.stats.played}</td>
+                    <td>${p.stats.wins}</td>
+                    <td>${wr}%</td>
+                    <td style="color:var(--success)">${p.stats.points}</td>
+                    <td style="color:var(--warning)">${p.stats.out}</td>
+                    <td style="color:var(--danger)">${p.stats.fault}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function renderHistory() {
+        const filter = document.getElementById('historyFilter').value.toLowerCase();
+        const container = document.getElementById('historyList');
+        
+        let filtered = matchesHistory.filter(m => {
+            if(!filter) return true;
+            const names = [...m.teamA, ...m.teamB].map(p => p.name.toLowerCase());
+            return names.some(n => n.includes(filter));
+        }).reverse();
+
+        container.innerHTML = filtered.map(m => `
+            <div style="border-bottom:1px solid var(--border); padding:10px 0;">
+                <div style="color:var(--text-muted); font-size:0.8rem;">${m.date} - ${m.courtName}</div>
+                <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                    <div>${m.teamA.map(p=>p.name).join(', ')}</div>
+                    <div style="font-weight:bold; color:var(--primary);">${m.scoreA} - ${m.scoreB}</div>
+                    <div style="text-align:right;">${m.teamB.map(p=>p.name).join(', ')}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // ================= LOGIKA KHUSUS KEUANGAN & DEPOSIT =================
+    function handleTransactionSubmit(e) {
+        e.preventDefault();
+        const playerId = document.getElementById('finPlayerSelect').value;
+        const type = document.getElementById('finType').value;
+        const amount = parseInt(document.getElementById('finAmount').value) || 0;
+        const desc = document.getElementById('finDesc').value || (type === 'in' ? 'Top Up Deposit' : 'Tarik Saldo');
+
+        if(!playerId || amount <= 0) return alert('Pilih pemain dan isi nominal dengan benar!');
+
+        const player = players.find(p => p.id === playerId);
+        if(!player) return;
+
+        if(type === 'in') {
+            player.deposit += amount;
+        } else {
+            player.deposit -= amount;
+        }
+
+        financeTransactions.push({
+            id: Date.now().toString(),
+            date: new Date().toLocaleString('id-ID'),
+            playerId: player.id,
+            playerName: player.name,
+            type, amount, desc
+        });
+
+        document.getElementById('finAmount').value = '';
+        document.getElementById('finDesc').value = '';
+        saveData();
+        alert(`Berhasil mencatat transaksi untuk ${player.name}`);
+    }
+
+    function savePayPerPlaySetting() {
+        const fee = parseInt(document.getElementById('payPerPlayFee').value) || 0;
+        financeSettings.payPerPlay = fee;
+        saveData();
+        alert('Tarif otomatisasi per match berhasil disimpan!');
+    }
+
+    function splitVenueCost() {
+        const totalCost = parseInt(document.getElementById('totalVenueCost').value) || 0;
+        if(totalCost <= 0) return alert('Masukkan nominal total sewa venue!');
+
+        const activePlayers = players.filter(p => p.status !== 'resting');
+        if(activePlayers.length === 0) return alert('Tidak ada pemain aktif untuk dibagi rata!');
+
+        const costPerPlayer = Math.round(totalCost / activePlayers.length);
+        if(confirm(`Bagi tagihan ${formatRupiah(totalCost)} kepada ${activePlayers.length} pemain aktif? (${formatRupiah(costPerPlayer)} / orang)`)) {
+            activePlayers.forEach(p => {
+                p.deposit -= costPerPlayer;
+                financeTransactions.push({
+                    id: Date.now().toString() + Math.random().toString().slice(2,5),
+                    date: new Date().toLocaleString('id-ID'),
+                    playerId: p.id,
+                    playerName: p.name,
+                    type: 'out',
+                    amount: costPerPlayer,
+                    desc: 'Patungan Sewa Venue Lapangan'
+                });
+            });
+            document.getElementById('totalVenueCost').value = '';
+            saveData();
+            alert('Iuran sewa venue berhasil dipotong dari deposit pemain!');
+        }
+    }
+
+    function renderFinance() {
+        // Populasikan Dropdown Pemain
+        const finSelect = document.getElementById('finPlayerSelect');
+        const filterSelect = document.getElementById('filterPlayerFinance');
+        
+        const currentFinVal = finSelect.value;
+        const currentFilterVal = filterSelect.value;
+
+        finSelect.innerHTML = '<option value="">-- Pilih Pemain --</option>' + 
+            players.map(p => `<option value="${p.id}">${p.name} (Saldo: ${formatRupiah(p.deposit)})</option>`).join('');
+            
+        filterSelect.innerHTML = '<option value="ALL">-- Tampilkan Mutasi Semua Pemain --</option>' + 
+            players.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+        finSelect.value = currentFinVal;
+        filterSelect.value = currentFilterVal;
+
+        // Hitung Ringkasan Menggunakan .reduce()
+        const totalCommunityDeposit = players.reduce((sum, p) => sum + p.deposit, 0);
+        const totalSpent = financeTransactions.filter(t => t.type === 'out').reduce((sum, t) => sum + t.amount, 0);
+        
+        document.getElementById('statTotalCommunity').innerText = formatRupiah(totalCommunityDeposit);
+        document.getElementById('statTotalSpent').innerText = formatRupiah(totalSpent);
+
+        // Filter Tabel Mutasi
+        const selectedPlayerId = filterSelect.value;
+        let filteredTx = [...financeTransactions];
+
+        if(selectedPlayerId !== 'ALL') {
+            filteredTx = filteredTx.filter(t => t.playerId === selectedPlayerId);
+            const selPlayer = players.find(p => p.id === selectedPlayerId);
+            document.getElementById('statSelectedBalance').innerText = selPlayer ? formatRupiah(selPlayer.deposit) : 'Rp 0';
+        } else {
+            document.getElementById('statSelectedBalance').innerText = formatRupiah(totalCommunityDeposit);
+        }
+
+        // Render Tabel Mutasi dengan Saldo Berjalan
+        const tbody = document.getElementById('mutationList');
+        let runningBalance = 0;
+
+        tbody.innerHTML = filteredTx.map(t => {
+            if(t.type === 'in') runningBalance += t.amount;
+            else runningBalance -= t.amount;
+
+            return `
+                <tr>
+                    <td style="font-size:0.8rem; color:var(--text-muted);">${t.date}</td>
+                    <td><strong>${t.playerName}</strong></td>
+                    <td>${t.desc}</td>
+                    <td style="color:var(--success);">${t.type === 'in' ? formatRupiah(t.amount) : '-'}</td>
+                    <td style="color:var(--danger);">${t.type === 'out' ? formatRupiah(t.amount) : '-'}</td>
+                    <td style="font-weight:bold; color:var(--primary);">${formatRupiah(runningBalance)}</td>
+                </tr>
+            `;
+        }).reverse().join('');
+    }
+
+    function exportFinanceCSV() {
+        if(financeTransactions.length === 0) return alert('Belum ada transaksi untuk di-export!');
+        let csv = 'ID,Tanggal,Nama Pemain,Jenis,Nominal,Keterangan\n';
+        financeTransactions.forEach(t => {
+            csv += `"${t.id}","${t.date}","${t.playerName}","${t.type === 'in' ? 'Masuk' : 'Keluar'}",${t.amount},"${t.desc}"\n`;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Laporan_Keuangan_AuraSport_${Date.now()}.csv`;
+        link.click();
+    }
+
+    // --- Utilitas Reset & Backup ---
+    function clearMatchDataOnly() {
+        if(confirm('Reset Struktur Permainan Saja?\n(Riwayat match, antrean, dan statistik skor akan dibersihkan, tetapi DATA KEUANGAN & SALDO DEPOSIT TETAP AMAN)')) {
+            matchesHistory = [];
+            activeMatches = [];
+            players.forEach(p => {
+                p.status = 'active';
+                p.stats = { played: 0, wins: 0, points: 0, out: 0, fault: 0 };
+            });
+            Object.values(timers).forEach(clearInterval);
+            timers = {};
+            saveData();
+            alert('Struktur permainan direset! Saldo deposit pemain tetap utuh.');
+        }
+    }
+
+    function clearFinanceDataOnly() {
+        if(confirm('Reset Keuangan Saja?\n(Seluruh riwayat mutasi akan dihapus dan saldo deposit semua pemain kembali ke Nol. Data statistik permainan TETAP AMAN)')) {
+            financeTransactions = [];
+            players.forEach(p => p.deposit = 0);
+            saveData();
+            alert('Data keuangan berhasil direset!');
+        }
+    }
+
+    function clearAllData() {
+        if(confirm('PERINGATAN TOTAL: Seluruh data pemain, pertandingan, dan keuangan akan dihapus permanen untuk SEMUA orang yang terhubung. Lanjutkan?')) {
+            players = []; matchesHistory = []; activeMatches = []; financeTransactions = [];
+            financeSettings = { payPerPlay: 0 };
+            Object.values(timers).forEach(clearInterval);
+            timers = {};
+            saveData();
+            alert('Seluruh sistem berhasil direset total untuk semua pengguna.');
+        }
+    }
+
+    function toggleCustomSport() {
+        const val = document.getElementById('sportType').value;
+        const customInput = document.getElementById('customSportName');
+        customInput.style.display = val === 'Custom' ? 'inline-block' : 'none';
+    }
+
+    function exportData() {
+        const data = { players, matchesHistory, activeMatches, financeTransactions, financeSettings };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `aurasport_full_backup_${Date.now()}.json`;
+        a.click();
+    }
+
+    function importData(event) {
+        const file = event.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if(data.players) players = data.players;
+                if(data.matchesHistory) matchesHistory = data.matchesHistory;
+                if(data.activeMatches) activeMatches = data.activeMatches;
+                if(data.financeTransactions) financeTransactions = data.financeTransactions;
+                if(data.financeSettings) financeSettings = data.financeSettings;
+                saveData();
+                alert('Data backup berhasil di-import sepenuhnya!');
+            } catch (err) {
+                alert('Format file JSON backup tidak valid!');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function exportStandingsToImage() {
+        const card = document.getElementById('standingsCard');
+        html2canvas(card, { backgroundColor: '#111111' }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'Klasemen_AURA_SPORT.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    }
+
+    // Jalankan aplikasi saat load: ambil data bersama dari Supabase, render, lalu dengarkan perubahan realtime
+    window.onload = async function() {
+        await loadState();
+        init();
+        subscribeRealtime();
+    };
+</script>
+</body>
+</html>
