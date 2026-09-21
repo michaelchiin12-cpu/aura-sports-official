@@ -166,7 +166,7 @@
         <div class="splash-logo-wrap">
             <div class="splash-ring"></div>
             <div class="splash-ring ring2"></div>
-            <img src="logo.png" alt="Logo Aura" class="splash-logo">
+            <img src="logo-circle.png" alt="Logo Aura" class="splash-logo">
         </div>
         <div class="splash-text">AURA SPORT MANAGER</div>
         <div class="splash-subtext">Memuat data...</div>
@@ -430,7 +430,7 @@
     // dari Supabase project kamu (Settings -> API di dashboard Supabase).
     const SUPABASE_URL = 'https://ygfyircylzwayzwashvv.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_j-pk6cNY3M2JMUttbcJRXQ_PZB6y-rO';
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let supabaseClient; // dibuat setelah library Supabase (defer) selesai dimuat, lihat window.onload di bawah
     const STATE_ROW_ID = 1; // baris tunggal tempat seluruh state aplikasi disimpan
 
     // --- State Management ---
@@ -1678,6 +1678,8 @@
     // Jalankan aplikasi saat load: tampilkan splash screen animasi dulu,
     // sambil ambil data bersama dari Supabase, lalu masuk ke aplikasi & dengarkan realtime
     window.onload = async function() {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const minSplashTime = new Promise(resolve => setTimeout(resolve, 2200));
         await Promise.all([loadState(), minSplashTime]);
         init();
