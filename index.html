@@ -161,8 +161,20 @@
 
                 <div class="card">
                     <h2>Daftar Antrean (Waiting List)</h2>
-                    <p style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted);">Diurutkan berdasarkan yang paling sedikit bermain.</p>
-                    <div id="queueList" class="flex-row"></div>
+                    <p style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted);">Diurutkan otomatis berdasarkan yang paling sedikit bermain.</p>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Nama</th>
+                                    <th>Level</th>
+                                    <th>Sudah Main</th>
+                                </tr>
+                            </thead>
+                            <tbody id="queueList"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -603,15 +615,18 @@
     }
 
     function renderQueue() {
-        const queueDiv = document.getElementById('queueList');
+        const tbody = document.getElementById('queueList');
         const queue = players
             .filter(p => p.status === 'active')
             .sort((a, b) => a.stats.played - b.stats.played);
-            
-        queueDiv.innerHTML = queue.map(p => `
-            <div style="background: var(--bg-card); padding: 5px 10px; border: 1px solid var(--border); border-radius: 4px;">
-                ${p.name} (${p.stats.played}x)
-            </div>
+
+        tbody.innerHTML = queue.map((p, idx) => `
+            <tr>
+                <td>${idx + 1}</td>
+                <td>${p.name}</td>
+                <td>${getLevelBadge(p.level)}</td>
+                <td style="text-align:center; font-weight:bold; color: var(--primary);">${p.stats.played}x</td>
+            </tr>
         `).join('');
     }
 
