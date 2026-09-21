@@ -84,6 +84,21 @@
         .ko-team-line { display:flex; justify-content:space-between; align-items:center; padding: 4px 0; }
         .ko-team-line.winner { color: var(--success); font-weight:bold; }
 
+        /* --- STYLES UNTUK FOTO PEMAIN (AVATAR) --- */
+        .avatar-img, .avatar-placeholder {
+            width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+            border: 2px solid var(--primary); flex-shrink: 0; display: inline-block; vertical-align: middle;
+        }
+        .avatar-placeholder {
+            display: flex; align-items: center; justify-content: center;
+            background: #2a2a2a; color: var(--text-muted); font-weight: bold; font-size: 0.85rem;
+        }
+        .avatar-cell { display: flex; align-items: center; gap: 8px; }
+        .avatar-cell .btn-photo { padding: 3px 8px; font-size: 0.7rem; background: var(--bg-main); border: 1px solid var(--border); color: var(--text-muted); }
+        .court-player-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.9rem; }
+        .court-player-row .avatar-img, .court-player-row .avatar-placeholder { width: 32px; height: 32px; font-size: 0.75rem; }
+        .court-player-info { flex: 1; }
+
         /* ================= TAMPILAN MOBILE (Android/iOS) ================= */
         @media (max-width: 640px) {
             body { padding: 10px; }
@@ -226,13 +241,15 @@
                             <option value="2">Intermediate</option>
                             <option value="1">Beginner</option>
                         </select>
-                        <button type="submit">+ Tambah</button>
+                        <input type="file" id="playerPhoto" accept="image/*" style="flex:1 1 100%;">
+                        <button type="submit" id="playerFormSubmitBtn">+ Tambah</button>
                     </form>
                     
                     <div style="overflow-x: auto;">
                         <table id="playersTable">
                             <thead>
                                 <tr>
+                                    <th>Foto</th>
                                     <th>Nama</th>
                                     <th>L/P</th>
                                     <th>Level</th>
@@ -276,12 +293,16 @@
                 <div class="card" id="standingsCard">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <h2>Klasemen Pemain</h2>
-                        <button onclick="exportStandingsToImage()" class="btn-warning">Download Klasemen</button>
+                        <div class="flex-row" style="margin:0;">
+                            <button onclick="exportStandingsToImage()" class="btn-warning">Download Klasemen</button>
+                            <button onclick="generateStoryCard()" class="btn-success">📸 Bagikan ke Story</button>
+                        </div>
                     </div>
                     <div style="overflow-x: auto;">
                         <table id="standingsTable">
                             <thead>
                                 <tr>
+                                    <th>Foto</th>
                                     <th>Nama</th>
                                     <th>Main</th>
                                     <th>Menang</th>
@@ -634,19 +655,32 @@
     }
 
     // --- Fitur Pemain ---
-    function addPlayer(e) {
+    async function addPlayer(e) {
         e.preventDefault();
         const name = document.getElementById('playerName').value.trim();
         const gender = document.getElementById('playerGender').value;
         const level = parseInt(document.getElementById('playerLevel').value);
-        
+        const photoFile = document.getElementById('playerPhoto').files[0] || null;
+
         if(players.find(p => p.name.toLowerCase() === name.toLowerCase())) {
             alert('Nama pemain sudah ada!'); return;
+        }
+
+        const submitBtn = document.getElementById('playerFormSubmitBtn');
+        let photoUrl = null;
+
+        if(photoFile) {
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Mengunggah foto...';
+            photoUrl = await uploadPlayerPhoto(photoFile);
+            submitBtn.disabled = false;
+            submitBtn.innerText = '+ Tambah';
         }
 
         players.push({
             id: Date.now().toString(),
             name, gender, level,
+            photo: photoUrl,
             status: 'active',
             deposit: 0,
             stats: { played: 0, wins: 0, points: 0, out: 0, fault: 0 }
@@ -654,6 +688,59 @@
         
         document.getElementById('playerForm').reset();
         saveData();
+    }
+
+    // Unggah foto pemain ke Supabase Storage (bucket: player-photos) dan kembalikan URL publiknya.
+    // Bucket ini harus dibuat manual sekali di Dashboard Supabase (Storage -> New Bucket -> "player-photos", set Public).
+    async function uploadPlayerPhoto(file) {
+        try {
+            const ext = file.name.split('.').pop();
+            const path = `players/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+            const { error: uploadError } = await supabaseClient.storage.from('player-photos').upload(path, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+            if(uploadError) {
+                console.error('Gagal upload foto:', uploadError);
+                alert('Gagal mengunggah foto: ' + uploadError.message + '\n\nPastikan bucket "player-photos" sudah dibuat di Supabase Storage (public).');
+                return null;
+            }
+            const { data } = supabaseClient.storage.from('player-photos').getPublicUrl(path);
+            return data.publicUrl;
+        } catch(err) {
+            console.error('Error upload foto:', err);
+            alert('Terjadi kesalahan saat mengunggah foto.');
+            return null;
+        }
+    }
+
+    // Ganti foto pemain yang sudah terdaftar, dipicu dari tombol "Ganti Foto" di tabel pemain
+    function changePlayerPhoto(id) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async () => {
+            const file = input.files[0];
+            if(!file) return;
+            const player = players.find(p => p.id === id);
+            if(!player) return;
+            const url = await uploadPlayerPhoto(file);
+            if(url) {
+                player.photo = url;
+                saveData();
+            }
+        };
+        input.click();
+    }
+
+    // Render avatar bundar: pakai foto asli jika ada, atau inisial nama sebagai placeholder
+    function avatarHTML(player, sizeClass) {
+        const cls = sizeClass || '';
+        if(player.photo) {
+            return `<img src="${player.photo}" class="avatar-img ${cls}" alt="${player.name}">`;
+        }
+        const initial = (player.name || '?').trim().charAt(0).toUpperCase();
+        return `<div class="avatar-placeholder ${cls}">${initial}</div>`;
     }
 
     function toggleStatus(id) {
@@ -685,6 +772,12 @@
         const tbody = document.getElementById('playersList');
         tbody.innerHTML = players.map(p => `
             <tr>
+                <td>
+                    <div class="avatar-cell">
+                        ${avatarHTML(p)}
+                        <button onclick="changePlayerPhoto('${p.id}')" class="btn-photo">Ganti Foto</button>
+                    </div>
+                </td>
                 <td>${p.name}</td>
                 <td>${p.gender}</td>
                 <td>${getLevelBadge(p.level)}</td>
@@ -898,13 +991,16 @@
                     <div style="flex:1;">
                         <div style="font-weight:bold; margin-bottom:10px; border-bottom:1px solid var(--border); color:var(--primary);">TIM A</div>
                         ${match.teamA.map((p, idx) => `
-                            <div style="margin-bottom:10px; font-size:0.9rem;">
-                                <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
-                                <div class="player-score-controls">
-                                    <button class="btn-success" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', false)">+Point</button>
-                                    <button class="btn-warning" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'out', false)">+Out</button>
-                                    <button class="btn-danger" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'fault', false)">+Fault</button>
-                                    <button onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', true)" style="background:var(--border); color:#fff">-</button>
+                            <div class="court-player-row">
+                                ${avatarHTML(p)}
+                                <div class="court-player-info">
+                                    <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
+                                    <div class="player-score-controls">
+                                        <button class="btn-success" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', false)">+Point</button>
+                                        <button class="btn-warning" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'out', false)">+Out</button>
+                                        <button class="btn-danger" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'fault', false)">+Fault</button>
+                                        <button onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', true)" style="background:var(--border); color:#fff">-</button>
+                                    </div>
                                 </div>
                             </div>
                         `).join('')}
@@ -913,13 +1009,16 @@
                     <div style="flex:1; text-align:right;">
                         <div style="font-weight:bold; margin-bottom:10px; border-bottom:1px solid var(--border); color:var(--primary);">TIM B</div>
                         ${match.teamB.map((p, idx) => `
-                            <div style="margin-bottom:10px; font-size:0.9rem;">
-                                <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
-                                <div class="player-score-controls" style="justify-content:flex-end;">
-                                    <button onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', true)" style="background:var(--border); color:#fff">-</button>
-                                    <button class="btn-danger" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'fault', false)">+Fault</button>
-                                    <button class="btn-warning" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'out', false)">+Out</button>
-                                    <button class="btn-success" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', false)">+Point</button>
+                            <div class="court-player-row" style="flex-direction: row-reverse;">
+                                ${avatarHTML(p)}
+                                <div class="court-player-info" style="text-align:right;">
+                                    <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
+                                    <div class="player-score-controls" style="justify-content:flex-end;">
+                                        <button onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', true)" style="background:var(--border); color:#fff">-</button>
+                                        <button class="btn-danger" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'fault', false)">+Fault</button>
+                                        <button class="btn-warning" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'out', false)">+Out</button>
+                                        <button class="btn-success" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', false)">+Point</button>
+                                    </div>
                                 </div>
                             </div>
                         `).join('')}
@@ -946,6 +1045,7 @@
             const wr = p.stats.played > 0 ? Math.round((p.stats.wins / p.stats.played) * 100) : 0;
             return `
                 <tr>
+                    <td>${avatarHTML(p)}</td>
                     <td>${p.name}</td>
                     <td>${p.stats.played}</td>
                     <td>${p.stats.wins}</td>
@@ -1204,6 +1304,218 @@
             link.href = canvas.toDataURL('image/png');
             link.click();
         });
+    }
+
+    // ================= STORY INSTAGRAM: MVP & BEST PARTNER =================
+
+    // MVP = pemain dengan jumlah kemenangan terbanyak (sudah main minimal 1x), tie-break win rate tertinggi
+    function computeMVP() {
+        const candidates = players.filter(p => p.stats.played > 0);
+        if(candidates.length === 0) return null;
+        return [...candidates].sort((a, b) => {
+            if(b.stats.wins !== a.stats.wins) return b.stats.wins - a.stats.wins;
+            const wrA = a.stats.wins / a.stats.played, wrB = b.stats.wins / b.stats.played;
+            return wrB - wrA;
+        })[0];
+    }
+
+    // Best Partner = pasangan (tim berisi 2 pemain) yang menang telak dengan selisih skor terbesar
+    // dari seluruh riwayat pertandingan (matchesHistory).
+    function computeBestPartner() {
+        let best = null; // { players: [p1, p2], margin }
+        matchesHistory.forEach(m => {
+            if(Array.isArray(m.teamA) && m.teamA.length === 2 && m.scoreA > m.scoreB) {
+                const margin = m.scoreA - m.scoreB;
+                if(!best || margin > best.margin) best = { players: m.teamA, margin };
+            }
+            if(Array.isArray(m.teamB) && m.teamB.length === 2 && m.scoreB > m.scoreA) {
+                const margin = m.scoreB - m.scoreA;
+                if(!best || margin > best.margin) best = { players: m.teamB, margin };
+            }
+        });
+        if(!best) return null;
+        // ambil data foto/nama terkini dari data pemain (foto bisa berubah setelah match tercatat)
+        return best.players.map(mp => players.find(p => p.id === mp.id) || mp);
+    }
+
+    function loadImageEl(src) {
+        return new Promise((resolve) => {
+            if(!src) return resolve(null);
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = src;
+        });
+    }
+
+    function ctxCenterText(ctx, text, xc, y) {
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.fillText(text, xc, y);
+        ctx.restore();
+    }
+
+    // Gambar avatar bundar di canvas: foto asli jika ada & berhasil dimuat, kalau tidak pakai inisial
+    async function drawCanvasAvatar(ctx, player, cx, cy, r) {
+        ctx.save();
+        ctx.strokeStyle = '#c89f4c';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 8, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const img = player ? await loadImageEl(player.photo) : null;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+
+        if(img) {
+            const size = Math.min(img.width, img.height);
+            const sx = (img.width - size) / 2, sy = (img.height - size) / 2;
+            ctx.drawImage(img, sx, sy, size, size, cx - r, cy - r, r * 2, r * 2);
+        } else {
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = `bold ${Math.round(r * 0.9)}px Segoe UI, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const initial = (player && player.name ? player.name.trim().charAt(0) : '?').toUpperCase();
+            ctx.fillText(initial, cx, cy + 4);
+        }
+        ctx.restore();
+    }
+
+    async function generateStoryCard() {
+        const mvp = computeMVP();
+        const bestPartner = computeBestPartner();
+
+        if(!mvp && !bestPartner) {
+            alert('Belum ada data pertandingan selesai untuk dibuatkan story. Selesaikan minimal 1 match dulu.');
+            return;
+        }
+
+        const W = 1080, H = 1920;
+        const canvas = document.createElement('canvas');
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        // Background hitam pekat
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, W, H);
+
+        // Glow emas lembut di area atas
+        const glow = ctx.createRadialGradient(W/2, 250, 50, W/2, 250, 650);
+        glow.addColorStop(0, 'rgba(200,159,76,0.18)');
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, W, 900);
+
+        const GOLD = '#c89f4c', GOLD_LIGHT = '#e0b865', WHITE = '#ffffff', MUTED = '#9ca3af', BORDER = '#333333';
+
+        // Logo klub (pakai logo.png dari repo yang sama)
+        const logoImg = await loadImageEl('logo.png');
+        let y = 90;
+        if(logoImg) {
+            const logoW = 130, logoH = logoW * (logoImg.height / logoImg.width);
+            ctx.drawImage(logoImg, W/2 - logoW/2, y, logoW, logoH);
+            y += logoH + 30;
+        } else {
+            y += 20;
+        }
+
+        ctx.fillStyle = GOLD;
+        ctx.font = 'bold 54px Segoe UI, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('AURA SPORTS CLUB', W/2, y);
+        y += 50;
+        ctx.strokeStyle = GOLD;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(W/2 - 90, y); ctx.lineTo(W/2 + 90, y); ctx.stroke();
+        y += 70;
+
+        // ===== MVP =====
+        if(mvp) {
+            ctx.fillStyle = WHITE;
+            ctx.font = 'bold 32px Segoe UI, sans-serif';
+            ctx.fillText('★  MOST VALUABLE PLAYER  ★', W/2, y);
+            y += 260;
+            await drawCanvasAvatar(ctx, mvp, W/2, y, 190);
+            y += 190 + 60;
+            ctx.fillStyle = WHITE;
+            ctx.font = 'bold 52px Segoe UI, sans-serif';
+            ctx.fillText(mvp.name, W/2, y);
+            y += 75;
+
+            const wr = mvp.stats.played > 0 ? Math.round((mvp.stats.wins / mvp.stats.played) * 100) : 0;
+            const stats = [['MAIN', mvp.stats.played], ['MENANG', mvp.stats.wins], ['WIN RATE', wr + '%']];
+            const segW = 260, totalW = segW * stats.length, startX = W/2 - totalW/2;
+            stats.forEach(([label, val], i) => {
+                const cx = startX + segW * i + segW / 2;
+                ctx.fillStyle = GOLD;
+                ctx.font = 'bold 38px Segoe UI, sans-serif';
+                ctx.fillText(String(val), cx, y);
+                ctx.fillStyle = MUTED;
+                ctx.font = '22px Segoe UI, sans-serif';
+                ctx.fillText(label, cx, y + 40);
+            });
+            y += 110;
+        }
+
+        // ===== Divider =====
+        ctx.strokeStyle = BORDER;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(W - 80, y); ctx.stroke();
+        y += 65;
+
+        // ===== BEST PARTNER =====
+        if(bestPartner && bestPartner.length === 2) {
+            ctx.fillStyle = WHITE;
+            ctx.font = 'bold 32px Segoe UI, sans-serif';
+            ctx.fillText('♦  BEST PARTNER  ♦', W/2, y);
+            y += 55;
+            ctx.fillStyle = GOLD_LIGHT;
+            ctx.font = 'bold 40px Segoe UI, sans-serif';
+            ctx.fillText(`${bestPartner[0].name}  &  ${bestPartner[1].name}`, W/2, y);
+            y += 100;
+
+            const gap = 90;
+            await drawCanvasAvatar(ctx, bestPartner[0], W/2 - gap, y + 130, 130);
+            await drawCanvasAvatar(ctx, bestPartner[1], W/2 + gap, y + 130, 130);
+            y += 130 + 130 + 55;
+
+            ctx.fillStyle = MUTED;
+            ctx.font = '24px Segoe UI, sans-serif';
+            ctx.fillText('PASANGAN TERKOMPAK SESI INI', W/2, y);
+            y += 40;
+        } else {
+            ctx.fillStyle = MUTED;
+            ctx.font = '22px Segoe UI, sans-serif';
+            ctx.fillText('Belum ada pasangan ganda yang tercatat', W/2, y + 20);
+        }
+
+        // ===== Footer =====
+        const footerY = H - 160;
+        ctx.strokeStyle = BORDER;
+        ctx.beginPath(); ctx.moveTo(80, footerY); ctx.lineTo(W - 80, footerY); ctx.stroke();
+
+        ctx.fillStyle = MUTED;
+        ctx.font = '24px Segoe UI, sans-serif';
+        const totalMatches = matchesHistory.length;
+        const totalPlayers = players.length;
+        ctx.fillText(`Total ${totalMatches} Pertandingan  •  ${totalPlayers} Pemain Aktif`, W/2, footerY + 30);
+
+        ctx.fillStyle = GOLD;
+        ctx.font = 'bold 28px Segoe UI, sans-serif';
+        ctx.fillText('#AURASPORTSCLUB', W/2, footerY + 75);
+
+        // Download
+        const link = document.createElement('a');
+        link.download = `AuraSportsClub_Story_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
     }
 
     // ================= ROUND ROBIN + KNOCKOUT =================
