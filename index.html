@@ -83,6 +83,41 @@
         .ko-match-card { background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
         .ko-team-line { display:flex; justify-content:space-between; align-items:center; padding: 4px 0; }
         .ko-team-line.winner { color: var(--success); font-weight:bold; }
+
+        /* ================= TAMPILAN MOBILE (Android/iOS) ================= */
+        @media (max-width: 640px) {
+            body { padding: 10px; }
+            .header img { width: 80px; }
+            .header h1 { font-size: 1.3rem; }
+            .header .flex-row button { font-size: 0.75rem; padding: 8px 10px; }
+
+            .nav-tabs { gap: 6px; }
+            .tab-btn { flex: 1 1 46%; font-size: 0.75rem; padding: 10px 6px; }
+
+            .card { padding: 12px; margin-bottom: 12px; }
+            .card h2 { font-size: 1rem; }
+
+            table { font-size: 0.78rem; }
+            th, td { padding: 6px; }
+
+            /* Form input & select memenuhi lebar penuh agar mudah diketik di HP */
+            .flex-row input, .flex-row select { flex: 1 1 100%; width: 100%; }
+
+            .stat-grid { grid-template-columns: 1fr; }
+
+            .court { padding: 10px; }
+            .timer-display { font-size: 1.2rem; }
+
+            /* Tim A / Tim B ditumpuk vertikal, tidak berdampingan, di layar sempit */
+            .team-box { flex-direction: column; }
+            .team-box > div:last-child { text-align: left !important; }
+            .player-score-controls { flex-wrap: wrap; }
+
+            /* Rapikan skor besar & jarak antar elemen yang tadinya didesain untuk layar lebar */
+            [style*="font-size:2rem"] { font-size: 1.5rem !important; }
+            [style*="gap:30px"] { gap: 12px !important; }
+            [style*="justify-content:flex-end"] { justify-content: flex-start !important; }
+        }
     </style>
 </head>
 <body>
@@ -144,19 +179,21 @@
                         <button type="submit">+ Tambah</button>
                     </form>
                     
-                    <table id="playersTable">
-                        <thead>
-                            <tr>
-                                <th>Nama</th>
-                                <th>L/P</th>
-                                <th>Level</th>
-                                <th>Saldo</th>
-                                <th>Status</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="playersList"></tbody>
-                    </table>
+                    <div style="overflow-x: auto;">
+                        <table id="playersTable">
+                            <thead>
+                                <tr>
+                                    <th>Nama</th>
+                                    <th>L/P</th>
+                                    <th>Level</th>
+                                    <th>Saldo</th>
+                                    <th>Status</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="playersList"></tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <div class="card">
