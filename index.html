@@ -628,8 +628,36 @@
 
     // Simpan seluruh state ke Supabase (satu baris bersama) lalu broadcast otomatis
     // ke semua client lain yang terhubung lewat Realtime.
+    // --- Antrean Simpan (mencegah race condition saat klik cepat berulang) ---
+    // Sebelumnya, tiap saveData() langsung kirim request ke Supabase tanpa menunggu
+    // request sebelumnya selesai. Kalau user klik +Point beberapa kali dengan cepat,
+    // request-request itu bisa SAMPAI TIDAK BERURUTAN di server (network delay acak) —
+    // request lama (skor lebih kecil) bisa menimpa request baru (skor lebih besar) kalau
+    // dia sampai belakangan, lalu skor "mundur" itu dikirim balik ke layar lewat Realtime.
+    // Solusinya: pastikan cuma ADA SATU request yang sedang berjalan di satu waktu. Kalau
+    // ada perubahan baru masuk selagi masih menunggu, jangan kirim lagi sekarang — tunggu
+    // yang sedang berjalan selesai, baru kirim SEKALI LAGI dengan state paling terbaru.
+    let saveInFlight = false;
+    let savePending = false;
+
     async function saveData() {
         init(); // render optimis di layar sendiri dulu, tanpa nunggu respons server
+
+        if(saveInFlight) {
+            savePending = true;
+            return;
+        }
+        saveInFlight = true;
+        await performSaveToSupabase();
+        saveInFlight = false;
+
+        if(savePending) {
+            savePending = false;
+            saveData(); // ada perubahan baru masuk selagi menunggu -> kirim sekali lagi versi terbaru
+        }
+    }
+
+    async function performSaveToSupabase() {
         const { error } = await supabaseClient
             .from('sport_manager_state')
             .update({
