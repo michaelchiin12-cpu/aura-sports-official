@@ -612,6 +612,7 @@
     function openEventModal(mode) {
         const existing = document.getElementById('eventModal');
         if (existing) existing.remove();
+
         const overlay = document.createElement('div');
         overlay.id = 'eventModal';
         overlay.className = 'event-modal';
@@ -620,16 +621,28 @@
                 <h3>🆕 Tambah Pertandingan</h3>
                 <div style="color:var(--text-muted); font-size:.82rem; margin-bottom:10px;">${eventModeLabel(mode)}</div>
                 <label>Nama Acara / Pertandingan *</label>
-                <input id="eventNameInput" type="text" placeholder="Contoh: Latihan Rutin Selasa" maxlength="100" autofocus>
+                <input id="eventNameInput" type="text" placeholder="Contoh: Latihan Rutin Selasa" maxlength="100">
                 <label>Tanggal *</label>
                 <input id="eventDateInput" type="date" value="${todayISO()}">
                 <div class="event-modal-actions">
-                    <button onclick="closeEventModal()" style="background:var(--border); color:#fff;">Batal</button>
-                    <button onclick="createEvent('${mode}')" class="btn-success">Buat Pertandingan</button>
+                    <button type="button" id="eventCancelBtn" style="background:var(--border); color:#fff;">Batal</button>
+                    <button type="button" id="eventCreateBtn" class="btn-success">Buat Pertandingan</button>
                 </div>
             </div>`;
-        overlay.onclick = e => { if(e.target === overlay) closeEventModal(); };
+
         document.body.appendChild(overlay);
+
+        // Pakai addEventListener, bukan inline onclick. Ini lebih aman di GitHub Pages
+        // dan memastikan tombol modal tetap bekerja walaupun HTML di-render ulang.
+        document.getElementById('eventCancelBtn').addEventListener('click', closeEventModal);
+        document.getElementById('eventCreateBtn').addEventListener('click', () => {
+            createEvent(mode);
+        });
+
+        overlay.addEventListener('click', e => {
+            if (e.target === overlay) closeEventModal();
+        });
+
         setTimeout(() => document.getElementById('eventNameInput')?.focus(), 50);
     }
 
@@ -668,12 +681,23 @@
         closeEventModal();
         restoreEvent(ev, false);
 
-        // Render langsung tanpa menunggu Supabase. Jadi tombol terasa responsif
-        // walaupun request database sedang berjalan.
-        init();
+        // Render langsung tanpa menunggu Supabase. Jadi tombol terasa responsif.
+        // Kalau ada error render, event tetap sudah dibuat di memori.
+        try {
+            init();
+        } catch (err) {
+            console.error('Gagal merender pertandingan baru:', err);
+            alert('Pertandingan berhasil dibuat, tetapi tampilan gagal dimuat. Silakan refresh halaman.');
+            return;
+        }
 
-        // Baru simpan registry + state ke Supabase.
-        await persistStateOnly();
+        // Simpan ke Supabase tanpa membuat tombol menunggu request database.
+        try {
+            await persistStateOnly();
+        } catch (err) {
+            console.error('Gagal menyimpan pertandingan baru:', err);
+            alert('Pertandingan sudah dibuat di layar, tetapi gagal disimpan ke database: ' + (err?.message || err));
+        }
     }
 
     function selectEvent(mode, id) {
