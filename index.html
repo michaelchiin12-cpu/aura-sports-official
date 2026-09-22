@@ -601,8 +601,11 @@
 
     // --- Inisialisasi ---
     function init() {
-        // Pastikan setiap pemain memiliki properti deposit
-        players.forEach(p => { if(p.deposit === undefined) p.deposit = 0; });
+        // Pastikan setiap pemain memiliki properti deposit & histori pasangan terakhir
+        players.forEach(p => {
+            if(p.deposit === undefined) p.deposit = 0;
+            if(!Array.isArray(p.lastPartners)) p.lastPartners = [];
+        });
         
         renderPlayers();
         renderQueue();
@@ -816,19 +819,78 @@
     }
 
     // --- Algoritma Matchmaking Dinamis ---
+
+    // Acak urutan array (Fisher-Yates) — dipakai supaya "Acak Pertandingan Baru" beneran acak,
+    // bukan cuma sort deterministik yang hasilnya sama tiap kali ditekan.
+    function shuffleArray(arr) {
+        const a = [...arr];
+        for(let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
+    // Hitung berapa kali anggota tim ini baru saja jadi partner satu sama lain (dari lastPartners)
+    function countRecentPartnerRepeats(team) {
+        let count = 0;
+        for(let i = 0; i < team.length; i++) {
+            for(let j = i + 1; j < team.length; j++) {
+                const ref = players.find(x => x.id === team[i].id);
+                if(ref && Array.isArray(ref.lastPartners) && ref.lastPartners.includes(team[j].id)) count++;
+            }
+        }
+        return count;
+    }
+
+    // Hitung berapa kali dua tim ini baru saja jadi LAWAN satu sama lain (dari lastOpponents).
+    // Ini yang tadinya kelewat: dua "pod" 4 orang bisa saja tidak pernah jadi partner ulang,
+    // tapi tetap ketemu lawan yang itu-itu saja tiap ronde kalau ini tidak ikut dicek.
+    function countRecentOpponentRepeats(teamA, teamB) {
+        let count = 0;
+        teamA.forEach(pa => {
+            const ref = players.find(x => x.id === pa.id);
+            if(!ref || !Array.isArray(ref.lastOpponents)) return;
+            teamB.forEach(pb => {
+                if(ref.lastOpponents.includes(pb.id)) count++;
+            });
+        });
+        return count;
+    }
+
+    // Simpan histori partner terakhir (maks 3 nama terakhir per pemain) supaya ronde berikutnya bisa dihindari
+    function recordPartners(team) {
+        team.forEach(p => {
+            const ref = players.find(x => x.id === p.id);
+            if(!ref) return;
+            if(!Array.isArray(ref.lastPartners)) ref.lastPartners = [];
+            const others = team.filter(x => x.id !== p.id).map(x => x.id);
+            ref.lastPartners = [...others, ...ref.lastPartners].slice(0, 3);
+        });
+    }
+
+    // Simpan histori lawan terakhir (maks 4 nama terakhir per pemain)
+    function recordOpponents(teamA, teamB) {
+        teamA.forEach(p => {
+            const ref = players.find(x => x.id === p.id);
+            if(!ref) return;
+            if(!Array.isArray(ref.lastOpponents)) ref.lastOpponents = [];
+            const opp = teamB.map(x => x.id);
+            ref.lastOpponents = [...opp, ...ref.lastOpponents].slice(0, 4);
+        });
+        teamB.forEach(p => {
+            const ref = players.find(x => x.id === p.id);
+            if(!ref) return;
+            if(!Array.isArray(ref.lastOpponents)) ref.lastOpponents = [];
+            const opp = teamA.map(x => x.id);
+            ref.lastOpponents = [...opp, ...ref.lastOpponents].slice(0, 4);
+        });
+    }
+
     function generateMatches() {
         const teamSize = parseInt(document.getElementById('playersPerTeam').value);
         const maxCourts = parseInt(document.getElementById('totalCourts').value);
         const requiredPlayersPerMatch = teamSize * 2;
-        
-        let availableQueue = players
-            .filter(p => p.status === 'active')
-            .sort((a, b) => a.stats.played - b.stats.played);
-
-        if(availableQueue.length < requiredPlayersPerMatch) {
-            alert(`Pemain aktif tidak cukup. Butuh ${requiredPlayersPerMatch}, tersedia ${availableQueue.length}.`);
-            return;
-        }
 
         let courtsToFill = maxCourts - activeMatches.length;
         if(courtsToFill <= 0) {
@@ -836,32 +898,76 @@
             return;
         }
 
-        for(let i=0; i<courtsToFill; i++) {
-            if(availableQueue.length < requiredPlayersPerMatch) break;
-            
-            let matchPlayers = availableQueue.splice(0, requiredPlayersPerMatch);
-            matchPlayers.sort((a, b) => b.level - a.level);
-            
-            let teamA = [], teamB = [];
-            let scoreA = 0, scoreB = 0;
+        // Pool pemain aktif, urutkan dari yang paling sedikit main (tetap jadi prioritas utama/fairness)
+        let eligible = players.filter(p => p.status === 'active')
+            .sort((a, b) => a.stats.played - b.stats.played);
 
-            matchPlayers.forEach((p) => {
-                if(scoreA <= scoreB && teamA.length < teamSize) {
-                    teamA.push(p); scoreA += p.level;
-                } else if(teamB.length < teamSize) {
-                    teamB.push(p); scoreB += p.level;
-                } else {
-                    teamA.push(p); scoreA += p.level;
+        if(eligible.length < requiredPlayersPerMatch) {
+            alert(`Pemain aktif tidak cukup. Butuh ${requiredPlayersPerMatch}, tersedia ${eligible.length}.`);
+            return;
+        }
+
+        for(let c = 0; c < courtsToFill; c++) {
+            if(eligible.length < requiredPlayersPerMatch) break;
+
+            // Kandidat grup untuk lapangan ini: ambil dari 2 tingkatan "jumlah main" paling rendah
+            // (bukan cuma persis requiredPlayersPerMatch teratas) supaya ADA VARIASI siapa dikelompokkan
+            // dengan siapa tiap kali generate — ini yang tadinya bikin 4 orang yang sama selalu satu grup.
+            const tiers = [...new Set(eligible.map(p => p.stats.played))].sort((a, b) => a - b);
+            let candidatePool = eligible.filter(p => tiers.slice(0, 2).includes(p.stats.played));
+            if(candidatePool.length < requiredPlayersPerMatch) {
+                candidatePool = eligible.slice(0, Math.max(requiredPlayersPerMatch, candidatePool.length));
+            }
+
+            // Coba banyak kombinasi acak: grup 4 orang mana + split tim A/B mana yang levelnya
+            // paling seimbang DAN paling menghindari partner/lawan yang baru saja main bareng.
+            let bestGroup = null, bestTeams = null, bestScore = Infinity;
+            for(let attempt = 0; attempt < 40; attempt++) {
+                const shuffledPool = shuffleArray(candidatePool);
+                const group = shuffledPool.slice(0, requiredPlayersPerMatch);
+                const groupSorted = shuffleArray(group).sort((a, b) => b.level - a.level);
+
+                let teamA = [], teamB = [], scoreA = 0, scoreB = 0;
+                groupSorted.forEach((p) => {
+                    if(scoreA <= scoreB && teamA.length < teamSize) {
+                        teamA.push(p); scoreA += p.level;
+                    } else if(teamB.length < teamSize) {
+                        teamB.push(p); scoreB += p.level;
+                    } else {
+                        teamA.push(p); scoreA += p.level;
+                    }
+                });
+
+                const levelDiff = Math.abs(scoreA - scoreB);
+                const partnerPenalty = (countRecentPartnerRepeats(teamA) + countRecentPartnerRepeats(teamB)) * 50;
+                const opponentPenalty = countRecentOpponentRepeats(teamA, teamB) * 30;
+                const totalScore = levelDiff + partnerPenalty + opponentPenalty;
+
+                if(totalScore < bestScore) {
+                    bestScore = totalScore;
+                    bestGroup = group;
+                    bestTeams = { teamA, teamB };
                 }
-            });
+                if(bestScore === 0) break;
+            }
+
+            const { teamA, teamB } = bestTeams;
+
+            // Keluarkan pemain yang sudah kepakai dari pool eligible, supaya lapangan berikutnya
+            // (kalau ada lebih dari 1 court diisi sekaligus) tidak menimpa orang yang sama
+            eligible = eligible.filter(p => !bestGroup.some(g => g.id === p.id));
 
             [...teamA, ...teamB].forEach(p => {
                 const playerRef = players.find(x => x.id === p.id);
                 if(playerRef) playerRef.status = 'playing';
             });
 
+            recordPartners(teamA);
+            recordPartners(teamB);
+            recordOpponents(teamA, teamB);
+
             activeMatches.push({
-                id: Date.now().toString() + i,
+                id: Date.now().toString() + c,
                 courtName: `Lapangan ${activeMatches.length + 1}`,
                 teamA: teamA.map(p => ({...p, matchPoints: 0, matchOuts: 0, matchFaults: 0})),
                 teamB: teamB.map(p => ({...p, matchPoints: 0, matchOuts: 0, matchFaults: 0})),
