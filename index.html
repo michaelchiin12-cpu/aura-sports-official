@@ -103,6 +103,28 @@
         .court-player-row .avatar-img, .court-player-row .avatar-placeholder { width: 32px; height: 32px; font-size: 0.75rem; }
         .court-player-info { flex: 1; }
 
+        /* --- STYLES UNTUK PICKER PEMAIN PENGGANTI (modal pilih dari daftar terdaftar) --- */
+        .picker-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10000; padding: 20px;
+        }
+        .picker-box {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+            width: 100%; max-width: 420px; max-height: 80vh; display: flex; flex-direction: column;
+            padding: 18px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .picker-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .picker-header h3 { color: var(--primary); font-size: 1.05rem; }
+        #pickerSearch { width: 100%; margin-bottom: 10px; }
+        .picker-list { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+        .picker-item {
+            display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+            background: var(--bg-main); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+        }
+        .picker-item:hover { border-color: var(--primary); }
+        .picker-item-active { border-color: var(--primary); background: rgba(200,159,76,0.1); }
+
         /* ================= TAMPILAN MOBILE (Android/iOS) ================= */
         @media (max-width: 640px) {
             body { padding: 10px; }
@@ -1074,24 +1096,110 @@
         saveData();
     }
 
-    // Ubah nama pemain langsung dari kartu lapangan yang sedang berjalan (mis. salah ketik saat acak).
-    // Diterapkan ke match yang sedang berjalan DAN ke data master pemain, supaya konsisten
-    // di tabel Registrasi Pemain, klasemen, dan riwayat.
+    // Ganti pemain di slot lapangan yang sedang berjalan dengan MEMILIH dari daftar pemain
+    // yang sudah terdaftar (bukan sekadar ganti teks nama). Ini penting supaya statistik
+    // "sudah main berapa kali", kemenangan, dll tetap tersinkron ke ORANG yang benar saat
+    // match diselesaikan — bukan cuma label nama yang berubah tapi datanya nyasar ke id lama.
     function editMatchPlayerName(matchId, team, playerIdx) {
         const match = activeMatches.find(m => m.id === matchId);
         if(!match) return;
-        const player = match[team][playerIdx];
-        const newName = prompt('Ubah nama pemain:', player.name);
-        if(newName === null) return; // dibatalkan
-        const trimmed = newName.trim();
-        if(!trimmed) return alert('Nama tidak boleh kosong!');
-        if(players.find(x => x.id !== player.id && x.name.toLowerCase() === trimmed.toLowerCase())) {
-            return alert('Nama pemain sudah ada!');
+        const currentPlayer = match[team][playerIdx];
+
+        // Id semua pemain yang sudah ada di match ini (kedua tim), supaya tidak bisa pilih dobel —
+        // kecuali slot yang sedang diedit sendiri (dia boleh tetap muncul, ditandai "Saat Ini")
+        const idsInMatch = [...match.teamA, ...match.teamB].map(p => p.id);
+        const candidates = players
+            .filter(p => p.id === currentPlayer.id || !idsInMatch.includes(p.id))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        openPlayerPicker(candidates, currentPlayer.id, (selectedId) => {
+            if(selectedId === currentPlayer.id) return; // tidak ada perubahan
+            const selected = players.find(p => p.id === selectedId);
+            if(!selected) return;
+
+            // Bebaskan status pemain lama yang digeser keluar dari slot ini
+            const oldRef = players.find(p => p.id === currentPlayer.id);
+            if(oldRef) oldRef.status = 'active';
+
+            // Kunci status pemain baru sebagai sedang bertanding
+            selected.status = 'playing';
+
+            // Ganti isi slot, TAPI poin/out/fault yang sudah tercatat di slot ini tetap lanjut
+            // (bukan direset ke 0), supaya skor tim tidak berubah tiba-tiba di tengah match.
+            match[team][playerIdx] = {
+                ...selected,
+                matchPoints: currentPlayer.matchPoints,
+                matchOuts: currentPlayer.matchOuts,
+                matchFaults: currentPlayer.matchFaults
+            };
+
+            saveData();
+        });
+    }
+
+    // --- Modal Picker Pemain (dipakai oleh editMatchPlayerName) ---
+    function openPlayerPicker(candidates, currentId, onSelect) {
+        closePlayerPicker();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'playerPickerOverlay';
+        overlay.className = 'picker-overlay';
+        overlay.onclick = (e) => { if(e.target === overlay) closePlayerPicker(); };
+        overlay.innerHTML = `
+            <div class="picker-box">
+                <div class="picker-header">
+                    <h3>Pilih Pemain Pengganti</h3>
+                    <button onclick="closePlayerPicker()" class="btn-danger" style="padding:4px 10px;">✕</button>
+                </div>
+                <input type="text" id="pickerSearch" placeholder="Cari nama..." oninput="filterPickerList()">
+                <div id="pickerList" class="picker-list"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        window._pickerCandidates = candidates;
+        window._pickerCurrentId = currentId;
+        window._pickerOnSelect = onSelect;
+
+        renderPickerList(candidates);
+        document.getElementById('pickerSearch').focus();
+    }
+
+    function renderPickerList(list) {
+        const container = document.getElementById('pickerList');
+        if(!container) return;
+        if(list.length === 0) {
+            container.innerHTML = '<p style="color:var(--text-muted); padding:10px; text-align:center;">Tidak ada pemain ditemukan.</p>';
+            return;
         }
-        player.name = trimmed;
-        const masterRef = players.find(x => x.id === player.id);
-        if(masterRef) masterRef.name = trimmed;
-        saveData();
+        container.innerHTML = list.map(p => `
+            <div class="picker-item ${p.id === window._pickerCurrentId ? 'picker-item-active' : ''}" onclick="selectPickerPlayer('${p.id}')">
+                ${avatarHTML(p)}
+                <span>${p.name}</span>
+                ${p.id === window._pickerCurrentId ? '<span style="margin-left:auto; color:var(--primary); font-size:0.75rem;">Saat Ini</span>' : `<span style="margin-left:auto; color:var(--text-muted); font-size:0.75rem;">${p.stats.played}x main</span>`}
+            </div>
+        `).join('');
+    }
+
+    function filterPickerList() {
+        const searchEl = document.getElementById('pickerSearch');
+        if(!searchEl || !window._pickerCandidates) return;
+        const q = searchEl.value.toLowerCase();
+        renderPickerList(window._pickerCandidates.filter(p => p.name.toLowerCase().includes(q)));
+    }
+
+    function selectPickerPlayer(id) {
+        const cb = window._pickerOnSelect;
+        closePlayerPicker();
+        if(cb) cb(id);
+    }
+
+    function closePlayerPicker() {
+        const overlay = document.getElementById('playerPickerOverlay');
+        if(overlay) overlay.remove();
+        window._pickerCandidates = null;
+        window._pickerCurrentId = null;
+        window._pickerOnSelect = null;
     }
 
     function manualScore(matchId) {
@@ -1203,7 +1311,7 @@
                             <div class="court-player-row">
                                 ${avatarHTML(p)}
                                 <div class="court-player-info">
-                                    <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults}) <a href="javascript:void(0)" onclick="editMatchPlayerName('${match.id}', 'teamA', ${idx})" style="color:var(--text-muted); text-decoration:none; font-size:0.85em;" title="Ubah nama">✏️</a></span>
+                                    <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults}) <a href="javascript:void(0)" onclick="editMatchPlayerName('${match.id}', 'teamA', ${idx})" style="color:var(--text-muted); text-decoration:none; font-size:0.85em;" title="Ganti pemain">✏️</a></span>
                                     <div class="player-score-controls">
                                         <button class="btn-success" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', false)">+Point</button>
                                         <button class="btn-warning" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'out', false)">+Out</button>
@@ -1221,7 +1329,7 @@
                             <div class="court-player-row" style="flex-direction: row-reverse;">
                                 ${avatarHTML(p)}
                                 <div class="court-player-info" style="text-align:right;">
-                                    <span><a href="javascript:void(0)" onclick="editMatchPlayerName('${match.id}', 'teamB', ${idx})" style="color:var(--text-muted); text-decoration:none; font-size:0.85em;" title="Ubah nama">✏️</a> ${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
+                                    <span><a href="javascript:void(0)" onclick="editMatchPlayerName('${match.id}', 'teamB', ${idx})" style="color:var(--text-muted); text-decoration:none; font-size:0.85em;" title="Ganti pemain">✏️</a> ${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
                                     <div class="player-score-controls" style="justify-content:flex-end;">
                                         <button onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', true)" style="background:var(--border); color:#fff">-</button>
                                         <button class="btn-danger" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'fault', false)">+Fault</button>
