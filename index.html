@@ -1074,6 +1074,26 @@
         saveData();
     }
 
+    // Ubah nama pemain langsung dari kartu lapangan yang sedang berjalan (mis. salah ketik saat acak).
+    // Diterapkan ke match yang sedang berjalan DAN ke data master pemain, supaya konsisten
+    // di tabel Registrasi Pemain, klasemen, dan riwayat.
+    function editMatchPlayerName(matchId, team, playerIdx) {
+        const match = activeMatches.find(m => m.id === matchId);
+        if(!match) return;
+        const player = match[team][playerIdx];
+        const newName = prompt('Ubah nama pemain:', player.name);
+        if(newName === null) return; // dibatalkan
+        const trimmed = newName.trim();
+        if(!trimmed) return alert('Nama tidak boleh kosong!');
+        if(players.find(x => x.id !== player.id && x.name.toLowerCase() === trimmed.toLowerCase())) {
+            return alert('Nama pemain sudah ada!');
+        }
+        player.name = trimmed;
+        const masterRef = players.find(x => x.id === player.id);
+        if(masterRef) masterRef.name = trimmed;
+        saveData();
+    }
+
     function manualScore(matchId) {
         const match = activeMatches.find(m => m.id === matchId);
         const sA = prompt("Masukkan Skor Tim A:", match.scoreA);
@@ -1183,7 +1203,7 @@
                             <div class="court-player-row">
                                 ${avatarHTML(p)}
                                 <div class="court-player-info">
-                                    <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
+                                    <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults}) <a href="javascript:void(0)" onclick="editMatchPlayerName('${match.id}', 'teamA', ${idx})" style="color:var(--text-muted); text-decoration:none; font-size:0.85em;" title="Ubah nama">✏️</a></span>
                                     <div class="player-score-controls">
                                         <button class="btn-success" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', false)">+Point</button>
                                         <button class="btn-warning" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'out', false)">+Out</button>
@@ -1201,7 +1221,7 @@
                             <div class="court-player-row" style="flex-direction: row-reverse;">
                                 ${avatarHTML(p)}
                                 <div class="court-player-info" style="text-align:right;">
-                                    <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
+                                    <span><a href="javascript:void(0)" onclick="editMatchPlayerName('${match.id}', 'teamB', ${idx})" style="color:var(--text-muted); text-decoration:none; font-size:0.85em;" title="Ubah nama">✏️</a> ${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
                                     <div class="player-score-controls" style="justify-content:flex-end;">
                                         <button onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', true)" style="background:var(--border); color:#fff">-</button>
                                         <button class="btn-danger" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'fault', false)">+Fault</button>
