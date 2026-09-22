@@ -591,7 +591,7 @@
         }
     }
 
-    function restoreEvent(ev) {
+    function restoreEvent(ev, renderNow = true) {
         if (!ev) return;
         eventRegistry.activeEventId = ev.id;
         const s = ev.snapshot || {};
@@ -604,8 +604,7 @@
         rrPhase = s.rrPhase || 'setup';
         rrBracket = cloneJSON(s.rrBracket || []);
         currentEventMode = ev.mode;
-        currentEventMode === 'match' ? null : null;
-        init();
+        if (renderNow) init();
     }
 
     function activeEvent() { return eventRegistry.events.find(e => e.id === eventRegistry.activeEventId) || null; }
@@ -636,21 +635,45 @@
 
     function closeEventModal() { document.getElementById('eventModal')?.remove(); }
 
-    function createEvent(mode) {
-        const name = document.getElementById('eventNameInput')?.value.trim();
-        const date = document.getElementById('eventDateInput')?.value || todayISO();
-        if (!name) return alert('Nama acara / pertandingan wajib diisi.');
+    async function createEvent(mode) {
+        const nameEl = document.getElementById('eventNameInput');
+        const dateEl = document.getElementById('eventDateInput');
+        const name = nameEl ? nameEl.value.trim() : '';
+        const date = (dateEl && dateEl.value) ? dateEl.value : todayISO();
+
+        if (!name) {
+            if (nameEl) nameEl.focus();
+            return alert('Nama acara / pertandingan wajib diisi.');
+        }
+        if (!['match','roundrobin','roundgroup'].includes(mode)) {
+            return alert('Mode pertandingan tidak valid.');
+        }
+
+        const now = new Date().toISOString();
         const id = 'event-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
         const ev = {
-            id, name, date, mode, status:'draft', createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
-            snapshot:{ playerStats: currentPlayerStatsSnapshot(), matchesHistory:[], activeMatches:[], rrTeams:[], rrMatches:[], rrSettings:{qualifyCount:4,totalCourts:2}, rrPhase:'setup', rrBracket:[] }
+            id, name, date, mode, status:'draft', createdAt:now, updatedAt:now,
+            snapshot:{
+                playerStats: currentPlayerStatsSnapshot(),
+                matchesHistory:[], activeMatches:[], rrTeams:[], rrMatches:[],
+                rrSettings:{qualifyCount:4,totalCourts:2}, rrPhase:'setup', rrBracket:[]
+            }
         };
+
+        // Simpan event terlebih dahulu di memori, lalu tampilkan workspace-nya.
         eventRegistry.events.unshift(ev);
         eventRegistry.activeEventId = id;
         currentEventMode = mode;
-        restoreEvent(ev);
-        persistStateOnly();
+
         closeEventModal();
+        restoreEvent(ev, false);
+
+        // Render langsung tanpa menunggu Supabase. Jadi tombol terasa responsif
+        // walaupun request database sedang berjalan.
+        init();
+
+        // Baru simpan registry + state ke Supabase.
+        await persistStateOnly();
     }
 
     function selectEvent(mode, id) {
