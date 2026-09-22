@@ -125,6 +125,34 @@
         .picker-item:hover { border-color: var(--primary); }
         .picker-item-active { border-color: var(--primary); background: rgba(200,159,76,0.1); }
 
+        /* ================= EVENT / HISTORY MANAGER ================= */
+        .event-manager { max-width: 1100px; margin: 0 auto; }
+        .event-toolbar { display:grid; grid-template-columns: 1fr 180px 180px auto; gap:10px; margin-bottom:18px; }
+        .event-toolbar input, .event-toolbar select { width:100%; margin:0; }
+        .event-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap:12px; }
+        .event-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:16px; cursor:pointer; transition:.18s; }
+        .event-card:hover { border-color:var(--primary); transform:translateY(-1px); }
+        .event-readonly { opacity:.92; }
+        .event-readonly .card { position:relative; }
+        .event-card-title { font-size:1.05rem; font-weight:700; margin-bottom:6px; }
+        .event-card-meta { color:var(--text-muted); font-size:.82rem; margin-bottom:12px; }
+        .event-card-footer { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+        .event-status { display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:999px; font-size:.72rem; font-weight:700; }
+        .event-status.ongoing { background:rgba(245,158,11,.15); color:#fcd34d; }
+        .event-status.finished { background:rgba(16,185,129,.15); color:#6ee7b7; }
+        .event-status.draft { background:rgba(156,163,175,.15); color:var(--text-muted); }
+        .event-empty { text-align:center; padding:45px 20px; color:var(--text-muted); }
+        .event-back { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:15px; }
+        .event-back-title { font-size:1.1rem; color:var(--primary); font-weight:700; }
+        .event-mode-pill { color:var(--text-muted); font-size:.8rem; }
+        .event-modal { position:fixed; inset:0; z-index:12000; background:rgba(0,0,0,.78); display:flex; align-items:center; justify-content:center; padding:20px; }
+        .event-modal-box { width:100%; max-width:460px; background:var(--bg-card); border:1px solid var(--primary); border-radius:12px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+        .event-modal-box h3 { color:var(--primary); margin-bottom:15px; }
+        .event-modal-box label { display:block; font-size:.8rem; color:var(--text-muted); margin:10px 0 4px; }
+        .event-modal-box input, .event-modal-box select { width:100%; margin:0; }
+        .event-modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+        @media (max-width: 700px) { .event-toolbar { grid-template-columns:1fr 1fr; } .event-toolbar .event-add-btn { grid-column:1/-1; width:100%; } }
+
         /* ================= TAMPILAN MOBILE (Android/iOS) ================= */
         @media (max-width: 640px) {
             body { padding: 10px; }
@@ -235,6 +263,8 @@
 
     <!-- ================= TAB 1: PERTANDINGAN & KLASEMEN ================= -->
     <div id="tab-match" class="tab-content active">
+        <div id="eventManager-match"></div>
+        <div id="eventWorkspace-match">
         <div class="container">
             <!-- Panel Kiri: Pengaturan, Pemain, Antrean -->
             <div>
@@ -352,6 +382,7 @@
                 </div>
             </div>
         </div>
+        </div>
     </div>
 
     <!-- ================= TAB 2: KEUANGAN & DEPOSIT ================= -->
@@ -450,6 +481,8 @@
 
     <!-- ================= TAB 3: ROUND ROBIN + KNOCKOUT ================= -->
     <div id="tab-roundrobin" class="tab-content">
+        <div id="eventManager-roundrobin"></div>
+        <div id="eventWorkspace-roundrobin">
         <div class="container">
             <!-- Panel Kiri: Setup Tim & Klasemen -->
             <div>
@@ -463,13 +496,17 @@
                 <div class="card" id="rrKnockoutCard"></div>
             </div>
         </div>
+        </div>
     </div>
 
     <!-- ================= TAB 4: ROUND GRUP + KNOCKOUT (Segera Hadir) ================= -->
     <div id="tab-roundgroup" class="tab-content">
+        <div id="eventManager-roundgroup"></div>
+        <div id="eventWorkspace-roundgroup">
         <div class="card" style="text-align:center; padding:40px 20px;">
             <h2 style="margin-bottom:10px;">☠️ Round Grup + Knockout</h2>
             <p style="color: var(--text-muted);">Fitur ini masih dalam pengembangan — segera hadir.</p>
+        </div>
         </div>
     </div>
 
@@ -499,6 +536,241 @@
     let rrTimers = {};
     let koTimers = {};
 
+    // --- Event / Pertandingan Manager ---
+    // Event disimpan di dalam kolom rr_settings (JSONB) agar versi ini tetap kompatibel
+    // dengan schema lama tanpa wajib menambah kolom baru di Supabase.
+    let eventRegistry = { activeEventId: null, events: [] };
+    let currentEventMode = 'match';
+
+    function todayISO() { return new Date().toISOString().slice(0,10); }
+
+    function cloneJSON(value) { return JSON.parse(JSON.stringify(value)); }
+
+    function eventModeLabel(mode) {
+        return mode === 'match' ? '🔁 Round Mix' : mode === 'roundrobin' ? '⚔️ Round Robin + Knockout' : '☠️ Round Grup + Knockout';
+    }
+
+    function getEventRegistryFromSettings(settings) {
+        const reg = settings && settings.__eventRegistry;
+        if (reg && Array.isArray(reg.events)) return reg;
+        return { activeEventId: null, events: [] };
+    }
+
+    function currentPlayerStatsSnapshot() {
+        const out = {};
+        players.forEach(p => { out[p.id] = cloneJSON(p.stats || {played:0,wins:0,points:0,out:0,fault:0}); });
+        return out;
+    }
+
+    function applyPlayerStatsSnapshot(statsByPlayer) {
+        players.forEach(p => {
+            const s = statsByPlayer && statsByPlayer[p.id];
+            p.stats = s ? cloneJSON(s) : {played:0,wins:0,points:0,out:0,fault:0};
+        });
+    }
+
+    function snapshotCurrentEvent() {
+        const ev = eventRegistry.events.find(e => e.id === eventRegistry.activeEventId);
+        if (!ev) return;
+        ev.snapshot = {
+            playerStats: currentPlayerStatsSnapshot(),
+            matchesHistory: cloneJSON(matchesHistory),
+            activeMatches: cloneJSON(activeMatches),
+            rrTeams: cloneJSON(rrTeams),
+            rrMatches: cloneJSON(rrMatches),
+            rrSettings: cloneJSON(rrSettings),
+            rrPhase,
+            rrBracket: cloneJSON(rrBracket)
+        };
+        ev.updatedAt = new Date().toISOString();
+        if (ev.status !== 'finished') {
+            const ongoingMix = activeMatches.length > 0;
+            const ongoingRR = rrMatches.some(m => m.status === 'ongoing') || rrBracket.some(r => r.matches.some(m => m.status === 'ongoing'));
+            const hasStarted = matchesHistory.length > 0 || rrMatches.length > 0 || rrBracket.length > 0;
+            ev.status = (ongoingMix || ongoingRR) ? 'ongoing' : (hasStarted ? 'ongoing' : 'draft');
+        }
+    }
+
+    function restoreEvent(ev) {
+        if (!ev) return;
+        eventRegistry.activeEventId = ev.id;
+        const s = ev.snapshot || {};
+        applyPlayerStatsSnapshot(s.playerStats || {});
+        matchesHistory = cloneJSON(s.matchesHistory || []);
+        activeMatches = cloneJSON(s.activeMatches || []);
+        rrTeams = cloneJSON(s.rrTeams || []);
+        rrMatches = cloneJSON(s.rrMatches || []);
+        rrSettings = cloneJSON(s.rrSettings || {qualifyCount:4,totalCourts:2});
+        rrPhase = s.rrPhase || 'setup';
+        rrBracket = cloneJSON(s.rrBracket || []);
+        currentEventMode = ev.mode;
+        currentEventMode === 'match' ? null : null;
+        init();
+    }
+
+    function activeEvent() { return eventRegistry.events.find(e => e.id === eventRegistry.activeEventId) || null; }
+
+    function openEventModal(mode) {
+        const existing = document.getElementById('eventModal');
+        if (existing) existing.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'eventModal';
+        overlay.className = 'event-modal';
+        overlay.innerHTML = `
+            <div class="event-modal-box">
+                <h3>🆕 Tambah Pertandingan</h3>
+                <div style="color:var(--text-muted); font-size:.82rem; margin-bottom:10px;">${eventModeLabel(mode)}</div>
+                <label>Nama Acara / Pertandingan *</label>
+                <input id="eventNameInput" type="text" placeholder="Contoh: Latihan Rutin Selasa" maxlength="100" autofocus>
+                <label>Tanggal *</label>
+                <input id="eventDateInput" type="date" value="${todayISO()}">
+                <div class="event-modal-actions">
+                    <button onclick="closeEventModal()" style="background:var(--border); color:#fff;">Batal</button>
+                    <button onclick="createEvent('${mode}')" class="btn-success">Buat Pertandingan</button>
+                </div>
+            </div>`;
+        overlay.onclick = e => { if(e.target === overlay) closeEventModal(); };
+        document.body.appendChild(overlay);
+        setTimeout(() => document.getElementById('eventNameInput')?.focus(), 50);
+    }
+
+    function closeEventModal() { document.getElementById('eventModal')?.remove(); }
+
+    function createEvent(mode) {
+        const name = document.getElementById('eventNameInput')?.value.trim();
+        const date = document.getElementById('eventDateInput')?.value || todayISO();
+        if (!name) return alert('Nama acara / pertandingan wajib diisi.');
+        const id = 'event-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
+        const ev = {
+            id, name, date, mode, status:'draft', createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(),
+            snapshot:{ playerStats: currentPlayerStatsSnapshot(), matchesHistory:[], activeMatches:[], rrTeams:[], rrMatches:[], rrSettings:{qualifyCount:4,totalCourts:2}, rrPhase:'setup', rrBracket:[] }
+        };
+        eventRegistry.events.unshift(ev);
+        eventRegistry.activeEventId = id;
+        currentEventMode = mode;
+        restoreEvent(ev);
+        persistStateOnly();
+        closeEventModal();
+    }
+
+    function selectEvent(mode, id) {
+        const ev = eventRegistry.events.find(e => e.id === id && e.mode === mode);
+        if (!ev) return;
+        restoreEvent(ev);
+        persistStateOnly();
+    }
+
+    function backToEventList() {
+        snapshotCurrentEvent();
+        eventRegistry.activeEventId = null;
+        Object.values(timers).forEach(clearInterval); timers = {};
+        Object.values(rrTimers).forEach(clearInterval); rrTimers = {};
+        Object.values(koTimers).forEach(clearInterval); koTimers = {};
+        persistStateOnly().then(() => init());
+    }
+
+    function finishCurrentEvent() {
+        const ev = activeEvent();
+        if (!ev) return;
+        if (activeMatches.length || rrMatches.some(m=>m.status==='ongoing') || rrBracket.some(r=>r.matches.some(m=>m.status==='ongoing'))) {
+            return alert('Masih ada pertandingan yang sedang berlangsung. Selesaikan dulu match yang aktif.');
+        }
+        if (!confirm(`Tandai "${ev.name}" sebagai selesai?`)) return;
+        ev.status = 'finished';
+        snapshotCurrentEvent();
+        ev.status = 'finished';
+        persistStateOnly();
+        backToEventList();
+    }
+
+    function reopenEvent(id) {
+        const ev = eventRegistry.events.find(e=>e.id===id);
+        if (!ev) return;
+        ev.status='ongoing';
+        restoreEvent(ev);
+        persistStateOnly();
+    }
+
+    function deleteEvent(id) {
+        const ev = eventRegistry.events.find(e=>e.id===id);
+        if (!ev) return;
+        if (!confirm(`Hapus riwayat "${ev.name}"? Data pertandingan ini akan ikut terhapus.`)) return;
+        eventRegistry.events = eventRegistry.events.filter(e=>e.id!==id);
+        if (eventRegistry.activeEventId===id) eventRegistry.activeEventId=null;
+        persistStateOnly().then(()=>init());
+    }
+
+    function renderEventManager(mode) {
+        const host = document.getElementById('eventManager-' + mode);
+        const workspace = document.getElementById('eventWorkspace-' + mode);
+        if (!host || !workspace) return;
+        const ev = activeEvent();
+        if (ev && ev.mode === mode) {
+            host.innerHTML = `
+                <div class="event-back">
+                    <div><div class="event-back-title">${escapeHTML(ev.name)}</div><div class="event-mode-pill">${eventModeLabel(mode)} · ${formatEventDate(ev.date)}</div></div>
+                    <div class="flex-row" style="margin:0;">
+                        <button onclick="backToEventList()" style="background:var(--border);color:#fff;">← Daftar Pertandingan</button>
+                        <button onclick="finishCurrentEvent()" class="btn-success">Selesaikan Pertandingan</button>
+                    </div>
+                </div>`;
+            workspace.style.display='block';
+            workspace.classList.toggle('event-readonly', ev.status === 'finished');
+            return;
+        }
+        workspace.style.display='none';
+        workspace.classList.remove('event-readonly');
+        const events = eventRegistry.events.filter(e=>e.mode===mode);
+        host.innerHTML = `
+            <div class="event-manager">
+                <div class="card">
+                    <h2 style="margin-bottom:6px;">${eventModeLabel(mode)}</h2>
+                    <p style="color:var(--text-muted);font-size:.86rem;margin-bottom:18px;">Pilih pertandingan sebelumnya untuk melihat data, skor, dan riwayatnya.</p>
+                    <div class="event-toolbar">
+                        <input id="eventSearch-${mode}" type="text" placeholder="🔎 Cari nama acara..." oninput="renderEventList('${mode}')">
+                        <select id="eventStatus-${mode}" onchange="renderEventList('${mode}')"><option value="ALL">Semua Status</option><option value="draft">Belum Dimulai</option><option value="ongoing">Sedang Berlangsung</option><option value="finished">Selesai</option></select>
+                        <input id="eventDate-${mode}" type="date" onchange="renderEventList('${mode}')">
+                        <button class="event-add-btn" onclick="openEventModal('${mode}')">🆕 Tambah Pertandingan</button>
+                    </div>
+                    <div id="eventList-${mode}"></div>
+                </div>
+            </div>`;
+        renderEventList(mode);
+    }
+
+    function renderEventList(mode) {
+        const container=document.getElementById('eventList-'+mode); if(!container)return;
+        const q=(document.getElementById('eventSearch-'+mode)?.value||'').toLowerCase().trim();
+        const status=document.getElementById('eventStatus-'+mode)?.value||'ALL';
+        const date=document.getElementById('eventDate-'+mode)?.value||'';
+        let events=eventRegistry.events.filter(e=>e.mode===mode);
+        events=events.filter(e=>(!q||e.name.toLowerCase().includes(q))&& (status==='ALL'||e.status===status) && (!date||e.date===date));
+        if(!events.length){ container.innerHTML=`<div class="event-empty">📭<br><br>Belum ada pertandingan yang sesuai filter.<br><button onclick="openEventModal('${mode}')" class="btn-success" style="margin-top:12px;">🆕 Buat Pertandingan</button></div>`; return; }
+        container.innerHTML='<div class="event-grid">'+events.map(ev=>{
+            const snap=ev.snapshot||{};
+            const playersCount=new Set([...(snap.activeMatches||[]).flatMap(m=>[...(m.teamA||[]),...(m.teamB||[])]).map(p=>p.id)]).size;
+            const courts=new Set((snap.activeMatches||[]).map(m=>m.courtName)).size || ((snap.rrSettings||{}).totalCourts||0);
+            const statusText=ev.status==='ongoing'?'🟡 Sedang Berlangsung':ev.status==='finished'?'🟢 Selesai':'⚪ Belum Dimulai';
+            const stats=ev.mode==='match' ? `${snap.matchesHistory?.length||0} match selesai` : `${snap.rrMatches?.length||0} fixture`;
+            return `<div class="event-card" onclick="selectEvent('${mode}','${ev.id}')"><div class="event-card-title">${escapeHTML(ev.name)}</div><div class="event-card-meta">${formatEventDate(ev.date)} · ${eventModeLabel(mode)}</div><div style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px;">${playersCount?playersCount+' pemain · ':''}${courts?courts+' lapangan · ':''}${stats}</div><div class="event-card-footer"><span class="event-status ${ev.status}">${statusText}</span><div class="flex-row" style="margin:0;" onclick="event.stopPropagation()">${ev.status==='finished'?`<button onclick="reopenEvent('${ev.id}')" class="btn-warning" style="padding:5px 9px;">🔓 Buka Kembali</button>`:''}<button onclick="deleteEvent('${ev.id}')" class="btn-danger" style="padding:5px 9px;">Hapus</button></div></div></div>`;
+        }).join('')+'</div>';
+    }
+
+    function formatEventDate(date){ if(!date)return '-'; const d=new Date(date+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}); }
+    function escapeHTML(v){ return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]||c)); }
+
+    async function persistStateOnly() {
+        snapshotCurrentEvent();
+        const settingsToSave = cloneJSON(rrSettings || {});
+        settingsToSave.__eventRegistry = cloneJSON(eventRegistry);
+        const {error}=await supabaseClient.from('sport_manager_state').update({
+            players, matches_history:matchesHistory, active_matches:activeMatches, finance_transactions:financeTransactions, finance_settings:financeSettings,
+            rr_teams:rrTeams, rr_matches:rrMatches, rr_settings:settingsToSave, rr_phase:rrPhase, rr_bracket:rrBracket, updated_at:new Date().toISOString()
+        }).eq('id',STATE_ROW_ID);
+        if(error){ console.error(error); alert('Gagal menyimpan data: '+error.message); }
+    }
+
+
     // Ambil state terbaru dari Supabase
     async function loadState() {
         const { data, error } = await supabaseClient
@@ -523,6 +795,25 @@
         rrSettings = data.rr_settings || { qualifyCount: 4, totalCourts: 2 };
         rrPhase = data.rr_phase || 'setup';
         rrBracket = data.rr_bracket || [];
+        eventRegistry = getEventRegistryFromSettings(data.rr_settings || {});
+
+        // Migrasi otomatis data lama menjadi satu event agar data sebelumnya tetap ada.
+        if (eventRegistry.events.length === 0 && (matchesHistory.length || activeMatches.length || rrTeams.length || rrMatches.length || rrBracket.length)) {
+            const now = new Date().toISOString();
+            const baseStats = currentPlayerStatsSnapshot();
+            const migrated = [];
+            if (matchesHistory.length || activeMatches.length) {
+                migrated.push({ id:'event-legacy-mix-'+Date.now(), name:'Data Lama (Sebelum Update)', date:todayISO(), mode:'match', status:activeMatches.length?'ongoing':'finished', createdAt:now, updatedAt:now, snapshot:{playerStats:cloneJSON(baseStats),matchesHistory:cloneJSON(matchesHistory),activeMatches:cloneJSON(activeMatches),rrTeams:[],rrMatches:[],rrSettings:{qualifyCount:4,totalCourts:2},rrPhase:'setup',rrBracket:[]} });
+            }
+            if (rrTeams.length || rrMatches.length || rrBracket.length) {
+                migrated.push({ id:'event-legacy-rr-'+Date.now(), name:'Data Lama Round Robin (Sebelum Update)', date:todayISO(), mode:'roundrobin', status:rrMatches.some(m=>m.status==='ongoing')||rrBracket.some(r=>r.matches.some(m=>m.status==='ongoing'))?'ongoing':'finished', createdAt:now, updatedAt:now, snapshot:{playerStats:cloneJSON(baseStats),matchesHistory:[],activeMatches:[],rrTeams:cloneJSON(rrTeams),rrMatches:cloneJSON(rrMatches),rrSettings:cloneJSON(rrSettings),rrPhase,rrBracket:cloneJSON(rrBracket)} });
+            }
+            eventRegistry.events = migrated;
+            eventRegistry.activeEventId=null;
+            const clean=cloneJSON(rrSettings); delete clean.__eventRegistry; rrSettings=clean;
+            // Data lama dipertahankan di event snapshot; state aktif dikosongkan agar tidak tampil di luar event.
+            matchesHistory=[]; activeMatches=[]; rrTeams=[]; rrMatches=[]; rrBracket=[]; rrPhase='setup';
+        }
     }
 
     // Dengarkan perubahan realtime dari pengguna lain yang terhubung
@@ -546,7 +837,9 @@
                 rrSettings = row.rr_settings || { qualifyCount: 4, totalCourts: 2 };
                 rrPhase = row.rr_phase || 'setup';
                 rrBracket = row.rr_bracket || [];
-                init();
+                eventRegistry = getEventRegistryFromSettings(row.rr_settings || {});
+                const active = eventRegistry.activeEventId ? eventRegistry.events.find(e=>e.id===eventRegistry.activeEventId) : null;
+                if (active) restoreEvent(active); else init();
             })
             .subscribe();
     }
@@ -634,6 +927,10 @@
             if(p.ready === undefined) p.ready = true;
         });
         
+        renderEventManager('match');
+        renderEventManager('roundrobin');
+        renderEventManager('roundgroup');
+
         renderPlayers();
         renderQueue();
         renderCourts();
@@ -668,53 +965,39 @@
     let savePending = false;
 
     async function saveData() {
-        init(); // render optimis di layar sendiri dulu, tanpa nunggu respons server
-
-        if(saveInFlight) {
-            savePending = true;
-            return;
-        }
+        snapshotCurrentEvent();
+        init();
+        if(saveInFlight) { savePending = true; return; }
         saveInFlight = true;
         await performSaveToSupabase();
         saveInFlight = false;
-
-        if(savePending) {
-            savePending = false;
-            saveData(); // ada perubahan baru masuk selagi menunggu -> kirim sekali lagi versi terbaru
-        }
+        if(savePending) { savePending = false; saveData(); }
     }
 
     async function performSaveToSupabase() {
+        const settingsToSave = cloneJSON(rrSettings || {});
+        settingsToSave.__eventRegistry = cloneJSON(eventRegistry);
         const { error } = await supabaseClient
             .from('sport_manager_state')
             .update({
-                players,
-                matches_history: matchesHistory,
-                active_matches: activeMatches,
-                finance_transactions: financeTransactions,
-                finance_settings: financeSettings,
-                rr_teams: rrTeams,
-                rr_matches: rrMatches,
-                rr_settings: rrSettings,
-                rr_phase: rrPhase,
-                rr_bracket: rrBracket,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', STATE_ROW_ID);
-
-        if (error) {
-            console.error('Gagal menyimpan ke Supabase:', error);
-            alert('Gagal menyimpan perubahan ke server: ' + error.message);
-        }
+                players, matches_history: matchesHistory, active_matches: activeMatches,
+                finance_transactions: financeTransactions, finance_settings: financeSettings,
+                rr_teams: rrTeams, rr_matches: rrMatches, rr_settings: settingsToSave,
+                rr_phase: rrPhase, rr_bracket: rrBracket, updated_at: new Date().toISOString()
+            }).eq('id', STATE_ROW_ID);
+        if (error) { console.error('Gagal menyimpan ke Supabase:', error); alert('Gagal menyimpan perubahan ke server: ' + error.message); }
     }
 
     // --- Navigasi Tab ---
     function switchTab(evt, tabName) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
         evt.currentTarget.classList.add('active');
         document.getElementById('tab-' + tabName).classList.add('active');
+        if (['match','roundrobin','roundgroup'].includes(tabName)) {
+            currentEventMode = tabName;
+            renderEventManager(tabName);
+        }
     }
 
     // --- Fitur Pemain ---
