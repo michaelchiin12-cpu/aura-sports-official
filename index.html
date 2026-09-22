@@ -257,6 +257,7 @@
                                     <th>Nama</th>
                                     <th>L/P</th>
                                     <th>Level</th>
+                                    <th>Hadir?</th>
                                     <th>Saldo</th>
                                     <th>Status</th>
                                     <th>Aksi</th>
@@ -605,6 +606,10 @@
         players.forEach(p => {
             if(p.deposit === undefined) p.deposit = 0;
             if(!Array.isArray(p.lastPartners)) p.lastPartners = [];
+            // Pemain lama (didaftarkan sebelum fitur "Hadir?" ada) dianggap sudah hadir,
+            // supaya tidak tiba-tiba hilang dari antrean. Pemain BARU sengaja default false
+            // (lihat addPlayer) karena biasanya banyak yang telat.
+            if(p.ready === undefined) p.ready = true;
         });
         
         renderPlayers();
@@ -718,6 +723,7 @@
             name, gender, level,
             photo: photoUrl,
             status: 'active',
+            ready: false, // default "Belum Hadir" — banyak yang sering telat, jadi tandai hadir manual saat orangnya sudah datang
             deposit: 0,
             stats: { played: 0, wins: 0, points: 0, out: 0, fault: 0 }
         });
@@ -786,6 +792,30 @@
         saveData();
     }
 
+    // Tandai pemain sudah datang / belum datang. Yang "Belum Hadir" tidak akan ikut
+    // diacak ke pertandingan (lihat generateMatches & renderQueue) sampai ditandai hadir.
+    function toggleReady(id) {
+        const p = players.find(x => x.id === id);
+        if(!p) return;
+        p.ready = !p.ready;
+        saveData();
+    }
+
+    // Ubah nama pemain yang sudah terdaftar (misal salah ketik, atau salah nama sebelum ready)
+    function editPlayerName(id) {
+        const p = players.find(x => x.id === id);
+        if(!p) return;
+        const newName = prompt('Ubah nama pemain:', p.name);
+        if(newName === null) return; // dibatalkan
+        const trimmed = newName.trim();
+        if(!trimmed) return alert('Nama tidak boleh kosong!');
+        if(players.find(x => x.id !== id && x.name.toLowerCase() === trimmed.toLowerCase())) {
+            return alert('Nama pemain sudah ada!');
+        }
+        p.name = trimmed;
+        saveData();
+    }
+
     function deletePlayer(id) {
         if(confirm('Hapus pemain ini?')) {
             players = players.filter(p => p.id !== id);
@@ -814,9 +844,19 @@
                         <button onclick="changePlayerPhoto('${p.id}')" class="btn-photo">Ganti Foto</button>
                     </div>
                 </td>
-                <td>${p.name}</td>
+                <td>
+                    <div class="flex-row" style="margin:0; gap:6px; flex-wrap:nowrap;">
+                        <span>${p.name}</span>
+                        <button onclick="editPlayerName('${p.id}')" class="btn-photo" title="Ubah nama">✏️ Edit</button>
+                    </div>
+                </td>
                 <td>${p.gender}</td>
                 <td>${getLevelBadge(p.level)}</td>
+                <td>
+                    <button onclick="toggleReady('${p.id}')" class="${p.ready ? 'btn-success' : 'btn-warning'}" style="padding: 4px 8px; font-size: 0.75rem;">
+                        ${p.ready ? '✅ Sudah Hadir' : '⏳ Belum Hadir'}
+                    </button>
+                </td>
                 <td style="color:${p.deposit < 0 ? 'var(--danger)' : 'var(--success)'}; font-weight:bold;">${formatRupiah(p.deposit)}</td>
                 <td>
                     <button onclick="toggleStatus('${p.id}')" class="${p.status === 'active' ? 'btn-success' : p.status === 'playing' ? 'btn-warning' : 'btn-danger'}" ${p.status==='playing'?'disabled':''} style="padding: 4px 8px; font-size: 0.8rem; color: ${p.status==='playing'?'#000':'#fff'}">
@@ -832,8 +872,9 @@
 
     function renderQueue() {
         const tbody = document.getElementById('queueList');
+        const notReadyCount = players.filter(p => p.status === 'active' && !p.ready).length;
         const queue = players
-            .filter(p => p.status === 'active')
+            .filter(p => p.status === 'active' && p.ready)
             .sort((a, b) => a.stats.played - b.stats.played);
 
         tbody.innerHTML = queue.map((p, idx) => `
@@ -843,7 +884,13 @@
                 <td>${getLevelBadge(p.level)}</td>
                 <td style="text-align:center; font-weight:bold; color: var(--primary);">${p.stats.played}x</td>
             </tr>
-        `).join('');
+        `).join('') + (notReadyCount > 0 ? `
+            <tr>
+                <td colspan="4" style="text-align:center; color: var(--warning); font-size:0.85rem; padding-top:10px;">
+                    ⏳ ${notReadyCount} pemain aktif belum ditandai hadir, jadi belum masuk antrean
+                </td>
+            </tr>
+        ` : '');
     }
 
     // --- Algoritma Matchmaking Dinamis ---
@@ -926,12 +973,15 @@
             return;
         }
 
-        // Pool pemain aktif, urutkan dari yang paling sedikit main (tetap jadi prioritas utama/fairness)
-        let eligible = players.filter(p => p.status === 'active')
+        // Pool pemain aktif YANG SUDAH HADIR, urutkan dari yang paling sedikit main (fairness).
+        // Pemain "Belum Hadir" (biasanya yang masih di jalan/telat) sengaja dikecualikan dulu
+        // sampai ditandai hadir manual di tabel Registrasi Pemain.
+        let eligible = players.filter(p => p.status === 'active' && p.ready)
             .sort((a, b) => a.stats.played - b.stats.played);
 
         if(eligible.length < requiredPlayersPerMatch) {
-            alert(`Pemain aktif tidak cukup. Butuh ${requiredPlayersPerMatch}, tersedia ${eligible.length}.`);
+            const notReady = players.filter(p => p.status === 'active' && !p.ready).length;
+            alert(`Pemain yang sudah hadir & aktif tidak cukup. Butuh ${requiredPlayersPerMatch}, tersedia ${eligible.length}.` + (notReady > 0 ? `\n\n(${notReady} pemain masih ditandai "Belum Hadir" — tandai hadir dulu di tabel Registrasi Pemain kalau mereka sudah datang)` : ''));
             return;
         }
 
