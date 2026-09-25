@@ -1037,6 +1037,88 @@
         if (error) { console.error('Gagal menyimpan ke Supabase:', error); alert('Gagal menyimpan perubahan ke server: ' + error.message); }
     }
 
+    // ============================================================================
+    // PERBAIKAN RACE CONDITION SKOR (2 HP update skor match yang sama bersamaan)
+    // ----------------------------------------------------------------------------
+    // saveData() biasa menimpa SELURUH baris Supabase pakai salinan state yang ada
+    // di memori HP ini. Kalau HP lain baru saja menyimpan skor duluan tapi Realtime-
+    // nya belum sempat sampai ke HP ini, salinan lokal kita masih "basi" (skor lama).
+    // Kalau kita saveData() saat itu, skor terbaru dari HP lain ikut TERTIMPA balik
+    // oleh salinan basi kita -> skor kelihatan "mundur".
+    //
+    // Fungsi di bawah ini dipakai KHUSUS untuk tombol +/-/edit skor (yang paling
+    // sering diklik berkali-kali & paling rawan tabrakan). Alurnya:
+    //   1. Ambil data TERBARU langsung dari server (bukan pakai salinan lokal).
+    //   2. Terapkan perubahan (delta) di atas data terbaru itu.
+    //   3. Simpan dengan syarat ".eq('updated_at', <waktu saat kita ambil data>)"
+    //      -> ini kunci concurrency: kalau ternyata SUDAH ADA HP lain yang menyimpan
+    //      di antara langkah 1 dan 3 (updated_at sudah berubah), penyimpanan kita
+    //      GAGAL (0 baris ter-update) dan kita ULANGI dari langkah 1 dengan data
+    //      yang lebih baru lagi. Diulang sampai berhasil (maksimal 6x percobaan).
+    // Hasilnya: skor tidak akan pernah "hilang" walau 2 HP menekan tombol di detik
+    // yang sama, karena setiap perubahan selalu dihitung dari angka TERBARU di server,
+    // bukan dari angka yang mungkin sudah basi di layar kita.
+    // ============================================================================
+    function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    async function safeApplyToServer(mutateFn) {
+        const MAX_ATTEMPT = 12; // dinaikkan dari 6 -> lebih tahan banting saat banyak HP nulis bersamaan
+        for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
+            const { data: fresh, error: fetchErr } = await supabaseClient
+                .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
+            if (fetchErr) { console.error('Gagal ambil data terbaru:', fetchErr); return false; }
+
+            const ok = mutateFn(fresh);
+            if (!ok) return false; // target (match) tidak ditemukan di server, tidak perlu diulang
+
+            const { data: updData, error: updErr } = await supabaseClient
+                .from('sport_manager_state')
+                .update({
+                    active_matches: fresh.active_matches,
+                    rr_matches: fresh.rr_matches,
+                    rr_bracket: fresh.rr_bracket,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', STATE_ROW_ID)
+                .eq('updated_at', fresh.updated_at) // kunci: gagal kalau sudah ada yang nyimpen duluan
+                .select();
+
+            if (!updErr && updData && updData.length) {
+                // Berhasil tanpa tabrakan -> sinkronkan 3 kolom ini ke state lokal
+                // supaya layar HP ini pasti sama persis dengan yang tersimpan di server.
+                activeMatches = updData[0].active_matches || [];
+                rrMatches = updData[0].rr_matches || [];
+                rrBracket = updData[0].rr_bracket || [];
+                return true;
+            }
+            // updData kosong = tabrakan (ada HP lain nulis di antara fetch & update kita).
+            // Tunggu sebentar dengan jeda ACAK (supaya HP-HP yang tabrakan tidak langsung
+            // coba lagi di waktu yang sama persis / "thundering herd"), lalu ulangi dari awal.
+            await _sleep(25 + Math.random() * 90 + attempt * 15);
+        }
+        console.error('safeApplyToServer: gagal setelah beberapa kali percobaan (banyak tabrakan).');
+        return false;
+    }
+
+    // Kalau penyimpanan skor gagal total (sangat jarang, hanya saat banyak sekali HP
+    // menabrak match yang sama secara bersamaan), beri tahu pengguna & tarik ulang data
+    // terbaru dari server supaya tampilan tidak "nyangkut" di angka optimis yang salah.
+    async function handleScoreSaveFailure(reRender) {
+        alert('Skor gagal tersimpan karena banyak perubahan bersamaan di HP lain. Menyegarkan data...');
+        await loadState();
+        init();
+        if (typeof reRender === 'function') reRender();
+    }
+
+    // Antrean khusus untuk perubahan skor: setiap klik diproses SATU PER SATU dan
+    // berurutan (tunggu yang sebelumnya selesai), supaya klik cepat berulang di HP
+    // yang sama juga tidak saling salip / tidak konsisten.
+    let scoreOpQueue = Promise.resolve();
+    function queueScoreOp(fn) {
+        scoreOpQueue = scoreOpQueue.then(fn).catch(err => console.error('Gagal proses skor:', err));
+        return scoreOpQueue;
+    }
+
     // --- Navigasi Tab ---
     function switchTab(evt, tabName) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1411,21 +1493,31 @@
 
     // --- Kontrol Pertandingan ---
     function updateScore(matchId, team, playerIdx, type, isMinus) {
-        const match = activeMatches.find(m => m.id === matchId);
-        const player = match[team][playerIdx];
         const val = isMinus ? -1 : 1;
-
-        if(type === 'point') {
-            player.matchPoints += val;
-            if(team === 'teamA') match.scoreA += val; else match.scoreB += val;
-        } else if(type === 'out') {
-            player.matchOuts += val;
-            if(team === 'teamA') match.scoreB += val; else match.scoreA += val;
-        } else if(type === 'fault') {
-            player.matchFaults += val;
-            if(team === 'teamA') match.scoreB += val; else match.scoreA += val;
+        // 1) Update tampilan lokal dulu supaya terasa instan saat diklik
+        const localMatch = activeMatches.find(m => m.id === matchId);
+        if (localMatch) {
+            const p = localMatch[team][playerIdx];
+            if(type === 'point') { p.matchPoints += val; if(team==='teamA') localMatch.scoreA += val; else localMatch.scoreB += val; }
+            else if(type === 'out') { p.matchOuts += val; if(team==='teamA') localMatch.scoreB += val; else localMatch.scoreA += val; }
+            else if(type === 'fault') { p.matchFaults += val; if(team==='teamA') localMatch.scoreB += val; else localMatch.scoreA += val; }
+            renderCourts();
         }
-        saveData();
+        // 2) Kirim SATU PERUBAHAN INI ke server berdasarkan data paling baru di server
+        //    (bukan salinan lokal), dengan retry aman kalau ada HP lain nulis bersamaan.
+        queueScoreOp(async () => {
+            const ok = await safeApplyToServer(row => {
+                const m = (row.active_matches || []).find(x => x.id === matchId);
+                if (!m) return false;
+                const p = m[team][playerIdx];
+                if (!p) return false;
+                if(type === 'point') { p.matchPoints += val; if(team==='teamA') m.scoreA += val; else m.scoreB += val; }
+                else if(type === 'out') { p.matchOuts += val; if(team==='teamA') m.scoreB += val; else m.scoreA += val; }
+                else if(type === 'fault') { p.matchFaults += val; if(team==='teamA') m.scoreB += val; else m.scoreA += val; }
+                return true;
+            });
+            if (ok) renderCourts(); else await handleScoreSaveFailure(renderCourts); // selaraskan tampilan dengan hasil final dari server
+        });
     }
 
     // Ganti pemain di slot lapangan yang sedang berjalan dengan MEMILIH dari daftar pemain
@@ -1539,9 +1631,18 @@
         const sA = prompt("Masukkan Skor Tim A:", match.scoreA);
         const sB = prompt("Masukkan Skor Tim B:", match.scoreB);
         if(sA !== null && sB !== null) {
-            match.scoreA = parseInt(sA) || 0;
-            match.scoreB = parseInt(sB) || 0;
-            saveData();
+            const newA = parseInt(sA) || 0, newB = parseInt(sB) || 0;
+            match.scoreA = newA; match.scoreB = newB; // update lokal instan
+            renderCourts();
+            queueScoreOp(async () => {
+                const ok = await safeApplyToServer(row => {
+                    const m = (row.active_matches || []).find(x => x.id === matchId);
+                    if (!m) return false;
+                    m.scoreA = newA; m.scoreB = newB;
+                    return true;
+                });
+                if (ok) renderCourts(); else await handleScoreSaveFailure(renderCourts);
+            });
         }
     }
 
@@ -2674,11 +2775,21 @@
     }
 
     function rrUpdateScore(matchId, team, delta) {
-        const match = rrMatches.find(m => m.id === matchId);
-        if (!match) return;
-        if (team === 'A') match.scoreA = Math.max(0, match.scoreA + delta);
-        else match.scoreB = Math.max(0, match.scoreB + delta);
-        saveData();
+        const localMatch = rrMatches.find(m => m.id === matchId);
+        if (!localMatch) return;
+        if (team === 'A') localMatch.scoreA = Math.max(0, localMatch.scoreA + delta);
+        else localMatch.scoreB = Math.max(0, localMatch.scoreB + delta);
+        renderRRCourts();
+        queueScoreOp(async () => {
+            const ok = await safeApplyToServer(row => {
+                const m = (row.rr_matches || []).find(x => x.id === matchId);
+                if (!m) return false;
+                if (team === 'A') m.scoreA = Math.max(0, m.scoreA + delta);
+                else m.scoreB = Math.max(0, m.scoreB + delta);
+                return true;
+            });
+            if (ok) renderRRCourts(); else await handleScoreSaveFailure(renderRRCourts);
+        });
     }
 
     function rrToggleTimer(matchId) {
@@ -2790,11 +2901,25 @@
     }
 
     function koUpdateScore(matchId, team, delta) {
-        const match = findKoMatchById(matchId);
-        if (!match) return;
-        if (team === 'A') match.scoreA = Math.max(0, match.scoreA + delta);
-        else match.scoreB = Math.max(0, match.scoreB + delta);
-        saveData();
+        const localMatch = findKoMatchById(matchId);
+        if (!localMatch) return;
+        if (team === 'A') localMatch.scoreA = Math.max(0, localMatch.scoreA + delta);
+        else localMatch.scoreB = Math.max(0, localMatch.scoreB + delta);
+        renderRRKnockout();
+        queueScoreOp(async () => {
+            const ok = await safeApplyToServer(row => {
+                for (const round of (row.rr_bracket || [])) {
+                    const m = round.matches.find(x => x.id === matchId);
+                    if (m) {
+                        if (team === 'A') m.scoreA = Math.max(0, m.scoreA + delta);
+                        else m.scoreB = Math.max(0, m.scoreB + delta);
+                        return true;
+                    }
+                }
+                return false;
+            });
+            if (ok) renderRRKnockout(); else await handleScoreSaveFailure(renderRRKnockout);
+        });
     }
 
     function koToggleTimer(matchId) {
