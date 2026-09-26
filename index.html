@@ -354,6 +354,7 @@
                             <button onclick="exportStandingsToImage()" class="btn-warning">Download Klasemen</button>
                             <button onclick="generateMVPStoryCard()" class="btn-success">👑 Story MVP</button>
                             <button onclick="generateBestPartnerStoryCard()" class="btn-success">🤝 Story Best Partner</button>
+                            <button onclick="generateBirthdayStoryFlow()" class="btn-success">🎂 Story Ulang Tahun</button>
                         </div>
                     </div>
                     <div style="overflow-x: auto;">
@@ -1252,6 +1253,217 @@
         saveData();
     }
 
+    // ================= TANGGAL LAHIR & STORY ULANG TAHUN =================
+
+    // Format tampilan singkat "DD MMM" (tahun disembunyikan di tabel biar ringkas & tidak
+    // memaksa menampilkan umur kalau host tidak mau, tapi tetap tersimpan lengkap di data)
+    function formatBirthDateShort(iso) {
+        if(!iso) return '';
+        const d = new Date(iso + 'T00:00:00');
+        return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    }
+
+    function isBirthdayToday(p) {
+        if(!p.birthDate) return false;
+        const d = new Date(p.birthDate + 'T00:00:00');
+        const today = new Date();
+        return d.getDate() === today.getDate() && d.getMonth() === today.getMonth();
+    }
+
+    // Hitung umur dari tanggal lahir (kalau tahunnya diisi realistis, bukan cuma tanggal & bulan)
+    function calcAge(iso) {
+        if(!iso) return null;
+        const d = new Date(iso + 'T00:00:00');
+        if(d.getFullYear() < 1900) return null;
+        const today = new Date();
+        let age = today.getFullYear() - d.getFullYear();
+        const hasHadBirthdayThisYear = (today.getMonth() > d.getMonth()) || (today.getMonth() === d.getMonth() && today.getDate() >= d.getDate());
+        if(!hasHadBirthdayThisYear) age--;
+        return age;
+    }
+
+    // Modal kecil untuk isi/ubah tanggal lahir pemain (dipakai untuk fitur Story Ulang Tahun)
+    function editBirthDate(id) {
+        const p = players.find(x => x.id === id);
+        if(!p) return;
+        const existing = document.getElementById('birthDateModal');
+        if(existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'birthDateModal';
+        overlay.className = 'event-modal';
+        overlay.innerHTML = `
+            <div class="event-modal-box">
+                <h3>🎂 Tanggal Lahir</h3>
+                <div style="color:var(--text-muted); font-size:.82rem; margin-bottom:10px;">${escapeHTML(p.name)}</div>
+                <label>Tanggal Lahir</label>
+                <input id="birthDateInput" type="date" value="${p.birthDate || ''}">
+                <div class="event-modal-actions">
+                    <button type="button" id="birthDateCancelBtn" style="background:var(--border); color:#fff;">Batal</button>
+                    ${p.birthDate ? `<button type="button" id="birthDateClearBtn" class="btn-danger">Hapus</button>` : ''}
+                    <button type="button" id="birthDateSaveBtn" class="btn-success">Simpan</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        const close = () => overlay.remove();
+        document.getElementById('birthDateCancelBtn').addEventListener('click', close);
+        document.getElementById('birthDateClearBtn')?.addEventListener('click', () => {
+            p.birthDate = null;
+            close();
+            saveData();
+        });
+        document.getElementById('birthDateSaveBtn').addEventListener('click', () => {
+            const val = document.getElementById('birthDateInput').value;
+            if(!val) return alert('Pilih tanggal dulu, atau tekan Batal.');
+            p.birthDate = val;
+            close();
+            saveData();
+        });
+        overlay.addEventListener('click', e => { if(e.target === overlay) close(); });
+    }
+
+    // Cari pemain yang tanggal lahirnya (hari & bulan) jatuh pada hari ini
+    function computeBirthdayPlayers() {
+        return players.filter(p => isBirthdayToday(p));
+    }
+
+    // Alur tombol "🎂 Story Ulang Tahun": kalau lebih dari satu pemain ulang tahun hari ini,
+    // biarkan host pilih dulu lewat picker yang sudah ada; kalau cuma satu, langsung generate.
+    function generateBirthdayStoryFlow() {
+        const todays = computeBirthdayPlayers();
+        if(todays.length === 0) {
+            const anyWithBirthDate = players.some(p => p.birthDate);
+            alert(anyWithBirthDate
+                ? 'Tidak ada pemain yang berulang tahun hari ini.'
+                : 'Belum ada data tanggal lahir pemain. Isi dulu lewat tombol 🎂 di tabel Registrasi Pemain.');
+            return;
+        }
+        if(todays.length === 1) {
+            generateBirthdayStoryCard(todays[0]);
+            return;
+        }
+        openPlayerPicker(todays, null, (selectedId) => {
+            const p = players.find(x => x.id === selectedId);
+            if(p) generateBirthdayStoryCard(p);
+        });
+    }
+
+    // Kartu Story Ulang Tahun — tema gold/black yang sama dengan Story MVP & Best Partner,
+    // ditambah balon & confetti vector supaya nuansanya beda (lebih ceria, bukan kompetitif).
+    async function generateBirthdayStoryCard(player) {
+        await ensureStoryFonts();
+        const W = 1080, H = 1920;
+        const canvas = document.createElement('canvas');
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext('2d');
+        const GOLD = '#c89f4c', GOLD_LIGHT = '#e0b865', WHITE = '#ffffff', MUTED = '#9ca3af';
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, W, H);
+        const glow = ctx.createRadialGradient(W/2, H*0.38, 60, W/2, H*0.38, 800);
+        glow.addColorStop(0, 'rgba(200,159,76,0.2)');
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, W, H);
+
+        drawWatermark(ctx, W, H, 'AURA');
+
+        // Balon-balon dekoratif (vector sederhana) di kiri & kanan atas
+        const balloonColors = [GOLD, GOLD_LIGHT, '#8a6d2f'];
+        [[130, 260, 70], [220, 380, 50], [W-140, 240, 65], [W-230, 370, 45]].forEach(([bx, by, br], i) => {
+            ctx.save();
+            ctx.fillStyle = balloonColors[i % balloonColors.length];
+            ctx.globalAlpha = 0.85;
+            ctx.beginPath();
+            ctx.ellipse(bx, by, br*0.8, br, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(bx, by+br); ctx.lineTo(bx, by+br+90); ctx.stroke();
+            ctx.restore();
+        });
+
+        // Confetti kecil bertaburan
+        const confettiSeed = [ [90,520],[970,560],[140,900],[950,940],[80,1300],[990,1340],[200,1600],[880,1580] ];
+        confettiSeed.forEach(([cx, cy], i) => {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate((i * 37) % 360 * Math.PI/180);
+            ctx.fillStyle = i % 2 === 0 ? GOLD : GOLD_LIGHT;
+            ctx.globalAlpha = 0.6;
+            ctx.fillRect(-8, -3, 16, 6);
+            ctx.restore();
+        });
+
+        let y = 100;
+        const logoImg = await loadImageEl('logo.png');
+        if(logoImg) {
+            const logoW = 115, logoH = logoW * (logoImg.height / logoImg.width);
+            ctx.drawImage(logoImg, W/2 - logoW/2, y, logoW, logoH);
+            y += logoH + 26;
+        } else { y += 20; }
+
+        ctx.textAlign = 'center';
+        ctx.fillStyle = GOLD;
+        ctx.font = '700 42px Oswald, Segoe UI, sans-serif';
+        ctx.fillText('A U R A   S P O R T S   C L U B', W/2, y);
+        y += 60;
+
+        ctx.fillStyle = GOLD;
+        ctx.font = '120px "Permanent Marker", Oswald, sans-serif';
+        ctx.save();
+        ctx.shadowColor = 'rgba(200,159,76,0.45)';
+        ctx.shadowBlur = 22;
+        ctx.fillText('Happy Birthday!', W/2, y + 100);
+        ctx.restore();
+        y += 160;
+
+        // Bingkai foto (pakai bingkai heksagon yang sama dengan Story MVP)
+        const frameSize = 480;
+        const frameX = W/2 - frameSize/2, frameY = y + 20;
+        await drawHexPhotoFrame(ctx, frameX, frameY, frameSize, frameSize, player.photo, player.name);
+        y = frameY + frameSize + 70;
+
+        ctx.fillStyle = WHITE;
+        ctx.font = '700 56px Oswald, Segoe UI, sans-serif';
+        ctx.fillText(player.name.toUpperCase(), W/2, y);
+        y += 45;
+
+        const age = calcAge(player.birthDate);
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(W/2-110, y); ctx.lineTo(W/2+110, y); ctx.stroke();
+        y += 55;
+        ctx.fillStyle = GOLD_LIGHT;
+        ctx.font = '500 30px Oswald, Segoe UI, sans-serif';
+        ctx.fillText(age ? `🎂  Genap ${age} Tahun Hari Ini  🎂` : '🎂  Selamat Ulang Tahun!  🎂', W/2, y);
+        y += 60;
+        ctx.fillStyle = MUTED;
+        ctx.font = '400 24px Oswald, Segoe UI, sans-serif';
+        wrapCenteredText(ctx, `Semoga sehat selalu & makin jago di lapangan,\n${player.name.split(' ')[0]}! 🏸`, W/2, y, 34);
+
+        const footerY = H - 130;
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.beginPath(); ctx.moveTo(W/2-90, footerY-35); ctx.lineTo(W/2+90, footerY-35); ctx.stroke();
+        ctx.fillStyle = GOLD;
+        ctx.font = '700 28px Oswald, Segoe UI, sans-serif';
+        ctx.fillText('AURA SPORTS CLUB', W/2, footerY);
+        ctx.fillStyle = MUTED;
+        ctx.font = '500 20px Oswald, Segoe UI, sans-serif';
+        const todayStr = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+        ctx.fillText(todayStr, W/2, footerY + 32);
+
+        const link = document.createElement('a');
+        link.download = `AuraSportsClub_UlangTahun_${player.name.replace(/\s+/g,'_')}_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+
+    // Utilitas: gambar teks multi-baris (dipisah \n) rata tengah
+    function wrapCenteredText(ctx, text, xc, y, lineHeight) {
+        text.split('\n').forEach((line, i) => ctx.fillText(line, xc, y + i * lineHeight));
+    }
+
     function deletePlayer(id) {
         if(confirm('Hapus pemain ini?')) {
             players = players.filter(p => p.id !== id);
@@ -1282,8 +1494,9 @@
                 </td>
                 <td>
                     <div class="flex-row" style="margin:0; gap:6px; flex-wrap:nowrap;">
-                        <span>${p.name}</span>
+                        <span>${p.name}${isBirthdayToday(p) ? ' 🎉' : ''}</span>
                         <button onclick="editPlayerName('${p.id}')" class="btn-photo" title="Ubah nama">✏️ Edit</button>
+                        <button onclick="editBirthDate('${p.id}')" class="btn-photo" title="${p.birthDate ? 'Tanggal lahir: ' + formatBirthDateShort(p.birthDate) : 'Isi tanggal lahir'}">🎂 ${p.birthDate ? formatBirthDateShort(p.birthDate) : 'Isi Tgl Lahir'}</button>
                     </div>
                 </td>
                 <td>${p.gender}</td>
