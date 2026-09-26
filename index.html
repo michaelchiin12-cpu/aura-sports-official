@@ -1068,14 +1068,28 @@
     function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
     async function safeApplyToServer(mutateFn) {
-        const MAX_ATTEMPT = 12; // dinaikkan dari 6 -> lebih tahan banting saat banyak HP nulis bersamaan
+        const MAX_ATTEMPT = 16; // dinaikkan lagi -- sekarang juga dipakai untuk menunggu match yang BARU dibuat (belum landing di server)
+        let notFoundStreak = 0;
         for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
             const { data: fresh, error: fetchErr } = await supabaseClient
                 .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
             if (fetchErr) { console.error('Gagal ambil data terbaru:', fetchErr); return false; }
 
             const ok = mutateFn(fresh);
-            if (!ok) return false; // target (match) tidak ditemukan di server, tidak perlu diulang
+            if (!ok) {
+                // PENTING: jangan langsung menyerah di sini. "Tidak ketemu" bisa berarti dua hal:
+                // (a) match ini memang sudah tidak ada (diselesaikan/dibatalkan pengguna lain), ATAU
+                // (b) match ini BARU SAJA dibuat di HP ini sendiri dan proses simpan pembuatannya
+                //     (lewat saveData() biasa, jalur terpisah dari fungsi ini) belum sempat landing
+                //     di server saat kita fetch barusan -- ini SERING terjadi kalau user langsung
+                //     pencet skor detik itu juga setelah "Acak Pertandingan Baru".
+                // Makanya di sini kita TUNGGU & COBA LAGI beberapa kali dulu (bukan langsung bilang
+                // gagal), supaya kasus (b) kebaca sebagai berhasil begitu penyimpanan aslinya landing.
+                notFoundStreak++;
+                if (notFoundStreak >= MAX_ATTEMPT) return false;
+                await _sleep(80 + Math.random() * 120 + notFoundStreak * 40);
+                continue;
+            }
 
             const { data: updData, error: updErr } = await supabaseClient
                 .from('sport_manager_state')
@@ -1102,17 +1116,21 @@
             // coba lagi di waktu yang sama persis / "thundering herd"), lalu ulangi dari awal.
             await _sleep(25 + Math.random() * 90 + attempt * 15);
         }
-        console.error('safeApplyToServer: gagal setelah beberapa kali percobaan (banyak tabrakan).');
+        console.error('safeApplyToServer: gagal setelah beberapa kali percobaan (banyak tabrakan atau match memang sudah tidak ada).');
         return false;
     }
 
-    // Kalau penyimpanan skor gagal total (sangat jarang, hanya saat banyak sekali HP
-    // menabrak match yang sama secara bersamaan), beri tahu pengguna & tarik ulang data
-    // terbaru dari server supaya tampilan tidak "nyangkut" di angka optimis yang salah.
+    // Kalau penyimpanan skor BENAR-BENAR gagal total (sudah dicoba berkali-kali di atas dan
+    // tetap gagal -- sangat jarang), CUKUP beri tahu pengguna saja. SENGAJA TIDAK memanggil
+    // loadState()+init() di sini lagi: memaksa tarik-ulang & timpa seluruh state lokal di titik
+    // ini justru berbahaya, karena bisa "beradu" dengan proses saveData() lain yang mungkin
+    // masih berjalan di jalur terpisah (mis. baru saja "Acak Pertandingan Baru"), dan berisiko
+    // menyebabkan data yang belum sempat tersimpan malah ikut tertimpa/hilang.
+    // Tampilan lokal dibiarkan apa adanya; Realtime akan menyusulkan data terbaru dengan aman
+    // begitu server benar-benar berubah.
     async function handleScoreSaveFailure(reRender) {
-        alert('Skor gagal tersimpan karena banyak perubahan bersamaan di HP lain. Menyegarkan data...');
-        await loadState();
-        init();
+        console.error('Skor gagal disinkronkan ke server setelah beberapa kali percobaan.');
+        alert('Skor mungkin belum tersimpan ke server (koneksi lambat / banyak perubahan bersamaan). Coba klik sekali lagi dalam beberapa detik. Data di layar ini TIDAK dihapus.');
         if (typeof reRender === 'function') reRender();
     }
 
