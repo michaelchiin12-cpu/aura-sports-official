@@ -1068,28 +1068,14 @@
     function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
     async function safeApplyToServer(mutateFn) {
-        const MAX_ATTEMPT = 16; // dinaikkan lagi -- sekarang juga dipakai untuk menunggu match yang BARU dibuat (belum landing di server)
-        let notFoundStreak = 0;
+        const MAX_ATTEMPT = 12; // dinaikkan dari 6 -> lebih tahan banting saat banyak HP nulis bersamaan
         for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
             const { data: fresh, error: fetchErr } = await supabaseClient
                 .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
             if (fetchErr) { console.error('Gagal ambil data terbaru:', fetchErr); return false; }
 
             const ok = mutateFn(fresh);
-            if (!ok) {
-                // PENTING: jangan langsung menyerah di sini. "Tidak ketemu" bisa berarti dua hal:
-                // (a) match ini memang sudah tidak ada (diselesaikan/dibatalkan pengguna lain), ATAU
-                // (b) match ini BARU SAJA dibuat di HP ini sendiri dan proses simpan pembuatannya
-                //     (lewat saveData() biasa, jalur terpisah dari fungsi ini) belum sempat landing
-                //     di server saat kita fetch barusan -- ini SERING terjadi kalau user langsung
-                //     pencet skor detik itu juga setelah "Acak Pertandingan Baru".
-                // Makanya di sini kita TUNGGU & COBA LAGI beberapa kali dulu (bukan langsung bilang
-                // gagal), supaya kasus (b) kebaca sebagai berhasil begitu penyimpanan aslinya landing.
-                notFoundStreak++;
-                if (notFoundStreak >= MAX_ATTEMPT) return false;
-                await _sleep(80 + Math.random() * 120 + notFoundStreak * 40);
-                continue;
-            }
+            if (!ok) return false; // target (match) tidak ditemukan di server, tidak perlu diulang
 
             const { data: updData, error: updErr } = await supabaseClient
                 .from('sport_manager_state')
@@ -1116,21 +1102,17 @@
             // coba lagi di waktu yang sama persis / "thundering herd"), lalu ulangi dari awal.
             await _sleep(25 + Math.random() * 90 + attempt * 15);
         }
-        console.error('safeApplyToServer: gagal setelah beberapa kali percobaan (banyak tabrakan atau match memang sudah tidak ada).');
+        console.error('safeApplyToServer: gagal setelah beberapa kali percobaan (banyak tabrakan).');
         return false;
     }
 
-    // Kalau penyimpanan skor BENAR-BENAR gagal total (sudah dicoba berkali-kali di atas dan
-    // tetap gagal -- sangat jarang), CUKUP beri tahu pengguna saja. SENGAJA TIDAK memanggil
-    // loadState()+init() di sini lagi: memaksa tarik-ulang & timpa seluruh state lokal di titik
-    // ini justru berbahaya, karena bisa "beradu" dengan proses saveData() lain yang mungkin
-    // masih berjalan di jalur terpisah (mis. baru saja "Acak Pertandingan Baru"), dan berisiko
-    // menyebabkan data yang belum sempat tersimpan malah ikut tertimpa/hilang.
-    // Tampilan lokal dibiarkan apa adanya; Realtime akan menyusulkan data terbaru dengan aman
-    // begitu server benar-benar berubah.
+    // Kalau penyimpanan skor gagal total (sangat jarang, hanya saat banyak sekali HP
+    // menabrak match yang sama secara bersamaan), beri tahu pengguna & tarik ulang data
+    // terbaru dari server supaya tampilan tidak "nyangkut" di angka optimis yang salah.
     async function handleScoreSaveFailure(reRender) {
-        console.error('Skor gagal disinkronkan ke server setelah beberapa kali percobaan.');
-        alert('Skor mungkin belum tersimpan ke server (koneksi lambat / banyak perubahan bersamaan). Coba klik sekali lagi dalam beberapa detik. Data di layar ini TIDAK dihapus.');
+        alert('Skor gagal tersimpan karena banyak perubahan bersamaan di HP lain. Menyegarkan data...');
+        await loadState();
+        init();
         if (typeof reRender === 'function') reRender();
     }
 
@@ -1635,8 +1617,8 @@
     }
 
     function generateMatches() {
-        const teamSize = parseInt(document.getElementById('playersPerTeam').value);
-        const maxCourts = parseInt(document.getElementById('totalCourts').value);
+        const teamSize = parseInt(document.getElementById('playersPerTeam').value) || 2;
+        const maxCourts = parseInt(document.getElementById('totalCourts').value) || 1;
         const requiredPlayersPerMatch = teamSize * 2;
 
         let courtsToFill = maxCourts - activeMatches.length;
@@ -1953,9 +1935,38 @@
         saveData();
     }
 
+    // Hapus paksa 1 match yang datanya rusak (tim kosong) — tidak lewat finishMatch biasa
+    // karena finishMatch akan coba update statistik pemain dari tim yang memang kosong.
+    function forceRemoveBrokenMatch(matchId) {
+        if(!confirm('Hapus pertandingan ini? Datanya rusak (salah satu tim kosong) sehingga tidak bisa dilanjutkan atau diselesaikan dengan normal.')) return;
+        const match = activeMatches.find(m => m.id === matchId);
+        if(match) {
+            // Bebaskan status pemain yang masih nyangkut di tim yang tidak kosong
+            [...(match.teamA||[]), ...(match.teamB||[])].forEach(p => {
+                const ref = players.find(x => x.id === p.id);
+                if(ref) ref.status = 'active';
+            });
+        }
+        activeMatches = activeMatches.filter(m => m.id !== matchId);
+        activeMatches.forEach((m, idx) => m.courtName = `Lapangan ${idx + 1}`);
+        saveData();
+    }
+
     function renderCourts() {
         const container = document.getElementById('courtsContainer');
-        container.innerHTML = activeMatches.map(match => `
+        container.innerHTML = activeMatches.map(match => {
+            // Pengaman: kalau data match rusak (salah satu tim kosong, biasanya dari bug lama
+            // saat "Pemain per Tim" sempat kosong), jangan render kosong membingungkan —
+            // tampilkan peringatan + tombol hapus supaya lapangan itu tidak nyangkut selamanya.
+            if(!Array.isArray(match.teamA) || !Array.isArray(match.teamB) || match.teamA.length === 0 || match.teamB.length === 0) {
+                return `
+                <div class="court" style="border-color: var(--danger);">
+                    <h3 style="color:var(--danger); margin-bottom:8px;">⚠️ ${match.courtName} — Data Rusak</h3>
+                    <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:12px;">Salah satu tim di pertandingan ini kosong (kemungkinan bug lama). Pertandingan ini tidak bisa dilanjutkan atau diselesaikan normal — hapus saja lalu buat ulang.</p>
+                    <button onclick="forceRemoveBrokenMatch('${match.id}')" class="btn-danger" style="width:100%; padding:10px;">🗑️ Hapus Pertandingan Ini</button>
+                </div>`;
+            }
+            return `
             <div class="court">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px;">
                     <h3 style="color:var(--primary);">${match.courtName}</h3>
@@ -2016,7 +2027,8 @@
                     <button onclick="finishMatch('${match.id}', false)" class="btn-success" style="padding:10px 20px;">Selesai Match</button>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
 
     // --- Klasemen & Riwayat ---
