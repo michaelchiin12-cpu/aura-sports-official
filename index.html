@@ -259,6 +259,47 @@
         <button class="tab-btn" onclick="switchTab(event, 'finance')">💰 Kas Aura</button>
         <button class="tab-btn" onclick="switchTab(event, 'roundrobin')">⚔️ Round Robin + Knockout</button>
         <button class="tab-btn" onclick="switchTab(event, 'roundgroup')">☠️ Round Grup + Knockout</button>
+        <button class="tab-btn" onclick="switchTab(event, 'member')">👑 Member</button>
+    </div>
+
+    <!-- ================= TAB MEMBER: DATA PEMAIN GLOBAL (TERPISAH DARI PERTANDINGAN) ================= -->
+    <div id="tab-member" class="tab-content">
+        <div class="card">
+            <h2>👑 Data Member</h2>
+            <p style="font-size: 0.9rem; margin-bottom: 15px; color: var(--text-muted);">Daftar pemain ini berlaku untuk SEMUA pertandingan (Round Mix, Round Robin, Round Grup) — tidak digabung/khusus ke satu pertandingan saja.</p>
+            <form id="playerForm" onsubmit="addPlayer(event)" class="flex-row">
+                <input type="text" id="playerName" placeholder="Nama Pemain" required style="flex:2;">
+                <select id="playerGender" required style="flex:1;">
+                    <option value="L">L</option>
+                    <option value="P">P</option>
+                </select>
+                <select id="playerLevel" required style="flex:1;">
+                    <option value="3">Advanced</option>
+                    <option value="2">Intermediate</option>
+                    <option value="1">Beginner</option>
+                </select>
+                <input type="file" id="playerPhoto" accept="image/*" style="flex:1 1 100%;">
+                <button type="submit" id="playerFormSubmitBtn">+ Tambah Member</button>
+            </form>
+
+            <div style="overflow-x: auto;">
+                <table id="playersTable">
+                    <thead>
+                        <tr>
+                            <th>Foto</th>
+                            <th>Nama</th>
+                            <th>L/P</th>
+                            <th>Level</th>
+                            <th>Hadir?</th>
+                            <th>Saldo</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="playersList"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <!-- ================= TAB 1: PERTANDINGAN & KLASEMEN ================= -->
@@ -281,42 +322,6 @@
                         <input type="text" id="customSportName" placeholder="Nama Olahraga" style="display:none;">
                         <input type="number" id="playersPerTeam" placeholder="Pemain per Tim" value="2" min="1" max="11" style="width: 130px;">
                         <input type="number" id="totalCourts" placeholder="Jumlah Lapangan" value="1" min="1" max="10" style="width: 140px;">
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h2>Registrasi Pemain</h2>
-                    <form id="playerForm" onsubmit="addPlayer(event)" class="flex-row">
-                        <input type="text" id="playerName" placeholder="Nama Pemain" required style="flex:2;">
-                        <select id="playerGender" required style="flex:1;">
-                            <option value="L">L</option>
-                            <option value="P">P</option>
-                        </select>
-                        <select id="playerLevel" required style="flex:1;">
-                            <option value="3">Advanced</option>
-                            <option value="2">Intermediate</option>
-                            <option value="1">Beginner</option>
-                        </select>
-                        <input type="file" id="playerPhoto" accept="image/*" style="flex:1 1 100%;">
-                        <button type="submit" id="playerFormSubmitBtn">+ Tambah</button>
-                    </form>
-                    
-                    <div style="overflow-x: auto;">
-                        <table id="playersTable">
-                            <thead>
-                                <tr>
-                                    <th>Foto</th>
-                                    <th>Nama</th>
-                                    <th>L/P</th>
-                                    <th>Level</th>
-                                    <th>Hadir?</th>
-                                    <th>Saldo</th>
-                                    <th>Status</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="playersList"></tbody>
-                        </table>
                     </div>
                 </div>
 
@@ -1336,7 +1341,7 @@
             const anyWithBirthDate = players.some(p => p.birthDate);
             alert(anyWithBirthDate
                 ? 'Tidak ada pemain yang berulang tahun hari ini.'
-                : 'Belum ada data tanggal lahir pemain. Isi dulu lewat tombol 🎂 di tabel Registrasi Pemain.');
+                : 'Belum ada data tanggal lahir pemain. Isi dulu lewat tombol 🎂 di tab Member 👑.');
             return;
         }
         if(todays.length === 1) {
@@ -1624,13 +1629,13 @@
 
         // Pool pemain aktif YANG SUDAH HADIR, urutkan dari yang paling sedikit main (fairness).
         // Pemain "Belum Hadir" (biasanya yang masih di jalan/telat) sengaja dikecualikan dulu
-        // sampai ditandai hadir manual di tabel Registrasi Pemain.
+        // sampai ditandai hadir manual di tab Member 👑.
         let eligible = players.filter(p => p.status === 'active' && p.ready)
             .sort((a, b) => a.stats.played - b.stats.played);
 
         if(eligible.length < requiredPlayersPerMatch) {
             const notReady = players.filter(p => p.status === 'active' && !p.ready).length;
-            alert(`Pemain yang sudah hadir & aktif tidak cukup. Butuh ${requiredPlayersPerMatch}, tersedia ${eligible.length}.` + (notReady > 0 ? `\n\n(${notReady} pemain masih ditandai "Belum Hadir" — tandai hadir dulu di tabel Registrasi Pemain kalau mereka sudah datang)` : ''));
+            alert(`Pemain yang sudah hadir & aktif tidak cukup. Butuh ${requiredPlayersPerMatch}, tersedia ${eligible.length}.` + (notReady > 0 ? `\n\n(${notReady} pemain masih ditandai "Belum Hadir" — tandai hadir dulu di tab Member 👑 kalau mereka sudah datang)` : ''));
             return;
         }
 
