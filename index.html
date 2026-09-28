@@ -32,13 +32,8 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--bg-main); color: var(--text-main); padding: 20px; }
         .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
-        .container { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
-        /* Cegah kolom melebar melewati layar (grid blowout) saat isinya lebar: kartu lapangan, tabel klasemen, dll */
-        .container > div { min-width: 0; }
-        .team-box > div { min-width: 0; }
-        .court-player-info { min-width: 0; }
-        .player-score-controls { flex-wrap: wrap; }
-        @media (max-width: 1024px) { .container { grid-template-columns: minmax(0, 1fr); } }
+        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
         
         .card { background-color: var(--bg-card); padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; }
         .card h2 { margin-bottom: 15px; font-size: 1.2rem; color: var(--primary); }
@@ -899,7 +894,13 @@
                 rrBracket = row.rr_bracket || [];
                 eventRegistry = getEventRegistryFromSettings(row.rr_settings || {});
                 const active = eventRegistry.activeEventId ? eventRegistry.events.find(e=>e.id===eventRegistry.activeEventId) : null;
-                if (active) restoreEvent(active); else init();
+                // PENTING: jangan restoreEvent(active) di sini. Snapshot di dalam registry BASI
+                // (tombol skor +/- hanya menyimpan kolom active_matches/rr_* lewat safeApplyToServer,
+                // tidak memperbarui snapshot), jadi me-restore darinya akan menimpa skor terbaru
+                // — bahkan mengosongkan semua pertandingan. Kolom utama di baris server (yang sudah
+                // di-assign di atas) adalah data LIVE untuk event yang sedang aktif, jadi cukup pakai itu.
+                if (active) currentEventMode = active.mode;
+                init();
             })
             .subscribe();
     }
@@ -1074,13 +1075,28 @@
 
     async function safeApplyToServer(mutateFn) {
         const MAX_ATTEMPT = 12; // dinaikkan dari 6 -> lebih tahan banting saat banyak HP nulis bersamaan
+        let notFoundStreak = 0;
         for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
             const { data: fresh, error: fetchErr } = await supabaseClient
                 .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
             if (fetchErr) { console.error('Gagal ambil data terbaru:', fetchErr); return false; }
 
             const ok = mutateFn(fresh);
-            if (!ok) return false; // target (match) tidak ditemukan di server, tidak perlu diulang
+            if (!ok) {
+                // PENTING: match "tidak ditemukan" BUKAN berarti sudah dihapus — kemungkinan besar
+                // match itu BARU SAJA dibuat (mis. baru selesai "Acak Pertandingan") dan proses
+                // simpan sebelumnya masih dalam perjalanan ke server saat tombol skor ini diklik.
+                // Dulu di sini langsung menyerah (return false) begitu tidak ketemu SEKALI SAJA,
+                // yang membuat kartu pertandingan hilang dari layar padahal cuma telat sinkron.
+                // Sekarang: coba lagi beberapa kali dulu (data server pasti menyusul dalam
+                // hitungan puluhan-ratusan milidetik), baru benar-benar dianggap gagal kalau
+                // sampai akhir tetap tidak ketemu.
+                notFoundStreak++;
+                if (notFoundStreak >= MAX_ATTEMPT) return false;
+                await _sleep(60 + Math.random() * 120 + attempt * 20);
+                continue;
+            }
+            notFoundStreak = 0;
 
             const { data: updData, error: updErr } = await supabaseClient
                 .from('sport_manager_state')
@@ -1112,12 +1128,13 @@
     }
 
     // Kalau penyimpanan skor gagal total (sangat jarang, hanya saat banyak sekali HP
-    // menabrak match yang sama secara bersamaan), beri tahu pengguna & tarik ulang data
-    // terbaru dari server supaya tampilan tidak "nyangkut" di angka optimis yang salah.
+    // menabrak match yang sama secara bersamaan ATAU koneksi benar-benar putus), jangan
+    // langsung menimpa tampilan lokal dengan hasil fetch yang belum tentu lebih baru —
+    // itu yang tadinya bikin kartu match kelihatan hilang. Cukup beri tahu dan biarkan
+    // tampilan optimis (lokal) tetap ada; sinkronisasi Realtime akan menyusulkan sendiri
+    // begitu koneksi/server kembali normal.
     async function handleScoreSaveFailure(reRender) {
-        alert('Skor gagal tersimpan karena banyak perubahan bersamaan di HP lain. Menyegarkan data...');
-        await loadState();
-        init();
+        console.warn('Skor belum tersimpan ke server (akan disinkronkan ulang otomatis oleh Realtime).');
         if (typeof reRender === 'function') reRender();
     }
 
@@ -1622,8 +1639,8 @@
     }
 
     function generateMatches() {
-        const teamSize = parseInt(document.getElementById('playersPerTeam').value) || 2;
-        const maxCourts = parseInt(document.getElementById('totalCourts').value) || 1;
+        const teamSize = parseInt(document.getElementById('playersPerTeam').value);
+        const maxCourts = parseInt(document.getElementById('totalCourts').value);
         const requiredPlayersPerMatch = teamSize * 2;
 
         let courtsToFill = maxCourts - activeMatches.length;
@@ -1940,38 +1957,9 @@
         saveData();
     }
 
-    // Hapus paksa 1 match yang datanya rusak (tim kosong) — tidak lewat finishMatch biasa
-    // karena finishMatch akan coba update statistik pemain dari tim yang memang kosong.
-    function forceRemoveBrokenMatch(matchId) {
-        if(!confirm('Hapus pertandingan ini? Datanya rusak (salah satu tim kosong) sehingga tidak bisa dilanjutkan atau diselesaikan dengan normal.')) return;
-        const match = activeMatches.find(m => m.id === matchId);
-        if(match) {
-            // Bebaskan status pemain yang masih nyangkut di tim yang tidak kosong
-            [...(match.teamA||[]), ...(match.teamB||[])].forEach(p => {
-                const ref = players.find(x => x.id === p.id);
-                if(ref) ref.status = 'active';
-            });
-        }
-        activeMatches = activeMatches.filter(m => m.id !== matchId);
-        activeMatches.forEach((m, idx) => m.courtName = `Lapangan ${idx + 1}`);
-        saveData();
-    }
-
     function renderCourts() {
         const container = document.getElementById('courtsContainer');
-        container.innerHTML = activeMatches.map(match => {
-            // Pengaman: kalau data match rusak (salah satu tim kosong, biasanya dari bug lama
-            // saat "Pemain per Tim" sempat kosong), jangan render kosong membingungkan —
-            // tampilkan peringatan + tombol hapus supaya lapangan itu tidak nyangkut selamanya.
-            if(!Array.isArray(match.teamA) || !Array.isArray(match.teamB) || match.teamA.length === 0 || match.teamB.length === 0) {
-                return `
-                <div class="court" style="border-color: var(--danger);">
-                    <h3 style="color:var(--danger); margin-bottom:8px;">⚠️ ${match.courtName} — Data Rusak</h3>
-                    <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:12px;">Salah satu tim di pertandingan ini kosong (kemungkinan bug lama). Pertandingan ini tidak bisa dilanjutkan atau diselesaikan normal — hapus saja lalu buat ulang.</p>
-                    <button onclick="forceRemoveBrokenMatch('${match.id}')" class="btn-danger" style="width:100%; padding:10px;">🗑️ Hapus Pertandingan Ini</button>
-                </div>`;
-            }
-            return `
+        container.innerHTML = activeMatches.map(match => `
             <div class="court">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px;">
                     <h3 style="color:var(--primary);">${match.courtName}</h3>
@@ -2032,8 +2020,7 @@
                     <button onclick="finishMatch('${match.id}', false)" class="btn-success" style="padding:10px 20px;">Selesai Match</button>
                 </div>
             </div>
-        `;
-        }).join('');
+        `).join('');
     }
 
     // --- Klasemen & Riwayat ---
