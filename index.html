@@ -32,8 +32,13 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--bg-main); color: var(--text-main); padding: 20px; }
         .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
-        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
+        .container { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+        /* Cegah kolom melebar melewati layar (grid blowout) saat isinya lebar: kartu lapangan, tabel klasemen, dll */
+        .container > div { min-width: 0; }
+        .team-box > div { min-width: 0; }
+        .court-player-info { min-width: 0; }
+        .player-score-controls { flex-wrap: wrap; }
+        @media (max-width: 1024px) { .container { grid-template-columns: minmax(0, 1fr); } }
         
         .card { background-color: var(--bg-card); padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; }
         .card h2 { margin-bottom: 15px; font-size: 1.2rem; color: var(--primary); }
