@@ -342,24 +342,35 @@
                     </div>
                 </div>
 
-                <div class="card">
-                    <h2>Daftar Antrean (Waiting List)</h2>
-                    <p style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted);">Diurutkan otomatis berdasarkan yang paling sedikit bermain.</p>
-                    <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>No</th>
-                                    <th>Nama</th>
-                                    <th>Level</th>
-                                    <th>Sudah Main</th>
-                                </tr>
-                            </thead>
-                            <tbody id="queueList"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+  <div class="card roundmix-queue-card">
+    <div class="roundmix-queue-header">
+        <div>
+            <div class="roundmix-queue-kicker">PLAYER QUEUE</div>
+            <h2>⏳ Daftar Antrean</h2>
+            <p class="roundmix-queue-subtitle">
+                Diurutkan otomatis berdasarkan yang paling sedikit bermain.
+            </p>
+        </div>
+    </div>
+
+    <div class="roundmix-queue-info">
+        🔄 Pemain dengan jumlah pertandingan paling sedikit akan diprioritaskan.
+    </div>
+
+    <div class="roundmix-queue-table-wrapper">
+        <table class="roundmix-queue-table">
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Nama</th>
+                    <th>Level</th>
+                    <th>Sudah Main</th>
+                </tr>
+            </thead>
+            <tbody id="queueList"></tbody>
+        </table>
+    </div>
+</div>
 
             <!-- Panel Kanan: Pertandingan & Klasemen -->
             <div>
