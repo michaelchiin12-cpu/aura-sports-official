@@ -987,7 +987,19 @@
         players.forEach(p => { out[p.id] = cloneJSON(p.stats || {played:0,wins:0,points:0,out:0,fault:0}); });
         return out;
     }
-
+function emptyPlayerStatsSnapshot() {
+    const out = {};
+    players.forEach(p => {
+        out[p.id] = {
+            played: 0,
+            wins: 0,
+            points: 0,
+            out: 0,
+            fault: 0
+        };
+    });
+    return out;
+}
     function applyPlayerStatsSnapshot(statsByPlayer) {
         players.forEach(p => {
             const s = statsByPlayer && statsByPlayer[p.id];
@@ -1090,14 +1102,32 @@
 
         const now = new Date().toISOString();
         const id = 'event-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
-        const ev = {
-            id, name, date, mode, status:'draft', createdAt:now, updatedAt:now,
-            snapshot:{
-                playerStats: currentPlayerStatsSnapshot(),
-                matchesHistory:[], activeMatches:[], rrTeams:[], rrMatches:[],
-                rrSettings:{qualifyCount:4,totalCourts:2}, rrPhase:'setup', rrBracket:[]
-            }
-        };
+       const ev = {
+    id,
+    name,
+    date,
+    mode,
+    status: 'draft',
+    createdAt: now,
+    updatedAt: now,
+
+    snapshot: {
+        // SETIAP PERTANDINGAN BARU MULAI DARI 0
+        playerStats: emptyPlayerStatsSnapshot(),
+
+        matchesHistory: [],
+        activeMatches: [],
+
+        rrTeams: [],
+        rrMatches: [],
+        rrSettings: {
+            qualifyCount: 4,
+            totalCourts: 2
+        },
+        rrPhase: 'setup',
+        rrBracket: []
+    }
+};
 
         // Simpan event terlebih dahulu di memori, lalu tampilkan workspace-nya.
         eventRegistry.events.unshift(ev);
