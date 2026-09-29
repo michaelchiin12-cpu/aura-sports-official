@@ -4063,3 +4063,168 @@ html.is-mobile body {
     }
 
 }
+/* =========================================================
+   ROUND MIX MOBILE DASHBOARD
+   ========================================================= */
+
+.roundmix-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.roundmix-kicker {
+    color: var(--primary);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+}
+
+.roundmix-section-header h2 {
+    margin-bottom: 5px;
+}
+
+.roundmix-description {
+    color: var(--text-muted);
+    font-size: .82rem;
+    line-height: 1.4;
+}
+
+.roundmix-settings-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(200,159,76,.12);
+    border: 1px solid rgba(200,159,76,.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.roundmix-setting-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.roundmix-setting-item {
+    min-width: 0;
+}
+
+.roundmix-setting-item label {
+    display: block;
+    color: var(--text-muted);
+    font-size: .72rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.roundmix-setting-item input,
+.roundmix-setting-item select {
+    width: 100% !important;
+    min-height: 44px;
+    margin: 0;
+}
+
+.roundmix-queue-count {
+    min-width: 62px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(200,159,76,.1);
+    border: 1px solid rgba(200,159,76,.3);
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.roundmix-queue-count strong {
+    display: block;
+    color: var(--primary);
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.roundmix-queue-count span {
+    display: block;
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: .65rem;
+}
+
+.roundmix-queue-info {
+    padding: 9px 11px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    background: rgba(200,159,76,.07);
+    border: 1px solid rgba(200,159,76,.16);
+    color: var(--text-muted);
+    font-size: .72rem;
+    line-height: 1.35;
+}
+
+.roundmix-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.roundmix-table-wrapper table {
+    margin-top: 0;
+}
+
+@media (max-width: 768px) {
+
+    .roundmix-section-header {
+        align-items: center;
+    }
+
+    .roundmix-section-header h2 {
+        font-size: .98rem !important;
+    }
+
+    .roundmix-setting-grid {
+        grid-template-columns: 1fr;
+        gap: 9px;
+    }
+
+    .roundmix-setting-item label {
+        font-size: .7rem;
+    }
+
+    .roundmix-queue-card {
+        padding: 12px !important;
+    }
+
+    .roundmix-queue-info {
+        font-size: .68rem;
+    }
+
+}
+
+@media (max-width: 420px) {
+
+    .roundmix-section-header h2 {
+        font-size: .9rem !important;
+    }
+
+    .roundmix-kicker {
+        font-size: .6rem;
+    }
+
+    .roundmix-description {
+        font-size: .72rem;
+    }
+
+    .roundmix-settings-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+    }
+
+    .roundmix-queue-count {
+        min-width: 54px;
+    }
+
+}
