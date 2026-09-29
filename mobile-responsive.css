@@ -4063,304 +4063,214 @@ html.is-mobile body {
     }
 
 }
-/* =========================================================
-   ROUND MIX MOBILE DASHBOARD
-   ========================================================= */
+/* =====================================================
+   ROUND MIX - EVENT HEADER MODERN
+   ===================================================== */
 
-.roundmix-section-header {
+.roundmix-event-hero {
+    margin-bottom: 18px;
+    padding: 16px;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 18px;
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(212, 175, 55, 0.10),
+            transparent 42%
+        ),
+        linear-gradient(145deg, #171717, #0d0d0d);
+    box-shadow: 0 10px 30px rgba(0,0,0,.22);
+}
+
+.roundmix-event-top {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 15px;
+    gap: 10px;
+    margin-bottom: 18px;
 }
 
-.roundmix-kicker {
-    color: var(--primary);
-    font-size: .68rem;
-    font-weight: 800;
-    letter-spacing: 2px;
-    margin-bottom: 4px;
+.roundmix-back-btn {
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.06);
+    color: #fff;
+    border-radius: 10px;
+    padding: 9px 13px;
+    font-size: .85rem;
+    cursor: pointer;
 }
 
-.roundmix-section-header h2 {
-    margin-bottom: 5px;
+.roundmix-back-btn:hover {
+    background: rgba(255,255,255,.10);
 }
 
-.roundmix-description {
-    color: var(--text-muted);
+.roundmix-event-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.roundmix-action-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 9px 13px;
     font-size: .82rem;
-    line-height: 1.4;
+    font-weight: 700;
+    cursor: pointer;
 }
 
-.roundmix-settings-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    background: rgba(200,159,76,.12);
-    border: 1px solid rgba(200,159,76,.35);
+.roundmix-action-btn.success {
+    background: #10b981;
+    color: #fff;
+}
+
+.roundmix-action-btn.warning {
+    background: #f59e0b;
+    color: #111;
+}
+
+.roundmix-event-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.roundmix-event-icon {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    border-radius: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    background: rgba(212,175,55,.12);
+    border: 1px solid rgba(212,175,55,.25);
+    font-size: 1.6rem;
 }
 
-.roundmix-setting-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-}
-
-.roundmix-setting-item {
+.roundmix-event-content {
     min-width: 0;
+    flex: 1;
 }
 
-.roundmix-setting-item label {
-    display: block;
-    color: var(--text-muted);
-    font-size: .72rem;
-    font-weight: 600;
-    margin-bottom: 5px;
-}
-
-.roundmix-setting-item input,
-.roundmix-setting-item select {
-    width: 100% !important;
-    min-height: 44px;
-    margin: 0;
-}
-
-.roundmix-queue-count {
-    min-width: 62px;
-    padding: 8px 10px;
-    border-radius: 12px;
-    background: rgba(200,159,76,.1);
-    border: 1px solid rgba(200,159,76,.3);
-    text-align: center;
-    flex-shrink: 0;
-}
-
-.roundmix-queue-count strong {
-    display: block;
+.roundmix-event-label {
     color: var(--primary);
-    font-size: 1.25rem;
-    line-height: 1;
-}
-
-.roundmix-queue-count span {
-    display: block;
-    margin-top: 3px;
-    color: var(--text-muted);
-    font-size: .65rem;
-}
-
-.roundmix-queue-info {
-    padding: 9px 11px;
-    margin-bottom: 10px;
-    border-radius: 8px;
-    background: rgba(200,159,76,.07);
-    border: 1px solid rgba(200,159,76,.16);
-    color: var(--text-muted);
     font-size: .72rem;
-    line-height: 1.35;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
 }
 
-.roundmix-table-wrapper {
-    width: 100%;
-    overflow-x: auto;
+.roundmix-event-name {
+    margin: 0;
+    color: #fff;
+    font-size: 1.45rem;
+    line-height: 1.15;
+    font-weight: 800;
 }
 
-.roundmix-table-wrapper table {
-    margin-top: 0;
+.roundmix-event-date {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: .82rem;
 }
 
-@media (max-width: 768px) {
-
-    .roundmix-section-header {
-        align-items: center;
-    }
-
-    .roundmix-section-header h2 {
-        font-size: .98rem !important;
-    }
-
-    .roundmix-setting-grid {
-        grid-template-columns: 1fr;
-        gap: 9px;
-    }
-
-    .roundmix-setting-item label {
-        font-size: .7rem;
-    }
-
-    .roundmix-queue-card {
-        padding: 12px !important;
-    }
-
-    .roundmix-queue-info {
-        font-size: .68rem;
-    }
-
+.roundmix-event-status {
+    align-self: flex-start;
+    white-space: nowrap;
+    padding: 6px 9px;
+    border-radius: 999px;
+    font-size: .65rem;
+    font-weight: 800;
+    letter-spacing: .04em;
 }
 
-@media (max-width: 420px) {
-
-    .roundmix-section-header h2 {
-        font-size: .9rem !important;
-    }
-
-    .roundmix-kicker {
-        font-size: .6rem;
-    }
-
-    .roundmix-description {
-        font-size: .72rem;
-    }
-
-    .roundmix-settings-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-    }
-
-    .roundmix-queue-count {
-        min-width: 54px;
-    }
-
+.roundmix-event-status.ongoing {
+    background: rgba(16,185,129,.12);
+    color: #34d399;
+    border: 1px solid rgba(16,185,129,.25);
 }
-/* =====================================================
-   FIX ROUND MIX MOBILE - PREVENT HORIZONTAL OVERFLOW
-   ===================================================== */
+
+.roundmix-event-status.finished {
+    background: rgba(245,158,11,.12);
+    color: #fbbf24;
+    border: 1px solid rgba(245,158,11,.25);
+}
+
+.roundmix-finished-notice {
+    margin-bottom: 14px;
+    padding: 11px 13px;
+    border-radius: 12px;
+    background: rgba(245,158,11,.08);
+    border: 1px solid rgba(245,158,11,.25);
+    color: #fcd34d;
+    font-size: .82rem;
+}
+
+
+/* ================= MOBILE ================= */
 
 @media (max-width: 640px) {
 
-    html,
-    body {
-        width: 100%;
-        max-width: 100%;
-        overflow-x: hidden !important;
+    .roundmix-event-hero {
+        padding: 14px;
+        border-radius: 16px;
+        margin-bottom: 14px;
     }
 
-    body {
-        padding: 10px !important;
+    .roundmix-event-top {
+        align-items: stretch;
+        margin-bottom: 15px;
     }
 
-    .container {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        display: block !important;
+    .roundmix-back-btn {
+        flex: 1;
+        text-align: left;
+        font-size: .78rem;
+        padding: 9px 10px;
     }
 
-    #tab-match,
-    #eventWorkspace-match,
-    #eventWorkspace-match > .container {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        overflow-x: hidden !important;
+    .roundmix-event-actions {
+        flex-shrink: 0;
     }
 
-    #eventManager-match {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
+    .roundmix-action-btn {
+        padding: 9px 10px;
+        font-size: .75rem;
     }
 
-    .card {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        box-sizing: border-box !important;
+    .roundmix-event-info {
+        gap: 11px;
+        align-items: center;
     }
 
-    /* Semua elemen input/select/button tidak boleh
-       membuat parent melebar */
-    input,
-    select,
-    button,
-    textarea {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
+    .roundmix-event-icon {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        border-radius: 13px;
+        font-size: 1.35rem;
     }
 
-    /* Waiting List */
-    .roundmix-queue-card {
-        width: 100% !important;
-        max-width: 100% !important;
-        overflow: hidden !important;
+    .roundmix-event-label {
+        font-size: .65rem;
     }
 
-    .roundmix-queue-card table {
-        width: 100% !important;
-        max-width: 100% !important;
-        table-layout: fixed !important;
+    .roundmix-event-name {
+        font-size: 1.25rem;
     }
 
-    .roundmix-queue-card th,
-    .roundmix-queue-card td {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    .roundmix-event-date {
+        font-size: .76rem;
+        margin-top: 4px;
     }
 
-    /* Pengaturan pertandingan */
-    .roundmix-settings-card {
-        width: 100% !important;
-        max-width: 100% !important;
-        overflow: hidden !important;
+    .roundmix-event-status {
+        font-size: .58rem;
+        padding: 5px 7px;
     }
 
-    .roundmix-setting-grid {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        grid-template-columns: 1fr !important;
+    .roundmix-finished-notice {
+        font-size: .76rem;
     }
-
-    .roundmix-setting-item {
-        width: 100% !important;
-        min-width: 0 !important;
-    }
-
-    .roundmix-setting-item input,
-    .roundmix-setting-item select {
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-
-    /* Manajemen Lapangan */
-    #courtsContainer {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        overflow-x: hidden !important;
-    }
-
-    /* Tombol Acak Pertandingan */
-    #courtsContainer ~ *,
-    button[onclick="generateMatches()"] {
-        max-width: 100% !important;
-        white-space: normal !important;
-    }
-
-    /* Klasemen */
-    .standings-card {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        overflow: hidden !important;
-    }
-
-    .standings-table-wrapper {
-        width: 100% !important;
-        max-width: 100% !important;
-        overflow-x: auto !important;
-    }
-
-    .standings-table-wrapper table {
-        min-width: 0 !important;
-        width: 100% !important;
-    }
-
 }
