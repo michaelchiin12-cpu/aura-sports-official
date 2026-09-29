@@ -503,98 +503,525 @@
 </div>
 
     <!-- ================= TAB 2: KEUANGAN & DEPOSIT ================= -->
-    <div id="tab-finance" class="tab-content">
-        <div class="container">
-            <!-- Panel Kiri Tab Keuangan: Form Transaksi & Otomatisasi -->
+   <!-- ================= TAB 2: KEUANGAN & DEPOSIT ================= -->
+<div id="tab-finance" class="tab-content">
+
+    <div class="container finance-container">
+
+        <!-- =====================================================
+             HEADER KAS AURA
+        ====================================================== -->
+        <div class="finance-page-header">
+
             <div>
-                <div class="card">
-                    <h2>Top Up / Tarik Saldo Deposit</h2>
-                    <form onsubmit="handleTransactionSubmit(event)">
-                        <div class="flex-row">
-                            <select id="finPlayerSelect" required style="width: 100%;">
-                                <option value="">-- Pilih Pemain --</option>
-                            </select>
-                        </div>
-                        <div class="flex-row">
-                            <select id="finType" required style="flex: 1;">
-                                <option value="in">Top Up (Masuk)</option>
-                                <option value="out">Tarik Saldo (Keluar)</option>
-                            </select>
-                            <input type="number" id="finAmount" placeholder="Nominal (Rp)" required style="flex: 2;">
-                        </div>
-                        <input type="text" id="finDesc" placeholder="Keterangan (misal: Transfer BCA, Cash, dll)" style="width: 100%;">
-                        <button type="submit" class="btn-success" style="width: 100%; margin-top: 10px;">Simpan Transaksi</button>
-                    </form>
+                <div class="finance-kicker">
+                    AURA SPORT FINANCE
                 </div>
 
-                <div class="card">
-                    <h2>Otomatisasi Potongan Permainan</h2>
-                    <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">Set biaya per game untuk otomatis memotong deposit pemain saat pertandingan selesai.</div>
-                    <div class="flex-row">
-                        <input type="number" id="payPerPlayFee" placeholder="Biaya per Match/Pemain (Rp)" style="flex: 2;">
-                        <button onclick="savePayPerPlaySetting()" style="flex: 1;">Simpan Tarif</button>
-                    </div>
-                    <hr style="border-color: var(--border); margin: 15px 0;">
-                    <p style="font-weight: bold; font-size: 0.9rem; margin-bottom: 5px;">Bagi Rata Biaya Sewa Lapangan Venue</p>
-                    <div class="flex-row">
-                        <input type="number" id="totalVenueCost" placeholder="Total Sewa Venue (Rp)" style="flex: 2;">
-                        <button onclick="splitVenueCost()" class="btn-warning" style="flex: 1;">Potong Semua Pemain</button>
-                    </div>
-                </div>
+                <h2 class="finance-title">
+                    💰 Kas Aura
+                </h2>
 
-                <div class="card">
-                    <h2>Manajemen Data Keuangan</h2>
-                    <div class="flex-row">
-                        <button onclick="exportFinanceCSV()" style="flex:1;">Export Mutasi (CSV)</button>
-                        <button onclick="clearFinanceDataOnly()" class="btn-danger" style="flex:1;">Reset Keuangan Saja</button>
-                    </div>
-                </div>
+                <p class="finance-subtitle">
+                    Kelola deposit, transaksi, dan biaya pertandingan
+                </p>
             </div>
 
-            <!-- Panel Kanan Tab Keuangan: Ringkasan & Filter Mutasi -->
-            <div>
-                <div class="card">
-                    <h2>Ringkasan Saldo & Filter Mutasi</h2>
-                    <div class="flex-row" style="margin-bottom: 15px;">
-                        <select id="filterPlayerFinance" onchange="renderFinance()" style="width: 100%;">
-                            <option value="ALL">-- Tampilkan Mutasi Semua Pemain --</option>
-                        </select>
-                    </div>
-
-                    <div class="stat-grid">
-                        <div class="stat-card">
-                            <div style="font-size: 0.8rem; color: var(--text-muted);">Total Deposit Komunitas</div>
-                            <div class="val" id="statTotalCommunity">Rp 0</div>
-                        </div>
-                        <div class="stat-card">
-                            <div style="font-size: 0.8rem; color: var(--text-muted);">Total Pengeluaran/Pakai</div>
-                            <div class="val" id="statTotalSpent" style="color: var(--danger);">Rp 0</div>
-                        </div>
-                        <div class="stat-card">
-                            <div style="font-size: 0.8rem; color: var(--text-muted);">Sisa Saldo Pemain Terpilih</div>
-                            <div class="val" id="statSelectedBalance" style="color: var(--success);">Rp 0</div>
-                        </div>
-                    </div>
-
-                    <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Tanggal</th>
-                                    <th>Nama</th>
-                                    <th>Keterangan</th>
-                                    <th>Masuk</th>
-                                    <th>Keluar</th>
-                                    <th>Saldo Berjalan</th>
-                                </tr>
-                            </thead>
-                            <tbody id="mutationList"></tbody>
-                        </table>
-                    </div>
-                </div>
+            <div class="finance-header-icon">
+                💰
             </div>
+
         </div>
+
+
+        <!-- =====================================================
+             PANEL KIRI
+        ====================================================== -->
+        <div class="finance-layout">
+
+            <div class="finance-left">
+
+                <!-- ===============================
+                     TRANSAKSI
+                ================================ -->
+                <div class="card finance-card">
+
+                    <div class="finance-section-header">
+
+                        <div>
+                            <div class="finance-section-kicker">
+                                TRANSAKSI
+                            </div>
+
+                            <h2>
+                                Top Up / Tarik Saldo
+                            </h2>
+                        </div>
+
+                        <div class="finance-section-icon">
+                            💳
+                        </div>
+
+                    </div>
+
+
+                    <form
+                        onsubmit="handleTransactionSubmit(event)"
+                        class="finance-transaction-form"
+                    >
+
+                        <div class="finance-form-group">
+
+                            <label>
+                                Pemain
+                            </label>
+
+                            <select
+                                id="finPlayerSelect"
+                                required
+                            >
+                                <option value="">
+                                    -- Pilih Pemain --
+                                </option>
+                            </select>
+
+                        </div>
+
+
+                        <div class="finance-form-grid">
+
+                            <div class="finance-form-group">
+
+                                <label>
+                                    Jenis Transaksi
+                                </label>
+
+                                <select
+                                    id="finType"
+                                    required
+                                >
+                                    <option value="in">
+                                        💰 Top Up / Masuk
+                                    </option>
+
+                                    <option value="out">
+                                        💸 Tarik Saldo / Keluar
+                                    </option>
+                                </select>
+
+                            </div>
+
+
+                            <div class="finance-form-group">
+
+                                <label>
+                                    Nominal
+                                </label>
+
+                                <div class="finance-input-money">
+
+                                    <span>
+                                        Rp
+                                    </span>
+
+                                    <input
+                                        type="number"
+                                        id="finAmount"
+                                        placeholder="0"
+                                        required
+                                    >
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="finance-form-group">
+
+                            <label>
+                                Keterangan
+                            </label>
+
+                            <input
+                                type="text"
+                                id="finDesc"
+                                placeholder="Contoh: Transfer BCA, Cash, dll"
+                            >
+
+                        </div>
+
+
+                        <button
+                            type="submit"
+                            class="btn-success finance-submit-btn"
+                        >
+                            ✓ Simpan Transaksi
+                        </button>
+
+                    </form>
+
+                </div>
+
+
+                <!-- ===============================
+                     OTOMATISASI
+                ================================ -->
+                <div class="card finance-card">
+
+                    <div class="finance-section-header">
+
+                        <div>
+                            <div class="finance-section-kicker">
+                                AUTOMATION
+                            </div>
+
+                            <h2>
+                                Otomatisasi Biaya
+                            </h2>
+                        </div>
+
+                        <div class="finance-section-icon">
+                            ⚡
+                        </div>
+
+                    </div>
+
+
+                    <!-- BIAYA MATCH -->
+                    <div class="finance-setting-box">
+
+                        <div class="finance-setting-info">
+
+                            <div class="finance-setting-title">
+                                🎾 Biaya Per Match
+                            </div>
+
+                            <div class="finance-setting-desc">
+                                Otomatis memotong saldo pemain
+                                saat pertandingan selesai.
+                            </div>
+
+                        </div>
+
+
+                        <div class="finance-setting-control">
+
+                            <div class="finance-money-input">
+
+                                <span>
+                                    Rp
+                                </span>
+
+                                <input
+                                    type="number"
+                                    id="payPerPlayFee"
+                                    placeholder="0"
+                                >
+
+                            </div>
+
+                            <button
+                                onclick="savePayPerPlaySetting()"
+                                class="btn-success"
+                            >
+                                Simpan
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- VENUE -->
+                    <div class="finance-setting-box">
+
+                        <div class="finance-setting-info">
+
+                            <div class="finance-setting-title">
+                                🏟️ Biaya Sewa Venue
+                            </div>
+
+                            <div class="finance-setting-desc">
+                                Bagi rata biaya venue ke seluruh
+                                pemain aktif.
+                            </div>
+
+                        </div>
+
+
+                        <div class="finance-setting-control">
+
+                            <div class="finance-money-input">
+
+                                <span>
+                                    Rp
+                                </span>
+
+                                <input
+                                    type="number"
+                                    id="totalVenueCost"
+                                    placeholder="0"
+                                >
+
+                            </div>
+
+                            <button
+                                onclick="splitVenueCost()"
+                                class="btn-warning"
+                            >
+                                Potong Semua
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ===============================
+                     DATA KEUANGAN
+                ================================ -->
+                <div class="card finance-card">
+
+                    <div class="finance-section-header">
+
+                        <div>
+                            <div class="finance-section-kicker">
+                                DATA
+                            </div>
+
+                            <h2>
+                                Manajemen Keuangan
+                            </h2>
+                        </div>
+
+                        <div class="finance-section-icon">
+                            📊
+                        </div>
+
+                    </div>
+
+
+                    <div class="finance-data-actions">
+
+                        <button
+                            onclick="exportFinanceCSV()"
+                            class="finance-data-btn"
+                        >
+                            📥 Export Mutasi CSV
+                        </button>
+
+                        <button
+                            onclick="clearFinanceDataOnly()"
+                            class="btn-danger finance-data-btn"
+                        >
+                            🗑️ Reset Keuangan
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 PANEL KANAN
+            ================================================== -->
+            <div class="finance-right">
+
+                <!-- ===============================
+                     SUMMARY
+                ================================ -->
+                <div class="card finance-card">
+
+                    <div class="finance-section-header">
+
+                        <div>
+                            <div class="finance-section-kicker">
+                                FINANCIAL OVERVIEW
+                            </div>
+
+                            <h2>
+                                Ringkasan Saldo
+                            </h2>
+                        </div>
+
+                        <div class="finance-section-icon">
+                            📈
+                        </div>
+
+                    </div>
+
+
+                    <!-- FILTER -->
+                    <div class="finance-filter-box">
+
+                        <label>
+                            Lihat Saldo Pemain
+                        </label>
+
+                        <select
+                            id="filterPlayerFinance"
+                            onchange="renderFinance()"
+                        >
+                            <option value="ALL">
+                                -- Semua Pemain --
+                            </option>
+                        </select>
+
+                    </div>
+
+
+                    <!-- STAT -->
+                    <div class="finance-stat-grid">
+
+                        <div class="finance-stat-card finance-stat-main">
+
+                            <div class="finance-stat-label">
+                                TOTAL DEPOSIT KOMUNITAS
+                            </div>
+
+                            <div
+                                class="finance-stat-value"
+                                id="statTotalCommunity"
+                            >
+                                Rp 0
+                            </div>
+
+                            <div class="finance-stat-caption">
+                                Saldo seluruh pemain
+                            </div>
+
+                        </div>
+
+
+                        <div class="finance-stat-card">
+
+                            <div class="finance-stat-label">
+                                TOTAL TERPAKAI
+                            </div>
+
+                            <div
+                                class="finance-stat-value finance-danger"
+                                id="statTotalSpent"
+                            >
+                                Rp 0
+                            </div>
+
+                            <div class="finance-stat-caption">
+                                Pengeluaran / potongan
+                            </div>
+
+                        </div>
+
+
+                        <div class="finance-stat-card">
+
+                            <div class="finance-stat-label">
+                                SALDO TERPILIH
+                            </div>
+
+                            <div
+                                class="finance-stat-value finance-success"
+                                id="statSelectedBalance"
+                            >
+                                Rp 0
+                            </div>
+
+                            <div class="finance-stat-caption">
+                                Berdasarkan filter pemain
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ===============================
+                     MUTASI
+                ================================ -->
+                <div class="card finance-card finance-mutation-card">
+
+                    <div class="finance-section-header">
+
+                        <div>
+                            <div class="finance-section-kicker">
+                                TRANSACTION HISTORY
+                            </div>
+
+                            <h2>
+                                Riwayat Mutasi
+                            </h2>
+                        </div>
+
+                        <div class="finance-section-icon">
+                            🧾
+                        </div>
+
+                    </div>
+
+
+                    <div class="finance-mutation-wrapper">
+
+                        <table
+                            id="financeMutationTable"
+                            class="finance-mutation-table"
+                        >
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>
+                                        Tanggal
+                                    </th>
+
+                                    <th>
+                                        Pemain
+                                    </th>
+
+                                    <th>
+                                        Keterangan
+                                    </th>
+
+                                    <th>
+                                        Masuk
+                                    </th>
+
+                                    <th>
+                                        Keluar
+                                    </th>
+
+                                    <th>
+                                        Saldo
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+
+                            <tbody id="mutationList"></tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
     </div>
+
+</div>
 
     <!-- ================= TAB 3: ROUND ROBIN + KNOCKOUT ================= -->
     <div id="tab-roundrobin" class="tab-content">
