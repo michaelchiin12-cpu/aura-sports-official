@@ -902,3 +902,577 @@ html.is-mobile body {
         font-size: .62rem !important;
     }
 }
+/* =========================================================
+   MANAGEMEN LAPANGAN - MOBILE REDESIGN
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    /* =========================
+       COURT CARD
+       ========================= */
+
+    .court {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+
+        padding: 14px !important;
+        margin-bottom: 14px !important;
+
+        border-radius: 16px !important;
+
+        background:
+            linear-gradient(
+                145deg,
+                rgba(255,255,255,.035),
+                rgba(255,255,255,.015)
+            ) !important;
+
+        border: 1px solid rgba(200,159,76,.28) !important;
+
+        box-shadow:
+            0 8px 25px rgba(0,0,0,.25) !important;
+    }
+
+
+    /* =========================
+       HEADER
+       ========================= */
+
+    .court-header-mobile {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 10px;
+
+        padding-bottom: 10px;
+        margin-bottom: 8px;
+
+        border-bottom: 1px solid var(--border);
+    }
+
+
+    .court-title {
+        font-size: .95rem;
+        font-weight: 800;
+        color: var(--primary);
+
+        line-height: 1.2;
+    }
+
+
+    .court-status {
+        display: inline-flex;
+        align-items: center;
+
+        margin-top: 4px;
+
+        font-size: .58rem;
+        font-weight: 700;
+
+        letter-spacing: .04em;
+    }
+
+
+    .court-status.is-running {
+        color: #62d98b;
+    }
+
+
+    .court-status.is-paused {
+        color: var(--text-muted);
+    }
+
+
+    .court-edit-score {
+        min-height: 34px !important;
+
+        padding: 6px 9px !important;
+
+        border-radius: 8px !important;
+
+        font-size: .62rem !important;
+
+        white-space: nowrap;
+
+        background: var(--border) !important;
+        color: var(--text-main) !important;
+    }
+
+
+    /* =========================
+       TIMER
+       ========================= */
+
+    .court-timer-mobile {
+        margin: 8px 0 3px !important;
+
+        font-size: 2.1rem !important;
+
+        font-weight: 800 !important;
+
+        line-height: 1 !important;
+
+        text-align: center;
+
+        color: var(--text-main);
+    }
+
+
+    /* =========================
+       SCORE
+       ========================= */
+
+    .court-score-mobile {
+        display: flex;
+
+        justify-content: center;
+        align-items: center;
+
+        gap: 22px;
+
+        margin: 7px 0 15px;
+    }
+
+
+    .court-score-number {
+        min-width: 50px;
+
+        text-align: center;
+
+        font-size: 2.3rem;
+        line-height: 1;
+
+        font-weight: 900;
+
+        color: var(--text-main);
+    }
+
+
+    .court-score-divider {
+        font-size: 1.3rem;
+
+        font-weight: 800;
+
+        color: var(--primary);
+    }
+
+
+    /* =========================
+       TEAMS
+       ========================= */
+
+    .court-teams-mobile {
+        display: block;
+
+        width: 100%;
+    }
+
+
+    .court-team-mobile {
+        width: 100%;
+    }
+
+
+    .court-team-label {
+        margin-bottom: 7px;
+
+        font-size: .65rem;
+        font-weight: 800;
+
+        letter-spacing: .08em;
+
+        color: var(--primary);
+    }
+
+
+    .team-a-mobile {
+        text-align: left;
+    }
+
+
+    .team-b-mobile {
+        margin-top: 4px;
+
+        text-align: left;
+    }
+
+
+    /* =========================
+       VS
+       ========================= */
+
+    .court-vs-mobile {
+        display: flex;
+
+        align-items: center;
+        justify-content: center;
+
+        width: 100%;
+
+        margin: 8px 0;
+
+        font-size: .58rem;
+
+        font-weight: 800;
+
+        color: var(--text-muted);
+    }
+
+
+    /* =========================
+       PLAYER CARD
+       ========================= */
+
+    .mobile-player-card {
+        position: relative;
+
+        display: flex;
+        align-items: center;
+
+        width: 100%;
+
+        min-height: 56px;
+
+        box-sizing: border-box;
+
+        margin-bottom: 6px;
+
+        padding: 7px 7px 7px 8px;
+
+        gap: 8px;
+
+        border-radius: 11px;
+
+        background: rgba(255,255,255,.025);
+
+        border: 1px solid rgba(255,255,255,.055);
+    }
+
+
+    .mobile-player-card > img,
+    .mobile-player-card .avatar {
+        flex: 0 0 auto;
+    }
+
+
+    .mobile-player-main {
+        min-width: 0;
+
+        flex: 1;
+    }
+
+
+    .mobile-player-name {
+        display: flex;
+        align-items: center;
+
+        gap: 5px;
+
+        min-width: 0;
+
+        font-size: .78rem;
+        font-weight: 700;
+
+        color: var(--text-main);
+    }
+
+
+    .mobile-player-name span {
+        min-width: 0;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+
+        white-space: nowrap;
+    }
+
+
+    .mobile-edit-player {
+        flex: 0 0 auto;
+
+        font-size: .68rem;
+
+        color: var(--text-muted) !important;
+
+        text-decoration: none !important;
+    }
+
+
+    .mobile-player-stats {
+        margin-top: 3px;
+
+        font-size: .57rem;
+
+        line-height: 1;
+
+        color: var(--text-muted);
+
+        white-space: nowrap;
+    }
+
+
+    .mobile-player-stats span {
+        margin: 0 2px;
+
+        opacity: .6;
+    }
+
+
+    /* =========================
+       PLAYER ACTION
+       ========================= */
+
+    .mobile-player-actions {
+        position: relative;
+
+        flex: 0 0 auto;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 4px;
+    }
+
+
+    .mobile-point-btn {
+        min-width: 68px !important;
+
+        min-height: 36px !important;
+
+        padding: 6px 8px !important;
+
+        border-radius: 8px !important;
+
+        font-size: .61rem !important;
+
+        font-weight: 800 !important;
+
+        background: var(--primary) !important;
+
+        color: #000 !important;
+    }
+
+
+    .mobile-more-btn {
+        width: 32px !important;
+        min-width: 32px !important;
+
+        height: 36px !important;
+        min-height: 36px !important;
+
+        padding: 0 !important;
+
+        border-radius: 8px !important;
+
+        font-size: 1.1rem !important;
+
+        line-height: 1 !important;
+
+        background: var(--border) !important;
+
+        color: var(--text-main) !important;
+    }
+
+
+    /* =========================
+       EXTRA ACTION
+       ========================= */
+
+    .mobile-extra-actions {
+        position: absolute;
+
+        right: 0;
+
+        top: calc(100% + 5px);
+
+        z-index: 50;
+
+        display: none;
+
+        flex-direction: column;
+
+        gap: 4px;
+
+        width: 105px;
+
+        padding: 6px;
+
+        border-radius: 10px;
+
+        background: #171717;
+
+        border: 1px solid rgba(200,159,76,.35);
+
+        box-shadow:
+            0 8px 25px rgba(0,0,0,.55);
+    }
+
+
+    .mobile-extra-actions.show {
+        display: flex;
+    }
+
+
+    .mobile-extra-actions button {
+        width: 100% !important;
+
+        min-height: 34px !important;
+
+        padding: 5px 6px !important;
+
+        font-size: .6rem !important;
+
+        border-radius: 7px !important;
+    }
+
+
+    /* =========================
+       START / PAUSE
+       ========================= */
+
+    .court-main-controls {
+        display: flex;
+
+        width: 100%;
+
+        margin-top: 12px;
+    }
+
+
+    .court-timer-btn {
+        width: 100% !important;
+
+        min-height: 42px !important;
+
+        border-radius: 10px !important;
+
+        font-size: .72rem !important;
+
+        font-weight: 800 !important;
+    }
+
+
+    /* =========================
+       FINISH
+       ========================= */
+
+    .court-finish-controls {
+        display: grid;
+
+        grid-template-columns: 1fr 1.4fr;
+
+        gap: 7px;
+
+        width: 100%;
+
+        margin-top: 7px;
+    }
+
+
+    .court-cancel-btn,
+    .court-finish-btn {
+        width: 100% !important;
+
+        min-height: 42px !important;
+
+        padding: 7px 6px !important;
+
+        border-radius: 9px !important;
+
+        font-size: .62rem !important;
+
+        font-weight: 800 !important;
+    }
+}
+
+
+/* =========================================================
+   VERY SMALL PHONE
+   ========================================================= */
+
+@media (max-width: 420px) {
+
+    .court {
+        padding: 11px !important;
+    }
+
+
+    .court-title {
+        font-size: .88rem;
+    }
+
+
+    .court-edit-score {
+        font-size: .55rem !important;
+
+        padding: 5px 7px !important;
+    }
+
+
+    .court-timer-mobile {
+        font-size: 1.85rem !important;
+    }
+
+
+    .court-score-number {
+        font-size: 2rem;
+    }
+
+
+    .court-score-mobile {
+        gap: 17px;
+
+        margin-bottom: 12px;
+    }
+
+
+    .mobile-player-card {
+        min-height: 52px;
+
+        padding: 6px;
+    }
+
+
+    .mobile-player-name {
+        font-size: .72rem;
+    }
+
+
+    .mobile-player-stats {
+        font-size: .53rem;
+    }
+
+
+    .mobile-point-btn {
+        min-width: 60px !important;
+
+        font-size: .56rem !important;
+    }
+
+
+    .mobile-more-btn {
+        width: 29px !important;
+        min-width: 29px !important;
+
+        height: 34px !important;
+        min-height: 34px !important;
+    }
+
+
+    .court-timer-btn {
+        min-height: 40px !important;
+    }
+
+
+    .court-cancel-btn,
+    .court-finish-btn {
+        min-height: 40px !important;
+
+        font-size: .57rem !important;
+    }
+}
