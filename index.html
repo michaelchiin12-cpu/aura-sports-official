@@ -744,12 +744,49 @@
         persistStateOnly();
     }
 
+    // Bebaskan pemain yang terkunci 'playing' oleh daftar match aktif tertentu
+    function releasePlayersFromMatches(matchList) {
+        (matchList || []).forEach(m => {
+            [...(m.teamA || []), ...(m.teamB || [])].forEach(mp => {
+                const ref = players.find(p => p.id === mp.id);
+                if (ref && ref.status === 'playing') ref.status = 'active';
+            });
+        });
+    }
+
+    // Jaring pengaman: pemain 'playing' yang tidak ada di match aktif mana pun
+    // (event yang dibuka maupun snapshot event lain) dikembalikan ke 'active'.
+    function reconcilePlayerStatuses() {
+        const busy = new Set();
+        const addFrom = list => (list || []).forEach(m =>
+            [...(m.teamA || []), ...(m.teamB || [])].forEach(p => busy.add(p.id)));
+        addFrom(activeMatches);
+        (eventRegistry.events || []).forEach(e => {
+            if (e.id !== eventRegistry.activeEventId) addFrom((e.snapshot || {}).activeMatches);
+        });
+        players.forEach(p => {
+            if (p.status === 'playing' && !busy.has(p.id)) p.status = 'active';
+        });
+    }
+
     function deleteEvent(id) {
         const ev = eventRegistry.events.find(e=>e.id===id);
         if (!ev) return;
         if (!confirm(`Hapus riwayat "${ev.name}"? Data pertandingan ini akan ikut terhapus.`)) return;
+
+        const isActive = eventRegistry.activeEventId === id;
+        // Lepas pemain yang masih terkunci PLAYING oleh match aktif event ini
+        releasePlayersFromMatches(isActive ? activeMatches : (ev.snapshot || {}).activeMatches);
+
         eventRegistry.events = eventRegistry.events.filter(e=>e.id!==id);
-        if (eventRegistry.activeEventId===id) eventRegistry.activeEventId=null;
+        if (isActive) {
+            eventRegistry.activeEventId = null;
+            Object.values(timers).forEach(clearInterval); timers = {};
+            Object.values(rrTimers).forEach(clearInterval); rrTimers = {};
+            Object.values(koTimers).forEach(clearInterval); koTimers = {};
+            activeMatches = []; matchesHistory = [];
+            rrTeams = []; rrMatches = []; rrBracket = []; rrPhase = 'setup';
+        }
         persistStateOnly().then(()=>init());
     }
 
@@ -1029,6 +1066,7 @@
             // (lihat addPlayer) karena biasanya banyak yang telat.
             if(p.ready === undefined) p.ready = true;
         });
+        reconcilePlayerStatuses();
         
         renderEventManager('match');
         renderEventManager('roundrobin');
