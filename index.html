@@ -2836,7 +2836,7 @@
         ctx.fillText(name.toUpperCase(), cx + cut/2, y + h/2 + size*0.35);
     }
 
-    // Story Best Partner \u2014 vector, gaya seragam dengan Story MVP (bingkai heksagon foto, font brush, ikon vector)
+    // Story Best Partner — vector, gaya seragam dengan Story MVP (bingkai heksagon foto, font brush, ikon vector)
     async function generateBestPartnerStoryCard() {
         const HANDSHAKE_X = '×';
         const bestPartner = computeBestPartner();
@@ -2909,7 +2909,7 @@
         y += 130;
         ctx.fillStyle = WHITE;
         ctx.font = '600 26px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('TWO PLAYERS   \u2022   ONE TEAM', W/2, y);
+        ctx.fillText('TWO PLAYERS   •   ONE TEAM', W/2, y);
         y += 55;
 
         // ==== DUA FOTO (bingkai heksagon kiri & kanan) ====
@@ -2958,7 +2958,7 @@
         ctx.fillStyle = MUTED;
         ctx.font = '500 20px Oswald, Segoe UI, sans-serif';
         const todayStr = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
-        ctx.fillText(`${todayStr}  \u2022  BADMINTON SESSION`, W/2, footerY + 32);
+        ctx.fillText(`${todayStr}  •  BADMINTON SESSION`, W/2, footerY + 32);
 
         const link = document.createElement('a');
         link.download = `AuraSportsClub_BestPartner_${Date.now()}.png`;
