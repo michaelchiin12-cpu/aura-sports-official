@@ -1651,43 +1651,120 @@
         return '<span class="badge badge-beg">Beg</span>';
     }
 
-    function renderPlayers() {
-        const tbody = document.getElementById('playersList');
-        tbody.innerHTML = players.map(p => `
-            <tr>
-                <td>
-                    <div class="avatar-cell">
-                        ${avatarHTML(p)}
-                        <button onclick="changePlayerPhoto('${p.id}')" class="btn-photo">Ganti Foto</button>
-                    </div>
-                </td>
-                <td>
-                    <div class="flex-row" style="margin:0; gap:6px; flex-wrap:nowrap;">
-                        <span>${p.name}${isBirthdayToday(p) ? ' 🎉' : ''}</span>
-                        <button onclick="editPlayerName('${p.id}')" class="btn-photo" title="Ubah nama">✏️ Edit</button>
-                        <button onclick="editBirthDate('${p.id}')" class="btn-photo" title="${p.birthDate ? 'Tanggal lahir: ' + formatBirthDateShort(p.birthDate) : 'Isi tanggal lahir'}">🎂 ${p.birthDate ? formatBirthDateShort(p.birthDate) : 'Isi Tgl Lahir'}</button>
-                    </div>
-                </td>
-                <td>${p.gender}</td>
-                <td>${getLevelBadge(p.level)}</td>
-                <td>
-                    <button onclick="toggleReady('${p.id}')" class="${p.ready ? 'btn-success' : 'btn-warning'}" style="padding: 4px 8px; font-size: 0.75rem;">
-                        ${p.ready ? '✅ Sudah Hadir' : '⏳ Belum Hadir'}
-                    </button>
-                </td>
-                <td style="color:${p.deposit < 0 ? 'var(--danger)' : 'var(--success)'}; font-weight:bold;">${formatRupiah(p.deposit)}</td>
-                <td>
-                    <button onclick="toggleStatus('${p.id}')" class="${p.status === 'active' ? 'btn-success' : p.status === 'playing' ? 'btn-warning' : 'btn-danger'}" ${p.status==='playing'?'disabled':''} style="padding: 4px 8px; font-size: 0.8rem; color: ${p.status==='playing'?'#000':'#fff'}">
-                        ${p.status.toUpperCase()}
-                    </button>
-                </td>
-                <td>
-                    <button onclick="deletePlayer('${p.id}')" class="btn-danger" style="padding: 4px 8px;">-</button>
-                </td>
-            </tr>
-        `).join('');
-    }
+   function renderPlayers() {
+    const tbody = document.getElementById('playersList');
 
+    tbody.innerHTML = players.map(p => `
+        <tr class="member-row">
+
+            <!-- FOTO -->
+            <td data-label="Foto">
+                <div class="avatar-cell member-avatar-cell">
+                    ${avatarHTML(p)}
+
+                    <button
+                        onclick="changePlayerPhoto('${p.id}')"
+                        class="btn-photo member-photo-btn">
+                        📷 Foto
+                    </button>
+                </div>
+            </td>
+
+            <!-- NAMA -->
+            <td data-label="Nama">
+                <div class="member-name-cell">
+
+                    <strong>${p.name}</strong>
+
+                    <button
+                        onclick="editPlayerName('${p.id}')"
+                        class="btn-photo member-edit-name"
+                        title="Ubah nama">
+                        ✏️
+                    </button>
+
+                </div>
+            </td>
+
+            <!-- GENDER -->
+            <td data-label="L/P">
+                <span class="member-gender">
+                    ${p.gender === 'L' ? '♂ Laki-laki' : '♀ Perempuan'}
+                </span>
+            </td>
+
+            <!-- LEVEL -->
+            <td data-label="Level">
+                ${getLevelBadge(p.level)}
+            </td>
+
+            <!-- HADIR -->
+            <td data-label="Kehadiran">
+
+                <button
+                    onclick="toggleReady('${p.id}')"
+                    class="${p.ready ? 'btn-success' : 'btn-warning'} member-ready-btn">
+
+                    ${p.ready ? '✅ Hadir' : '⏳ Belum Hadir'}
+
+                </button>
+
+            </td>
+
+            <!-- SALDO -->
+            <td data-label="Saldo">
+
+                <span
+                    class="member-balance"
+                    style="color:${p.deposit < 0 ? 'var(--danger)' : 'var(--success)'};">
+
+                    ${formatRupiah(p.deposit)}
+
+                </span>
+
+            </td>
+
+            <!-- STATUS -->
+            <td data-label="Status">
+
+                <button
+                    onclick="toggleStatus('${p.id}')"
+                    class="
+                        ${p.status === 'active'
+                            ? 'btn-success'
+                            : p.status === 'playing'
+                                ? 'btn-warning'
+                                : 'btn-danger'}
+                        member-status-btn
+                    "
+                    ${p.status === 'playing' ? 'disabled' : ''}>
+
+                    ${p.status === 'playing'
+                        ? '🎾 Playing'
+                        : p.status === 'active'
+                            ? '🟢 Active'
+                            : '🔴 Nonaktif'}
+
+                </button>
+
+            </td>
+
+            <!-- AKSI -->
+            <td data-label="Aksi">
+
+                <button
+                    onclick="deletePlayer('${p.id}')"
+                    class="btn-danger member-delete-btn">
+
+                    🗑️ Hapus
+
+                </button>
+
+            </td>
+
+        </tr>
+    `).join('');
+}
     function renderQueue() {
         const tbody = document.getElementById('queueList');
         const notReadyCount = players.filter(p => p.status === 'active' && !p.ready).length;
