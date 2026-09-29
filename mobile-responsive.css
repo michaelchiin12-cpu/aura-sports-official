@@ -1923,3 +1923,410 @@ html.is-mobile body {
         font-size: .95rem;
     }
 }
+/* =========================================================
+   MEMBER - MOBILE CARD DESIGN
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    /* =========================
+       MEMBER CARD
+       ========================= */
+
+    #tab-member .card {
+        padding: 13px !important;
+    }
+
+
+    #tab-member .card > h2 {
+        font-size: 1rem !important;
+        margin-bottom: 7px !important;
+    }
+
+
+    #tab-member .card > p {
+        font-size: .62rem !important;
+        line-height: 1.4 !important;
+        margin-bottom: 13px !important;
+    }
+
+
+    /* =========================
+       ADD MEMBER FORM
+       ========================= */
+
+    #playerForm {
+        display: flex !important;
+        flex-direction: column !important;
+
+        gap: 7px !important;
+
+        width: 100% !important;
+    }
+
+
+    #playerForm > * {
+        width: 100% !important;
+
+        flex: none !important;
+
+        box-sizing: border-box !important;
+
+        margin: 0 !important;
+    }
+
+
+    #playerName {
+        min-height: 44px !important;
+    }
+
+
+    #playerGender,
+    #playerLevel {
+        min-height: 44px !important;
+    }
+
+
+    #playerPhoto {
+        min-height: 44px !important;
+
+        padding: 8px !important;
+    }
+
+
+    #playerFormSubmitBtn {
+        width: 100% !important;
+
+        min-height: 44px !important;
+
+        margin-top: 2px !important;
+
+        border-radius: 9px !important;
+
+        font-weight: 800 !important;
+    }
+
+
+    /* =========================
+       TABLE → CARD
+       ========================= */
+
+    #playersTable {
+        width: 100% !important;
+
+        min-width: 0 !important;
+
+        border: 0 !important;
+
+        border-collapse: separate !important;
+
+        border-spacing: 0 8px !important;
+    }
+
+
+    #playersTable thead {
+        display: none !important;
+    }
+
+
+    #playersTable tbody {
+        display: block !important;
+
+        width: 100% !important;
+    }
+
+
+    #playersTable tr.member-row {
+        display: grid !important;
+
+        grid-template-columns: 52px minmax(0, 1fr) auto !important;
+
+        grid-template-areas:
+            "photo name level"
+            "photo attendance balance"
+            "photo status actions" !important;
+
+        width: 100% !important;
+
+        box-sizing: border-box !important;
+
+        padding: 11px !important;
+
+        margin-bottom: 8px !important;
+
+        border-radius: 13px !important;
+
+        background:
+            linear-gradient(
+                145deg,
+                rgba(255,255,255,.035),
+                rgba(255,255,255,.015)
+            ) !important;
+
+        border: 1px solid rgba(255,255,255,.07) !important;
+
+        box-shadow:
+            0 5px 16px rgba(0,0,0,.18) !important;
+    }
+
+
+    #playersTable tr.member-row td {
+        display: flex !important;
+
+        align-items: center !important;
+
+        min-width: 0 !important;
+
+        padding: 2px 4px !important;
+
+        border: 0 !important;
+
+        background: transparent !important;
+
+        font-size: .65rem !important;
+    }
+
+
+    /* =========================
+       GRID POSITIONS
+       ========================= */
+
+    #playersTable tr.member-row td:nth-child(1) {
+        grid-area: photo;
+
+        align-items: flex-start !important;
+
+        justify-content: center !important;
+
+        padding: 2px !important;
+    }
+
+
+    #playersTable tr.member-row td:nth-child(2) {
+        grid-area: name;
+    }
+
+
+    #playersTable tr.member-row td:nth-child(3) {
+        grid-area: gender;
+
+        display: none !important;
+    }
+
+
+    #playersTable tr.member-row td:nth-child(4) {
+        grid-area: level;
+
+        justify-content: flex-end !important;
+    }
+
+
+    #playersTable tr.member-row td:nth-child(5) {
+        grid-area: attendance;
+    }
+
+
+    #playersTable tr.member-row td:nth-child(6) {
+        grid-area: balance;
+
+        justify-content: flex-end !important;
+    }
+
+
+    #playersTable tr.member-row td:nth-child(7) {
+        grid-area: status;
+    }
+
+
+    #playersTable tr.member-row td:nth-child(8) {
+        grid-area: actions;
+
+        justify-content: flex-end !important;
+    }
+
+
+    /* =========================
+       AVATAR
+       ========================= */
+
+    .member-avatar-cell {
+        display: flex !important;
+
+        flex-direction: column !important;
+
+        align-items: center !important;
+
+        gap: 4px !important;
+    }
+
+
+    .member-avatar-cell .btn-photo {
+        padding: 2px 4px !important;
+
+        min-height: 22px !important;
+
+        font-size: .48rem !important;
+
+        border-radius: 5px !important;
+    }
+
+
+    /* =========================
+       NAME
+       ========================= */
+
+    .member-name-cell {
+        display: flex;
+
+        align-items: center;
+
+        min-width: 0;
+
+        gap: 5px;
+    }
+
+
+    .member-name-cell strong {
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+
+        white-space: nowrap;
+
+        font-size: .78rem;
+
+        color: var(--text-main);
+    }
+
+
+    .member-edit-name {
+        flex: 0 0 auto;
+
+        min-height: 24px !important;
+
+        padding: 2px 5px !important;
+
+        font-size: .55rem !important;
+    }
+
+
+    /* =========================
+       GENDER
+       ========================= */
+
+    .member-gender {
+        font-size: .58rem;
+
+        color: var(--text-muted);
+    }
+
+
+    /* =========================
+       LEVEL
+       ========================= */
+
+    #playersTable tr.member-row td:nth-child(4) .badge {
+        font-size: .53rem !important;
+
+        padding: 3px 6px !important;
+    }
+
+
+    /* =========================
+       BUTTONS
+       ========================= */
+
+    .member-ready-btn,
+    .member-status-btn,
+    .member-delete-btn {
+        min-height: 29px !important;
+
+        padding: 4px 7px !important;
+
+        border-radius: 7px !important;
+
+        font-size: .55rem !important;
+
+        white-space: nowrap;
+    }
+
+
+    .member-balance {
+        font-size: .65rem;
+
+        font-weight: 800;
+
+        white-space: nowrap;
+    }
+
+
+    /* =========================
+       EMPTY
+       ========================= */
+
+    #playersTable tbody:empty::after {
+        content: "Belum ada member";
+
+        display: block;
+
+        padding: 25px 10px;
+
+        text-align: center;
+
+        font-size: .7rem;
+
+        color: var(--text-muted);
+    }
+}
+
+
+/* =========================================================
+   SMALL PHONE
+   ========================================================= */
+
+@media (max-width: 420px) {
+
+    #tab-member .card {
+        padding: 10px !important;
+    }
+
+
+    #playersTable tr.member-row {
+        grid-template-columns: 46px minmax(0, 1fr) auto !important;
+
+        padding: 9px !important;
+    }
+
+
+    #playersTable tr.member-row td {
+        padding: 2px !important;
+    }
+
+
+    .member-name-cell strong {
+        font-size: .7rem;
+    }
+
+
+    .member-ready-btn,
+    .member-status-btn,
+    .member-delete-btn {
+        min-height: 27px !important;
+
+        padding: 3px 5px !important;
+
+        font-size: .5rem !important;
+    }
+
+
+    .member-balance {
+        font-size: .58rem;
+    }
+
+
+    #playersTable tr.member-row td:nth-child(4) .badge {
+        font-size: .48rem !important;
+
+        padding: 2px 5px !important;
+    }
+}
