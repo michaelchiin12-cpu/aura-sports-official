@@ -1,6 +1,5 @@
 /* Mobile-first responsive overrides for Aura Sport Manager */
 :root {
-  --mobile-gutter: 12px;
   --mobile-safe-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
@@ -49,10 +48,6 @@ body {
     padding: 10px 8px;
   }
 
-  .header .flex-row input[type="file"] {
-    display: none;
-  }
-
   .nav-tabs {
     position: fixed;
     left: 10px;
@@ -82,10 +77,6 @@ body {
     white-space: normal;
     text-align: center;
     letter-spacing: 0.02em;
-  }
-
-  .tab-content {
-    padding-bottom: 10px;
   }
 
   .container {
@@ -122,56 +113,8 @@ body {
     border-radius: 10px;
   }
 
-  input[type="file"] {
-    min-height: 44px;
-    padding: 8px;
-  }
-
   button {
     width: 100%;
-  }
-
-  .event-toolbar {
-    grid-template-columns: 1fr !important;
-    gap: 8px;
-  }
-
-  .event-toolbar .event-add-btn {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-
-  .event-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  .event-card {
-    padding: 14px;
-  }
-
-  .picker-overlay {
-    align-items: flex-end;
-    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
-  }
-
-  .picker-box {
-    width: 100%;
-    max-width: none;
-    border-radius: 18px 18px 0 0;
-    max-height: 72vh;
-  }
-
-  .picker-item {
-    min-height: 48px;
-    padding: 10px 12px;
-  }
-
-  .stat-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  .stat-card .val {
-    font-size: 1.1rem;
   }
 
   table {
@@ -179,20 +122,10 @@ body {
     width: 100%;
     overflow-x: auto;
     white-space: nowrap;
-    border-spacing: 0;
     font-size: 0.76rem;
   }
 
-  thead,
-  tbody,
-  tr,
-  th,
-  td {
-    white-space: nowrap;
-  }
-
-  th,
-  td {
+  th, td {
     padding: 8px 6px;
   }
 
@@ -203,85 +136,9 @@ body {
     padding: 10px;
   }
 
-  .team-box > div:last-child {
-    text-align: left !important;
-  }
-
-  .player-score-controls {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .player-score-controls button {
-    min-width: 42px;
-    padding: 6px 10px;
-  }
-
-  .rr-fixture-row,
-  .rr-team-chip,
-  .ko-team-line {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .rr-fixture-row {
-    align-items: flex-start;
-  }
-
-  .rr-fx-teams {
-    width: 100%;
-  }
-
-  .court {
-    padding: 12px;
-  }
-
   .timer-display {
     font-size: 1.2rem;
     letter-spacing: 1px;
-  }
-
-  .splash-logo-wrap {
-    width: 150px !important;
-    height: 150px !important;
-  }
-
-  .splash-ring {
-    width: 150px !important;
-    height: 150px !important;
-  }
-
-  .splash-ring.ring2 {
-    width: 120px !important;
-    height: 120px !important;
-  }
-
-  .splash-logo {
-    width: 95px !important;
-  }
-
-  .splash-text {
-    font-size: 0.95rem !important;
-    letter-spacing: 2px;
-  }
-
-  .splash-subtext {
-    letter-spacing: 1px;
-  }
-}
-
-@media (max-width: 520px) {
-  .header .flex-row {
-    grid-template-columns: 1fr;
-  }
-
-  .nav-tabs {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
-  .tab-btn {
-    font-size: 0.56rem;
-    padding: 8px 2px;
   }
 }
 
