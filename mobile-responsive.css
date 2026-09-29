@@ -1,8 +1,18 @@
 /* =========================================================
-   AURA MOBILE UI - FINAL OVERRIDE
+   AURA SPORT MANAGER
+   MOBILE RESPONSIVE CSS - FINAL
+   ========================================================= */
+
+
+/* =========================================================
+   MOBILE - TABLET / PHONE
    ========================================================= */
 
 @media (max-width: 768px) {
+
+    /* =========================
+       GLOBAL
+       ========================= */
 
     html,
     body {
@@ -15,9 +25,13 @@
         padding: 8px 10px 92px !important;
     }
 
-    /* ================= HEADER ================= */
+
+    /* =========================
+       HEADER
+       ========================= */
 
     .header {
+        width: 100% !important;
         padding: 5px 0 10px !important;
         margin-bottom: 10px !important;
     }
@@ -30,6 +44,7 @@
 
     .header h1 {
         font-size: 1.15rem !important;
+        line-height: 1.15 !important;
         margin: 0 0 8px !important;
     }
 
@@ -50,11 +65,27 @@
     }
 
 
-    /* =================
-       BOTTOM NAVIGATION
-       ================= */
+    /* =====================================================
+       NAVIGASI ASLI
+       ===================================================== */
+
+    /*
+       .nav-tabs adalah navigasi asli dari index.html.
+       Di mobile disembunyikan karena JavaScript akan
+       membuat .mobile-bottom-nav.
+    */
 
     .nav-tabs {
+        display: none !important;
+    }
+
+
+    /* =====================================================
+       MOBILE BOTTOM NAVIGATION
+       Dibuat oleh mobile-responsive.js
+       ===================================================== */
+
+    .mobile-bottom-nav {
         position: fixed !important;
 
         left: 8px !important;
@@ -64,24 +95,21 @@
         width: auto !important;
 
         display: grid !important;
-
-        /* 5 MENU SELALU SATU BARIS */
-        grid-template-columns:
-            repeat(5, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
 
         gap: 3px !important;
 
         padding: 5px !important;
         margin: 0 !important;
 
-        background: rgba(17,17,17,.97) !important;
+        background: rgba(17, 17, 17, .97) !important;
 
-        border: 1px solid rgba(200,159,76,.45) !important;
+        border: 1px solid rgba(200, 159, 76, .45) !important;
         border-radius: 15px !important;
 
         box-shadow:
-            0 -8px 25px rgba(0,0,0,.55),
-            0 4px 20px rgba(0,0,0,.25) !important;
+            0 -8px 25px rgba(0, 0, 0, .55),
+            0 4px 20px rgba(0, 0, 0, .25) !important;
 
         backdrop-filter: blur(15px);
         -webkit-backdrop-filter: blur(15px);
@@ -90,7 +118,11 @@
     }
 
 
-    .tab-btn {
+    /* =========================
+       MOBILE NAV BUTTON
+       ========================= */
+
+    .mobile-tab-btn {
         width: 100% !important;
         min-width: 0 !important;
 
@@ -98,7 +130,6 @@
         min-height: 52px !important;
 
         margin: 0 !important;
-
         padding: 5px 2px !important;
 
         display: flex !important;
@@ -117,41 +148,62 @@
         overflow: hidden !important;
     }
 
-    .tab-btn.active {
+    .mobile-tab-btn.active {
         background: var(--primary) !important;
         color: #000 !important;
     }
 
 
-    /* =================
-       CONTENT
-       ================= */
+    /* =========================
+       MAIN CONTENT
+       ========================= */
 
     .container {
         display: block !important;
         width: 100% !important;
+        max-width: 100% !important;
     }
+
+    .tab-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-bottom: 8px !important;
+    }
+
+
+    /* =========================
+       CARD
+       ========================= */
 
     .card {
         width: 100% !important;
+        max-width: 100% !important;
+
         padding: 12px !important;
         margin-bottom: 10px !important;
+
         border-radius: 12px !important;
+
+        box-sizing: border-box !important;
     }
 
     .card h2 {
         font-size: 1rem !important;
+        line-height: 1.2 !important;
         margin-bottom: 12px !important;
     }
 
 
-    /* =================
+    /* =========================
        FORM
-       ================= */
+       ========================= */
 
     input,
-    select {
+    select,
+    textarea {
         width: 100% !important;
+        max-width: 100% !important;
+
         min-height: 44px !important;
 
         font-size: .85rem !important;
@@ -159,6 +211,8 @@
         padding: 9px 11px !important;
 
         border-radius: 9px !important;
+
+        box-sizing: border-box !important;
     }
 
     form .flex-row {
@@ -172,9 +226,9 @@
     }
 
 
-    /* =================
+    /* =========================
        BUTTON
-       ================= */
+       ========================= */
 
     button {
         min-height: 40px;
@@ -182,15 +236,18 @@
         border-radius: 8px;
     }
 
-    /* Jangan semua tombol menjadi full width */
+    /*
+       Jangan membuat semua tombol full width.
+    */
+
     .flex-row button {
         width: auto;
     }
 
 
-    /* =================
+    /* =========================
        FINANCE
-       ================= */
+       ========================= */
 
     #tab-finance .card {
         padding: 13px !important;
@@ -207,19 +264,22 @@
     }
 
 
-    /* =================
+    /* =========================
        STATISTICS
-       ================= */
+       ========================= */
 
     .stat-grid {
+        display: grid !important;
+
         grid-template-columns:
-            repeat(2, minmax(0,1fr)) !important;
+            repeat(2, minmax(0, 1fr)) !important;
 
         gap: 7px !important;
     }
 
     .stat-card {
         padding: 10px !important;
+        min-width: 0 !important;
     }
 
     .stat-card .val {
@@ -227,12 +287,14 @@
     }
 
 
-    /* =================
+    /* =========================
        TABLE
-       ================= */
+       ========================= */
 
     .card > div[style*="overflow-x"] {
-        width: 100%;
+        width: 100% !important;
+        max-width: 100% !important;
+
         overflow-x: auto !important;
 
         -webkit-overflow-scrolling: touch;
@@ -243,18 +305,30 @@
         font-size: .7rem !important;
     }
 
+    th,
+    td {
+        padding: 6px 5px !important;
+    }
 
-    /* =================
-       SCORE
-       ================= */
+
+    /* =========================
+       ROUND MIX / COURT
+       ========================= */
 
     .court {
+        width: 100% !important;
+        max-width: 100% !important;
+
         padding: 10px !important;
+
         border-radius: 10px !important;
+
+        box-sizing: border-box !important;
     }
 
     .team-box {
         padding: 9px !important;
+        min-width: 0 !important;
     }
 
     .player-score-controls {
@@ -267,9 +341,27 @@
     }
 
 
-    /* =================
+    /* =========================
+       EVENT / MATCH TOOLBAR
+       ========================= */
+
+    .event-toolbar {
+        width: 100% !important;
+
+        display: flex !important;
+        flex-wrap: wrap !important;
+
+        gap: 6px !important;
+    }
+
+    .event-toolbar > * {
+        min-width: 0 !important;
+    }
+
+
+    /* =========================
        MODAL
-       ================= */
+       ========================= */
 
     .modal-overlay {
         padding: 10px !important;
@@ -283,6 +375,27 @@
         max-height: 90vh !important;
 
         border-radius: 16px 16px 0 0 !important;
+
+        box-sizing: border-box !important;
+    }
+
+
+    /* =========================
+       SCROLLBAR
+       ========================= */
+
+    ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #111;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #444;
+        border-radius: 10px;
     }
 }
 
@@ -300,6 +413,15 @@
             88px !important;
     }
 
+
+    /* =========================
+       HEADER
+       ========================= */
+
+    .header {
+        padding-top: 4px !important;
+    }
+
     .header img {
         width: 50px !important;
     }
@@ -308,25 +430,106 @@
         font-size: 1.05rem !important;
     }
 
+    .header .flex-row {
+        gap: 4px !important;
+    }
+
     .header .flex-row button {
         font-size: .56rem !important;
         min-height: 32px !important;
+        padding: 5px 4px !important;
     }
 
-    .nav-tabs {
+
+    /* =========================
+       MOBILE BOTTOM NAV
+       ========================= */
+
+    .mobile-bottom-nav {
         left: 5px !important;
         right: 5px !important;
         bottom: 5px !important;
+
         padding: 4px !important;
+
         border-radius: 13px !important;
+
+        gap: 2px !important;
     }
 
-    .tab-btn {
+    .mobile-tab-btn {
         height: 48px !important;
         min-height: 48px !important;
+
+        padding: 4px 2px !important;
+
         font-size: .48rem !important;
+
+        border-radius: 9px !important;
     }
+
+
+    /* =========================
+       CARD
+       ========================= */
 
     .card {
         padding: 10px !important;
+        margin-bottom: 8px !important;
+        border-radius: 10px !important;
     }
+
+    .card h2 {
+        font-size: .9rem !important;
+        margin-bottom: 9px !important;
+    }
+
+
+    /* =========================
+       FORM
+       ========================= */
+
+    input,
+    select,
+    textarea {
+        min-height: 42px !important;
+        font-size: .8rem !important;
+    }
+
+
+    /* =========================
+       STATISTICS
+       ========================= */
+
+    .stat-grid {
+        gap: 6px !important;
+    }
+
+    .stat-card {
+        padding: 8px !important;
+    }
+
+    .stat-card .val {
+        font-size: .95rem !important;
+    }
+}
+
+
+/* =========================================================
+   EXTRA SAFETY
+   ========================================================= */
+
+/*
+   Jangan sampai navbar mobile membuat konten
+   tertutup di bagian paling bawah.
+*/
+
+html.is-mobile body {
+    padding-bottom: 95px !important;
+}
+
+@media (max-width: 420px) {
+    html.is-mobile body {
+        padding-bottom: 88px !important;
+    }
+}
