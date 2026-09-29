@@ -1,52 +1,69 @@
+/* Mobile-first responsive overrides for Aura Sport Manager */
+:root {
+  --mobile-safe-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+html {
+  background: #000;
+  overflow-x: hidden;
+}
+
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+}
+
 @media (max-width: 768px) {
   body {
-    padding: 12px 12px calc(78px + var(--mobile-safe-bottom));
+    padding: 8px 8px calc(68px + var(--mobile-safe-bottom));
   }
 
   .header {
-    margin-bottom: 12px;
-    padding-bottom: 12px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
   }
 
   .header img {
-    width: 72px !important;
-    margin-bottom: 8px;
+    width: 60px !important;
+    margin-bottom: 6px;
   }
 
   .header h1 {
-    font-size: 1.4rem !important;
-    line-height: 1.2;
+    font-size: 1.2rem !important;
+    line-height: 1.1;
   }
 
   .header .flex-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 4px;
     width: 100%;
+    margin-top: 6px;
   }
 
   .header .flex-row > * {
     width: 100%;
-    min-height: 38px;
+    min-height: 32px;
     margin: 0;
-    font-size: 0.68rem;
-    padding: 8px 10px;
+    font-size: 0.62rem;
+    padding: 6px 8px;
+    border-radius: 6px;
   }
 
   .nav-tabs {
     position: fixed;
-    left: 8px;
-    right: 8px;
-    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 6px;
+    right: 6px;
+    bottom: max(6px, env(safe-area-inset-bottom));
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 4px;
-    padding: 6px 6px 8px;
+    gap: 3px;
+    padding: 5px 5px 6px;
     margin: 0;
     background: rgba(17, 17, 17, 0.96);
     border: 1px solid rgba(200, 159, 76, 0.35);
-    border-radius: 14px;
-    box-shadow: 0 -8px 22px rgba(0, 0, 0, 0.4);
+    border-radius: 12px;
+    box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.4);
     z-index: 2000;
     backdrop-filter: blur(8px);
   }
@@ -54,28 +71,29 @@
   .tab-btn {
     flex: unset;
     width: 100%;
-    min-height: 42px;
-    padding: 7px 4px;
-    font-size: 0.56rem;
-    line-height: 1.2;
-    border-radius: 10px;
+    min-height: 38px;
+    padding: 5px 3px;
+    font-size: 0.5rem;
+    line-height: 1.1;
+    border-radius: 8px;
     white-space: normal;
     text-align: center;
+    letter-spacing: 0;
   }
 
   .card {
-    padding: 12px;
-    margin-bottom: 10px;
-    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 10px;
   }
 
   .card h2 {
-    font-size: 0.96rem !important;
-    margin-bottom: 10px;
+    font-size: 0.9rem !important;
+    margin-bottom: 8px;
   }
 
   .flex-row {
-    gap: 8px;
+    gap: 6px;
   }
 
   .flex-row > * {
@@ -86,19 +104,20 @@
   input,
   select,
   button {
-    min-height: 38px;
-    font-size: 0.82rem;
-    border-radius: 9px;
+    min-height: 36px;
+    font-size: 0.76rem;
+    border-radius: 8px;
   }
 
   button {
     width: 100%;
+    padding: 7px 10px;
   }
 
   .container {
     display: block !important;
     grid-template-columns: 1fr !important;
-    gap: 10px !important;
+    gap: 8px !important;
   }
 
   table {
@@ -106,38 +125,107 @@
     width: 100%;
     overflow-x: auto;
     white-space: nowrap;
-    font-size: 0.74rem;
+    font-size: 0.72rem;
   }
 
   th, td {
-    padding: 7px 5px;
+    padding: 6px 4px;
   }
 
   .tab-content {
-    padding-bottom: 8px;
+    padding-bottom: 6px;
   }
 
   .timer-display {
-    font-size: 1.1rem;
+    font-size: 1rem;
     letter-spacing: 1px;
+  }
+
+  .event-toolbar {
+    gap: 6px !important;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .stat-card {
+    padding: 10px !important;
+  }
+
+  .stat-card .val {
+    font-size: 1rem;
   }
 }
 
 @media (max-width: 420px) {
+  body {
+    padding: 6px 6px calc(64px + var(--mobile-safe-bottom));
+  }
+
+  .header {
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+  }
+
+  .header img {
+    width: 52px !important;
+    margin-bottom: 4px;
+  }
+
+  .header h1 {
+    font-size: 1.1rem !important;
+  }
+
   .header .flex-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    margin-top: 4px;
+  }
+
+  .header .flex-row > * {
+    min-height: 30px;
+    font-size: 0.56rem;
+    padding: 5px 6px;
   }
 
   .nav-tabs {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
+    padding: 4px 4px 5px;
+    border-radius: 10px;
+    left: 4px;
+    right: 4px;
   }
 
   .tab-btn {
-    font-size: 0.5rem;
-    padding: 6px 2px;
+    min-height: 35px;
+    padding: 4px 2px;
+    font-size: 0.46rem;
+  }
+
+  .card {
+    padding: 8px;
+    margin-bottom: 6px;
+  }
+
+  .card h2 {
+    font-size: 0.85rem !important;
+    margin-bottom: 6px;
+  }
+
+  input,
+  select,
+  button {
+    min-height: 34px;
+    font-size: 0.72rem;
+  }
+
+  button {
+    padding: 6px 8px;
   }
 }
 
 html.is-mobile .tab-content {
-  padding-bottom: 65px;
+  padding-bottom: 6px;
 }
