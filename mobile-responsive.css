@@ -4228,3 +4228,139 @@ html.is-mobile body {
     }
 
 }
+/* =====================================================
+   FIX ROUND MIX MOBILE - PREVENT HORIZONTAL OVERFLOW
+   ===================================================== */
+
+@media (max-width: 640px) {
+
+    html,
+    body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden !important;
+    }
+
+    body {
+        padding: 10px !important;
+    }
+
+    .container {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        display: block !important;
+    }
+
+    #tab-match,
+    #eventWorkspace-match,
+    #eventWorkspace-match > .container {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+    }
+
+    #eventManager-match {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .card {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Semua elemen input/select/button tidak boleh
+       membuat parent melebar */
+    input,
+    select,
+    button,
+    textarea {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Waiting List */
+    .roundmix-queue-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+    }
+
+    .roundmix-queue-card table {
+        width: 100% !important;
+        max-width: 100% !important;
+        table-layout: fixed !important;
+    }
+
+    .roundmix-queue-card th,
+    .roundmix-queue-card td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Pengaturan pertandingan */
+    .roundmix-settings-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+    }
+
+    .roundmix-setting-grid {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    .roundmix-setting-item {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .roundmix-setting-item input,
+    .roundmix-setting-item select {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Manajemen Lapangan */
+    #courtsContainer {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+    }
+
+    /* Tombol Acak Pertandingan */
+    #courtsContainer ~ *,
+    button[onclick="generateMatches()"] {
+        max-width: 100% !important;
+        white-space: normal !important;
+    }
+
+    /* Klasemen */
+    .standings-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .standings-table-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+    }
+
+    .standings-table-wrapper table {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+
+}
