@@ -2229,28 +2229,69 @@
         </tr>
     `).join('');
 }
-    function renderQueue() {
-        const tbody = document.getElementById('queueList');
-        const notReadyCount = players.filter(p => p.status === 'active' && !p.ready).length;
-        const queue = players
-            .filter(p => p.status === 'active' && p.ready)
-            .sort((a, b) => a.stats.played - b.stats.played);
+  function renderQueue() {
 
-        tbody.innerHTML = queue.map((p, idx) => `
+    const tbody = document.getElementById('queueList');
+
+    const notReadyCount =
+        players.filter(
+            p => p.status === 'active' && !p.ready
+        ).length;
+
+    const queue = players
+        .filter(
+            p => p.status === 'active' && p.ready
+        )
+        .sort(
+            (a, b) => a.stats.played - b.stats.played
+        );
+
+
+    const countEl = document.getElementById('queueCount');
+
+    if (countEl) {
+        countEl.textContent = queue.length;
+    }
+
+
+    tbody.innerHTML = queue.map((p, idx) => `
+        <tr>
+            <td>${idx + 1}</td>
+
+            <td>${p.name}</td>
+
+            <td>${getLevelBadge(p.level)}</td>
+
+            <td style="
+                text-align:center;
+                font-weight:bold;
+                color:var(--primary);
+            ">
+                ${p.stats.played}x
+            </td>
+        </tr>
+    `).join('') + (
+        notReadyCount > 0
+        ? `
             <tr>
-                <td>${idx + 1}</td>
-                <td>${p.name}</td>
-                <td>${getLevelBadge(p.level)}</td>
-                <td style="text-align:center; font-weight:bold; color: var(--primary);">${p.stats.played}x</td>
-            </tr>
-        `).join('') + (notReadyCount > 0 ? `
-            <tr>
-                <td colspan="4" style="text-align:center; color: var(--warning); font-size:0.85rem; padding-top:10px;">
-                    ⏳ ${notReadyCount} pemain aktif belum ditandai hadir, jadi belum masuk antrean
+                <td
+                    colspan="4"
+                    style="
+                        text-align:center;
+                        color:var(--warning);
+                        font-size:.85rem;
+                        padding-top:10px;
+                    "
+                >
+                    ⏳ ${notReadyCount}
+                    pemain aktif belum ditandai hadir,
+                    jadi belum masuk antrean
                 </td>
             </tr>
-        ` : '');
-    }
+        `
+        : ''
+    );
+}
 
     // --- Algoritma Matchmaking Dinamis ---
 
