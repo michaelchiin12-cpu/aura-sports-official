@@ -369,36 +369,108 @@
                     <div id="courtsContainer"></div>
                 </div>
 
-                <div class="card" id="standingsCard">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h2>Klasemen Pemain</h2>
-                        <div class="flex-row" style="margin:0;">
-                            <button onclick="exportStandingsToImage()" class="btn-warning">Download Klasemen</button>
-                            <button onclick="generateMVPStoryCard()" class="btn-success">👑 Story MVP</button>
-                            <button onclick="generateBestPartnerStoryCard()" class="btn-success">🤝 Story Best Partner</button>
-                            <button onclick="generateBirthdayStoryFlow()" class="btn-success">🎂 Story Ulang Tahun</button>
-                        </div>
-                    </div>
-                    <div style="overflow-x: auto;">
-                        <table id="standingsTable">
-                            <thead>
-                                <tr>
-                                    <th>Foto</th>
-                                    <th>Nama</th>
-                                    <th>Main</th>
-                                    <th>Menang</th>
-                                    <th>WR %</th>
-                                    <th>Point</th>
-                                    <th>Out</th>
-                                    <th>Fault</th>
-                                </tr>
-                            </thead>
-                            <tbody id="standingsList"></tbody>
-                        </table>
-                    </div>
-                </div>
+               <div class="card standings-card" id="standingsCard">
 
-               <div class="card history-card">
+    <div class="standings-header">
+        <div>
+            <div class="standings-kicker">PLAYER RANKING</div>
+            <h2>🏆 Klasemen Pemain</h2>
+            <p class="standings-subtitle">
+                Ranking berdasarkan performa pertandingan
+            </p>
+        </div>
+
+        <div class="standings-actions">
+            <button
+                onclick="exportStandingsToImage()"
+                class="btn-warning">
+                📥 Download
+            </button>
+
+            <button
+                onclick="generateMVPStoryCard()"
+                class="btn-success">
+                👑 MVP
+            </button>
+
+            <button
+                onclick="generateBestPartnerStoryCard()"
+                class="btn-success">
+                🤝 Best Partner
+            </button>
+
+            <button
+                onclick="generateBirthdayStoryFlow()"
+                class="btn-success">
+                🎂 Birthday
+            </button>
+        </div>
+    </div>
+
+
+    <!-- PODIUM TOP 3 -->
+    <div class="standings-podium-section">
+
+        <div class="podium-title">
+            <span>🔥 TOP PERFORMER</span>
+            <small>3 pemain teratas</small>
+        </div>
+
+        <div id="standingsPodium" class="standings-podium">
+            <!-- otomatis diisi renderStandings() -->
+        </div>
+
+    </div>
+
+
+    <!-- SEARCH -->
+    <div class="standings-toolbar">
+
+        <div class="standings-search">
+            <span>🔎</span>
+
+            <input
+                type="text"
+                id="standingsSearch"
+                placeholder="Cari nama pemain..."
+                autocomplete="off"
+                oninput="renderStandings()">
+        </div>
+
+        <div class="standings-info">
+            <span id="standingsPlayerCount">0 pemain</span>
+        </div>
+
+    </div>
+
+
+    <!-- DESKTOP TABLE / MOBILE CARD -->
+    <div class="standings-table-wrapper">
+
+        <table id="standingsTable">
+
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Pemain</th>
+                    <th>Main</th>
+                    <th>Menang</th>
+                    <th>WR %</th>
+                    <th>Point</th>
+                    <th>Out</th>
+                    <th>Fault</th>
+                </tr>
+            </thead>
+
+            <tbody id="standingsList"></tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<div class="card history-card">
 
     <div class="history-title-row">
         <div>
@@ -2455,28 +2527,299 @@ function togglePlayerActions(button) {
 
     // --- Klasemen & Riwayat ---
     function renderStandings() {
-        const tbody = document.getElementById('standingsList');
-        const sorted = [...players].sort((a, b) => {
-            if(b.stats.wins !== a.stats.wins) return b.stats.wins - a.stats.wins;
-            return b.stats.points - a.stats.points;
-        });
 
-        tbody.innerHTML = sorted.map(p => {
-            const wr = p.stats.played > 0 ? Math.round((p.stats.wins / p.stats.played) * 100) : 0;
-            return `
-                <tr>
-                    <td>${avatarHTML(p)}</td>
-                    <td>${p.name}</td>
-                    <td>${p.stats.played}</td>
-                    <td>${p.stats.wins}</td>
-                    <td>${wr}%</td>
-                    <td style="color:var(--success)">${p.stats.points}</td>
-                    <td style="color:var(--warning)">${p.stats.out}</td>
-                    <td style="color:var(--danger)">${p.stats.fault}</td>
-                </tr>
+    const tbody = document.getElementById('standingsList');
+    const podium = document.getElementById('standingsPodium');
+    const searchInput = document.getElementById('standingsSearch');
+    const countEl = document.getElementById('standingsPlayerCount');
+
+    if (!tbody) return;
+
+    /*
+     * LOGIKA RANKING TETAP SAMA
+     * 1. Jumlah kemenangan terbanyak
+     * 2. Jika sama, total point terbanyak
+     */
+    const sorted = [...players].sort((a, b) => {
+
+        if (b.stats.wins !== a.stats.wins) {
+            return b.stats.wins - a.stats.wins;
+        }
+
+        return b.stats.points - a.stats.points;
+    });
+
+
+    /* =========================================
+       PODIUM TOP 3
+    ========================================= */
+
+    if (podium) {
+
+        const topThree = sorted.slice(0, 3);
+
+        if (topThree.length === 0) {
+
+            podium.innerHTML = `
+                <div class="podium-empty">
+                    Belum ada data pertandingan
+                </div>
             `;
-        }).join('');
+
+        } else {
+
+            /*
+             * Urutan visual:
+             * Rank 2 - Rank 1 - Rank 3
+             */
+            const podiumOrder = [
+                topThree[1],
+                topThree[0],
+                topThree[2]
+            ].filter(Boolean);
+
+            podium.innerHTML = podiumOrder.map((p) => {
+
+                const rank = sorted.indexOf(p) + 1;
+
+                const wr = p.stats.played > 0
+                    ? Math.round(
+                        (p.stats.wins / p.stats.played) * 100
+                    )
+                    : 0;
+
+                const rankClass =
+                    rank === 1
+                        ? 'podium-first'
+                        : rank === 2
+                            ? 'podium-second'
+                            : 'podium-third';
+
+                const rankIcon =
+                    rank === 1
+                        ? '🥇'
+                        : rank === 2
+                            ? '🥈'
+                            : '🥉';
+
+                return `
+                    <div class="podium-player ${rankClass}">
+
+                        <div class="podium-rank">
+                            ${rankIcon}
+                        </div>
+
+                        <div class="podium-avatar">
+                            ${avatarHTML(p)}
+                        </div>
+
+                        <div class="podium-name">
+                            ${p.name}
+                        </div>
+
+                        <div class="podium-stats">
+                            <span>
+                                <strong>${p.stats.wins}</strong>
+                                WIN
+                            </span>
+
+                            <span>
+                                <strong>${wr}%</strong>
+                                WR
+                            </span>
+
+                            <span>
+                                <strong>${p.stats.points}</strong>
+                                PTS
+                            </span>
+                        </div>
+
+                    </div>
+                `;
+
+            }).join('');
+        }
     }
+
+
+    /* =========================================
+       SEARCH
+    ========================================= */
+
+    const search = searchInput
+        ? searchInput.value.toLowerCase().trim()
+        : '';
+
+
+    const filtered = sorted.filter(p => {
+
+        if (!search) return true;
+
+        return (p.name || '')
+            .toLowerCase()
+            .includes(search);
+    });
+
+
+    /* =========================================
+       PLAYER COUNT
+    ========================================= */
+
+    if (countEl) {
+
+        if (search) {
+            countEl.textContent =
+                `${filtered.length} dari ${sorted.length} pemain`;
+        } else {
+            countEl.textContent =
+                `${sorted.length} pemain`;
+        }
+    }
+
+
+    /* =========================================
+       TABLE / MOBILE CARDS
+    ========================================= */
+
+    if (filtered.length === 0) {
+
+        tbody.innerHTML = `
+            <tr class="standings-empty-row">
+                <td colspan="8">
+                    <div class="standings-empty">
+                        <div class="standings-empty-icon">🔎</div>
+                        <strong>Pemain tidak ditemukan</strong>
+                        <span>
+                            Coba gunakan nama pemain yang berbeda.
+                        </span>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+
+    tbody.innerHTML = filtered.map(p => {
+
+        /*
+         * Ranking tetap berdasarkan posisi asli
+         * di sorted, bukan posisi hasil search.
+         */
+        const rank = sorted.indexOf(p) + 1;
+
+        const wr = p.stats.played > 0
+            ? Math.round(
+                (p.stats.wins / p.stats.played) * 100
+            )
+            : 0;
+
+
+        const rankDisplay =
+            rank === 1
+                ? '🥇'
+                : rank === 2
+                    ? '🥈'
+                    : rank === 3
+                        ? '🥉'
+                        : rank;
+
+
+        return `
+            <tr class="standings-row">
+
+                <td
+                    data-label="Rank"
+                    class="standings-rank-cell">
+                    <span class="
+                        standings-rank
+                        ${rank <= 3 ? 'top-rank' : ''}
+                    ">
+                        ${rankDisplay}
+                    </span>
+                </td>
+
+
+                <td
+                    data-label="Pemain"
+                    class="standings-player-cell">
+
+                    <div class="standings-player">
+
+                        <div class="standings-avatar">
+                            ${avatarHTML(p)}
+                        </div>
+
+                        <div class="standings-player-info">
+
+                            <strong>
+                                ${p.name}
+                            </strong>
+
+                            <small>
+                                ${p.gender === 'L'
+                                    ? '♂ Laki-laki'
+                                    : '♀ Perempuan'}
+                            </small>
+
+                        </div>
+
+                    </div>
+
+                </td>
+
+
+                <td
+                    data-label="Main"
+                    class="standings-number">
+                    ${p.stats.played}
+                </td>
+
+
+                <td
+                    data-label="Menang"
+                    class="standings-number standings-win">
+                    ${p.stats.wins}
+                </td>
+
+
+                <td
+                    data-label="WR %"
+                    class="standings-number">
+
+                    <span class="standings-wr">
+                        ${wr}%
+                    </span>
+
+                </td>
+
+
+                <td
+                    data-label="Point"
+                    class="standings-number standings-points">
+                    ${p.stats.points}
+                </td>
+
+
+                <td
+                    data-label="Out"
+                    class="standings-number standings-out">
+                    ${p.stats.out}
+                </td>
+
+
+                <td
+                    data-label="Fault"
+                    class="standings-number standings-fault">
+                    ${p.stats.fault}
+                </td>
+
+            </tr>
+        `;
+
+    }).join('');
+}
 
    function renderHistory() {
     const filterInput = document.getElementById('historyFilter');
