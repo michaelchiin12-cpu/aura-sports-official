@@ -331,3 +331,15 @@
         padding: 10px !important;
     }
 }
+@media (max-width: 768px) {
+    /* Sembunyikan navigasi utama versi atas di mobile */
+    body > .nav-tabs {
+        display: none !important;
+    }
+
+    /* Jika nav-tabs bukan direct child body,
+       gunakan class ini pada nav atas */
+    .desktop-nav-tabs {
+        display: none !important;
+    }
+}
