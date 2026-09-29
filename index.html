@@ -552,41 +552,47 @@
     </div>
 
 </div>
+            
+                <div class="card history-card">
 
-<div class="card history-card">
+                    <div class="history-title-row">
+                        <div>
+                            <h2>Riwayat Pemain</h2>
+                            <div class="history-subtitle">
+                                Rekap pertandingan yang sudah selesai
+                            </div>
+                        </div>
 
-    <div class="history-title-row">
-        <div>
-            <h2>Riwayat Pemain</h2>
-            <div class="history-subtitle">
-                Rekap pertandingan yang sudah selesai
-            </div>
-        </div>
+                        <div class="history-icon">
+                            🏸
+                        </div>
+                    </div>
 
-        <div class="history-icon">
-            🏸
-        </div>
-    </div>
+                    <div class="history-search">
+                        <span>🔎</span>
 
-    <div class="history-search">
-        <span>🔎</span>
+                        <input
+                            type="text"
+                            id="historyFilter"
+                            placeholder="Cari nama pemain..."
+                            onkeyup="renderHistory()">
+                    </div>
 
-        <input
-            type="text"
-            id="historyFilter"
-            placeholder="Cari nama pemain..."
-            onkeyup="renderHistory()">
-    </div>
+                    <div
+                        id="historyList"
+                        class="history-list">
+                    </div>
 
-    <div
-        id="historyList"
-        class="history-list">
-                               </div>
-            </div>
-        </div>
-    </div>
-</div>
-</div>
+                </div>
+
+            </div> <!-- PANEL KANAN -->
+
+        </div> <!-- CONTAINER -->
+
+        </div> <!-- eventWorkspace-match -->
+
+    </div> <!-- tab-match -->
+
 
 <!-- ================= TAB 2: KEUANGAN & DEPOSIT ================= -->
 
