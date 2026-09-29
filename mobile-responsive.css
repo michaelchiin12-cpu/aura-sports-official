@@ -1476,3 +1476,450 @@ html.is-mobile body {
         font-size: .57rem !important;
     }
 }
+/* =========================================================
+   RIWAYAT PEMAIN - MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    .history-card {
+        padding: 13px !important;
+    }
+
+
+    /* =========================
+       TITLE
+       ========================= */
+
+    .history-title-row {
+        display: flex;
+
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 10px;
+
+        margin-bottom: 11px;
+    }
+
+
+    .history-title-row h2 {
+        margin: 0 !important;
+
+        font-size: 1rem !important;
+    }
+
+
+    .history-subtitle {
+        margin-top: 3px;
+
+        font-size: .58rem;
+
+        color: var(--text-muted);
+    }
+
+
+    .history-icon {
+        display: flex;
+
+        align-items: center;
+        justify-content: center;
+
+        width: 34px;
+        height: 34px;
+
+        flex: 0 0 auto;
+
+        border-radius: 9px;
+
+        background: rgba(200,159,76,.10);
+
+        border: 1px solid rgba(200,159,76,.25);
+
+        font-size: .9rem;
+    }
+
+
+    /* =========================
+       SEARCH
+       ========================= */
+
+    .history-search {
+        display: flex;
+
+        align-items: center;
+
+        gap: 7px;
+
+        width: 100%;
+
+        box-sizing: border-box;
+
+        padding: 0 10px;
+
+        margin-bottom: 10px;
+
+        border-radius: 9px;
+
+        background: rgba(255,255,255,.035);
+
+        border: 1px solid var(--border);
+    }
+
+
+    .history-search > span {
+        flex: 0 0 auto;
+
+        font-size: .75rem;
+
+        opacity: .7;
+    }
+
+
+    .history-search input {
+        width: 100% !important;
+
+        min-height: 40px !important;
+
+        margin: 0 !important;
+
+        padding: 7px 0 !important;
+
+        border: 0 !important;
+
+        outline: none !important;
+
+        background: transparent !important;
+
+        box-shadow: none !important;
+    }
+
+
+    /* =========================
+       HISTORY LIST
+       ========================= */
+
+    .history-list {
+        width: 100%;
+
+        max-height: 430px;
+
+        overflow-y: auto;
+
+        padding-right: 2px;
+    }
+
+
+    /* =========================
+       MATCH CARD
+       ========================= */
+
+    .history-match-card {
+        width: 100%;
+
+        box-sizing: border-box;
+
+        padding: 11px;
+
+        margin-bottom: 8px;
+
+        border-radius: 11px;
+
+        background: rgba(255,255,255,.025);
+
+        border: 1px solid rgba(255,255,255,.06);
+
+        transition: .2s ease;
+    }
+
+
+    .history-match-card:last-child {
+        margin-bottom: 0;
+    }
+
+
+    /* =========================
+       MATCH HEADER
+       ========================= */
+
+    .history-match-header {
+        display: flex;
+
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 8px;
+
+        padding-bottom: 7px;
+
+        margin-bottom: 8px;
+
+        border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+
+    .history-date {
+        min-width: 0;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+
+        white-space: nowrap;
+
+        font-size: .58rem;
+
+        color: var(--text-muted);
+    }
+
+
+    .history-court {
+        flex: 0 0 auto;
+
+        padding: 4px 7px;
+
+        border-radius: 6px;
+
+        font-size: .55rem;
+
+        font-weight: 700;
+
+        color: var(--primary);
+
+        background: rgba(200,159,76,.08);
+
+        border: 1px solid rgba(200,159,76,.16);
+    }
+
+
+    /* =========================
+       MATCH BODY
+       ========================= */
+
+    .history-match-body {
+        display: grid;
+
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+
+        align-items: center;
+
+        gap: 7px;
+    }
+
+
+    /* =========================
+       TEAM
+       ========================= */
+
+    .history-team {
+        min-width: 0;
+
+        padding: 6px 7px;
+
+        border-radius: 8px;
+
+        background: rgba(255,255,255,.018);
+    }
+
+
+    .history-team-b {
+        text-align: right;
+    }
+
+
+    .history-team-label {
+        margin-bottom: 3px;
+
+        font-size: .5rem;
+
+        font-weight: 800;
+
+        letter-spacing: .06em;
+
+        color: var(--text-muted);
+    }
+
+
+    .history-team-name {
+        overflow: hidden;
+
+        display: -webkit-box;
+
+        -webkit-line-clamp: 2;
+
+        -webkit-box-orient: vertical;
+
+        text-overflow: ellipsis;
+
+        font-size: .67rem;
+
+        line-height: 1.3;
+
+        font-weight: 700;
+
+        color: var(--text-main);
+    }
+
+
+    .history-team.winner {
+        background: rgba(200,159,76,.07);
+
+        border: 1px solid rgba(200,159,76,.15);
+    }
+
+
+    .history-team.winner .history-team-name {
+        color: var(--primary);
+    }
+
+
+    /* =========================
+       SCORE
+       ========================= */
+
+    .history-score {
+        display: flex;
+
+        align-items: center;
+        justify-content: center;
+
+        gap: 4px;
+
+        min-width: 62px;
+    }
+
+
+    .history-score-number {
+        min-width: 24px;
+
+        text-align: center;
+
+        font-size: 1.05rem;
+
+        line-height: 1;
+
+        font-weight: 900;
+
+        color: var(--text-main);
+    }
+
+
+    .history-score-number.winner {
+        color: var(--primary);
+    }
+
+
+    .history-score-divider {
+        font-size: .75rem;
+
+        font-weight: 800;
+
+        color: var(--text-muted);
+    }
+
+
+    /* =========================
+       EMPTY
+       ========================= */
+
+    .history-empty {
+        padding: 25px 12px;
+
+        text-align: center;
+
+        border-radius: 11px;
+
+        border: 1px dashed var(--border);
+
+        background: rgba(255,255,255,.015);
+    }
+
+
+    .history-empty-icon {
+        margin-bottom: 6px;
+
+        font-size: 1.5rem;
+
+        opacity: .7;
+    }
+
+
+    .history-empty-title {
+        font-size: .75rem;
+
+        font-weight: 700;
+
+        color: var(--text-main);
+    }
+
+
+    .history-empty-text {
+        margin-top: 3px;
+
+        font-size: .58rem;
+
+        color: var(--text-muted);
+    }
+}
+
+
+/* =========================================================
+   SMALL PHONE
+   ========================================================= */
+
+@media (max-width: 420px) {
+
+    .history-card {
+        padding: 10px !important;
+    }
+
+
+    .history-subtitle {
+        font-size: .54rem;
+    }
+
+
+    .history-icon {
+        width: 31px;
+        height: 31px;
+
+        font-size: .8rem;
+    }
+
+
+    .history-search input {
+        min-height: 38px !important;
+
+        font-size: .75rem !important;
+    }
+
+
+    .history-match-card {
+        padding: 9px;
+    }
+
+
+    .history-match-body {
+        gap: 4px;
+    }
+
+
+    .history-team {
+        padding: 5px;
+    }
+
+
+    .history-team-name {
+        font-size: .61rem;
+    }
+
+
+    .history-score {
+        min-width: 56px;
+    }
+
+
+    .history-score-number {
+        font-size: .95rem;
+    }
+}
