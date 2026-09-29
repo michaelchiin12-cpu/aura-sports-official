@@ -2077,71 +2077,282 @@
         saveData();
     }
 
-    function renderCourts() {
-        const container = document.getElementById('courtsContainer');
-        container.innerHTML = activeMatches.map(match => `
-            <div class="court">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px;">
-                    <h3 style="color:var(--primary);">${match.courtName}</h3>
-                    <div class="flex-row">
-                        <button onclick="toggleTimer('${match.id}')" class="${match.isRunning ? 'btn-warning' : 'btn-success'}">${match.isRunning ? 'Pause' : 'Start'}</button>
-                        <button onclick="manualScore('${match.id}')" style="background-color: var(--primary); color: #000;">Edit Skor</button>
-                    </div>
-                </div>
-                
-                <div class="timer-display" id="timer-${match.id}">${formatTime(match.time)}</div>
-                
-                <div style="display:flex; justify-content:center; gap:30px; margin-bottom:15px;">
-                    <div style="font-size:2rem; font-weight:bold; color:var(--text-main);">${match.scoreA}</div>
-                    <div style="font-size:2rem; font-weight:bold; color:var(--primary);">-</div>
-                    <div style="font-size:2rem; font-weight:bold; color:var(--text-main);">${match.scoreB}</div>
-                </div>
+   function renderCourts() {
+    const container = document.getElementById('courtsContainer');
 
-                <div class="team-box">
-                    <div style="flex:1;">
-                        <div style="font-weight:bold; margin-bottom:10px; border-bottom:1px solid var(--border); color:var(--primary);">TIM A</div>
-                        ${match.teamA.map((p, idx) => `
-                            <div class="court-player-row">
-                                ${avatarHTML(p)}
-                                <div class="court-player-info">
-                                    <span>${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults}) <a href="javascript:void(0)" onclick="editMatchPlayerName('${match.id}', 'teamA', ${idx})" style="color:var(--text-muted); text-decoration:none; font-size:0.85em;" title="Ganti pemain">✏️</a></span>
-                                    <div class="player-score-controls">
-                                        <button class="btn-success" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', false)">+Point</button>
-                                        <button class="btn-warning" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'out', false)">+Out</button>
-                                        <button class="btn-danger" onclick="updateScore('${match.id}', 'teamA', ${idx}, 'fault', false)">+Fault</button>
-                                        <button onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', true)" style="background:var(--border); color:#fff">-</button>
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
+    container.innerHTML = activeMatches.map(match => `
+        <div class="court">
+
+            <!-- COURT HEADER -->
+            <div class="court-header-mobile">
+                <div>
+                    <div class="court-title">
+                        🏸 ${match.courtName}
                     </div>
-                    <div style="width:20px; text-align:center; font-weight:bold; color:var(--text-muted); align-self:center;">VS</div>
-                    <div style="flex:1; text-align:right;">
-                        <div style="font-weight:bold; margin-bottom:10px; border-bottom:1px solid var(--border); color:var(--primary);">TIM B</div>
-                        ${match.teamB.map((p, idx) => `
-                            <div class="court-player-row" style="flex-direction: row-reverse;">
-                                ${avatarHTML(p)}
-                                <div class="court-player-info" style="text-align:right;">
-                                    <span><a href="javascript:void(0)" onclick="editMatchPlayerName('${match.id}', 'teamB', ${idx})" style="color:var(--text-muted); text-decoration:none; font-size:0.85em;" title="Ganti pemain">✏️</a> ${p.name} (P:${p.matchPoints} O:${p.matchOuts} F:${p.matchFaults})</span>
-                                    <div class="player-score-controls" style="justify-content:flex-end;">
-                                        <button onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', true)" style="background:var(--border); color:#fff">-</button>
-                                        <button class="btn-danger" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'fault', false)">+Fault</button>
-                                        <button class="btn-warning" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'out', false)">+Out</button>
-                                        <button class="btn-success" onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', false)">+Point</button>
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
+
+                    <div class="court-status ${match.isRunning ? 'is-running' : 'is-paused'}">
+                        ${match.isRunning ? '● SEDANG MAIN' : 'Ⅱ PAUSED'}
                     </div>
                 </div>
 
-                <div class="flex-row" style="justify-content:space-between; margin-top:15px;">
-                    <button onclick="finishMatch('${match.id}', true)" class="btn-danger">Skip/Batal (Tidak Imbang)</button>
-                    <button onclick="finishMatch('${match.id}', false)" class="btn-success" style="padding:10px 20px;">Selesai Match</button>
+                <button
+                    onclick="manualScore('${match.id}')"
+                    class="court-edit-score">
+                    ✏️ Edit Skor
+                </button>
+            </div>
+
+            <!-- TIMER -->
+            <div
+                class="timer-display court-timer-mobile"
+                id="timer-${match.id}">
+                ${formatTime(match.time)}
+            </div>
+
+            <!-- SCORE -->
+            <div class="court-score-mobile">
+                <div class="court-score-number">
+                    ${match.scoreA}
+                </div>
+
+                <div class="court-score-divider">
+                    :
+                </div>
+
+                <div class="court-score-number">
+                    ${match.scoreB}
                 </div>
             </div>
-        `).join('');
+
+            <!-- TEAMS -->
+            <div class="court-teams-mobile">
+
+                <!-- TEAM A -->
+                <div class="court-team-mobile team-a-mobile">
+
+                    <div class="court-team-label">
+                        TIM A
+                    </div>
+
+                    ${match.teamA.map((p, idx) => `
+                        <div class="mobile-player-card">
+
+                            ${avatarHTML(p)}
+
+                            <div class="mobile-player-main">
+
+                                <div class="mobile-player-name">
+                                    <span>${p.name}</span>
+
+                                    <a
+                                        href="javascript:void(0)"
+                                        onclick="editMatchPlayerName('${match.id}', 'teamA', ${idx})"
+                                        class="mobile-edit-player"
+                                        title="Ganti pemain">
+                                        ✏️
+                                    </a>
+                                </div>
+
+                                <div class="mobile-player-stats">
+                                    P ${p.matchPoints}
+                                    <span>•</span>
+                                    O ${p.matchOuts}
+                                    <span>•</span>
+                                    F ${p.matchFaults}
+                                </div>
+
+                            </div>
+
+                            <div class="mobile-player-actions">
+
+                                <button
+                                    class="mobile-point-btn"
+                                    onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', false)">
+                                    + POINT
+                                </button>
+
+                                <button
+                                    class="mobile-more-btn"
+                                    onclick="togglePlayerActions(this)">
+                                    ⋮
+                                </button>
+
+                                <div class="mobile-extra-actions">
+
+                                    <button
+                                        class="btn-warning"
+                                        onclick="updateScore('${match.id}', 'teamA', ${idx}, 'out', false)">
+                                        + Out
+                                    </button>
+
+                                    <button
+                                        class="btn-danger"
+                                        onclick="updateScore('${match.id}', 'teamA', ${idx}, 'fault', false)">
+                                        + Fault
+                                    </button>
+
+                                    <button
+                                        onclick="updateScore('${match.id}', 'teamA', ${idx}, 'point', true)">
+                                        − Point
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    `).join('')}
+                </div>
+
+
+                <!-- VS -->
+                <div class="court-vs-mobile">
+                    VS
+                </div>
+
+
+                <!-- TEAM B -->
+                <div class="court-team-mobile team-b-mobile">
+
+                    <div class="court-team-label">
+                        TIM B
+                    </div>
+
+                    ${match.teamB.map((p, idx) => `
+                        <div class="mobile-player-card">
+
+                            ${avatarHTML(p)}
+
+                            <div class="mobile-player-main">
+
+                                <div class="mobile-player-name">
+                                    <span>${p.name}</span>
+
+                                    <a
+                                        href="javascript:void(0)"
+                                        onclick="editMatchPlayerName('${match.id}', 'teamB', ${idx})"
+                                        class="mobile-edit-player"
+                                        title="Ganti pemain">
+                                        ✏️
+                                    </a>
+                                </div>
+
+                                <div class="mobile-player-stats">
+                                    P ${p.matchPoints}
+                                    <span>•</span>
+                                    O ${p.matchOuts}
+                                    <span>•</span>
+                                    F ${p.matchFaults}
+                                </div>
+
+                            </div>
+
+                            <div class="mobile-player-actions">
+
+                                <button
+                                    class="mobile-point-btn"
+                                    onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', false)">
+                                    + POINT
+                                </button>
+
+                                <button
+                                    class="mobile-more-btn"
+                                    onclick="togglePlayerActions(this)">
+                                    ⋮
+                                </button>
+
+                                <div class="mobile-extra-actions">
+
+                                    <button
+                                        onclick="updateScore('${match.id}', 'teamB', ${idx}, 'point', true)">
+                                        − Point
+                                    </button>
+
+                                    <button
+                                        class="btn-warning"
+                                        onclick="updateScore('${match.id}', 'teamB', ${idx}, 'out', false)">
+                                        + Out
+                                    </button>
+
+                                    <button
+                                        class="btn-danger"
+                                        onclick="updateScore('${match.id}', 'teamB', ${idx}, 'fault', false)">
+                                        + Fault
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+                    `).join('')}
+                </div>
+
+            </div>
+
+            <!-- MATCH CONTROL -->
+            <div class="court-main-controls">
+
+                <button
+                    onclick="toggleTimer('${match.id}')"
+                    class="${match.isRunning ? 'btn-warning' : 'btn-success'} court-timer-btn">
+                    ${match.isRunning ? 'Ⅱ PAUSE' : '▶ START'}
+                </button>
+
+            </div>
+
+            <!-- FINISH -->
+            <div class="court-finish-controls">
+
+                <button
+                    onclick="finishMatch('${match.id}', true)"
+                    class="btn-danger court-cancel-btn">
+                    BATAL / SKIP
+                </button>
+
+                <button
+                    onclick="finishMatch('${match.id}', false)"
+                    class="btn-success court-finish-btn">
+                    ✓ SELESAI MATCH
+                </button>
+
+            </div>
+
+        </div>
+    `).join('');
+}
+
+
+/* =========================================================
+   MOBILE PLAYER ACTIONS
+   ========================================================= */
+
+function togglePlayerActions(button) {
+
+    const playerCard = button.closest('.mobile-player-card');
+
+    if (!playerCard) return;
+
+    const extraActions =
+        playerCard.querySelector('.mobile-extra-actions');
+
+    if (!extraActions) return;
+
+    const isOpen =
+        extraActions.classList.contains('show');
+
+    // Tutup semua menu player lain
+    document
+        .querySelectorAll('.mobile-extra-actions.show')
+        .forEach(menu => {
+            menu.classList.remove('show');
+        });
+
+    // Kalau sebelumnya tertutup → buka
+    if (!isOpen) {
+        extraActions.classList.add('show');
     }
+}
 
     // --- Klasemen & Riwayat ---
     function renderStandings() {
