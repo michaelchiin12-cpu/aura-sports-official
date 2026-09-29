@@ -285,42 +285,6 @@
                 </div>
 
                 <div class="card">
-                    <h2>Registrasi Pemain</h2>
-                    <form id="playerForm" onsubmit="addPlayer(event)" class="flex-row">
-                        <input type="text" id="playerName" placeholder="Nama Pemain" required style="flex:2;">
-                        <select id="playerGender" required style="flex:1;">
-                            <option value="L">L</option>
-                            <option value="P">P</option>
-                        </select>
-                        <select id="playerLevel" required style="flex:1;">
-                            <option value="3">Advanced</option>
-                            <option value="2">Intermediate</option>
-                            <option value="1">Beginner</option>
-                        </select>
-                        <input type="file" id="playerPhoto" accept="image/*" style="flex:1 1 100%;">
-                        <button type="submit" id="playerFormSubmitBtn">+ Tambah</button>
-                    </form>
-                    
-                    <div style="overflow-x: auto;">
-                        <table id="playersTable">
-                            <thead>
-                                <tr>
-                                    <th>Foto</th>
-                                    <th>Nama</th>
-                                    <th>L/P</th>
-                                    <th>Level</th>
-                                    <th>Hadir?</th>
-                                    <th>Saldo</th>
-                                    <th>Status</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="playersList"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="card">
                     <h2>Daftar Antrean (Waiting List)</h2>
                     <p style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted);">Diurutkan otomatis berdasarkan yang paling sedikit bermain.</p>
                     <div style="overflow-x: auto;">
@@ -806,7 +770,7 @@
     }
 
     function formatEventDate(date){ if(!date)return '-'; const d=new Date(date+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}); }
-    function escapeHTML(v){ return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]||c)); }
+    function escapeHTML(v){ return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]||c)); }
 
     async function persistStateOnly() {
         snapshotCurrentEvent();
@@ -2430,7 +2394,7 @@
         ctx.fillText(name.toUpperCase(), cx + cut/2, y + h/2 + size*0.35);
     }
 
-    // Story Best Partner \u2014 vector, gaya seragam dengan Story MVP (bingkai heksagon foto, font brush, ikon vector)
+    // Story Best Partner — vector, gaya seragam dengan Story MVP (bingkai heksagon foto, font brush, ikon vector)
     async function generateBestPartnerStoryCard() {
         const HANDSHAKE_X = '×';
         const bestPartner = computeBestPartner();
@@ -2503,7 +2467,7 @@
         y += 130;
         ctx.fillStyle = WHITE;
         ctx.font = '600 26px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('TWO PLAYERS   \u2022   ONE TEAM', W/2, y);
+        ctx.fillText('TWO PLAYERS   •   ONE TEAM', W/2, y);
         y += 55;
 
         // ==== DUA FOTO (bingkai heksagon kiri & kanan) ====
@@ -2552,7 +2516,7 @@
         ctx.fillStyle = MUTED;
         ctx.font = '500 20px Oswald, Segoe UI, sans-serif';
         const todayStr = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
-        ctx.fillText(`${todayStr}  \u2022  BADMINTON SESSION`, W/2, footerY + 32);
+        ctx.fillText(`${todayStr}  •  BADMINTON SESSION`, W/2, footerY + 32);
 
         const link = document.createElement('a');
         link.download = `AuraSportsClub_BestPartner_${Date.now()}.png`;
