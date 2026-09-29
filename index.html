@@ -398,15 +398,37 @@
                     </div>
                 </div>
 
-                <div class="card">
-                    <h2>Riwayat Pemain</h2>
-                    <input type="text" id="historyFilter" placeholder="Cari nama pemain..." onkeyup="renderHistory()" style="width: 100%; margin-bottom: 10px;">
-                    <div id="historyList" style="max-height: 300px; overflow-y: auto; font-size: 0.9rem;"></div>
-                </div>
+               <div class="card history-card">
+
+    <div class="history-title-row">
+        <div>
+            <h2>Riwayat Pemain</h2>
+            <div class="history-subtitle">
+                Rekap pertandingan yang sudah selesai
             </div>
         </div>
+
+        <div class="history-icon">
+            🏸
         </div>
     </div>
+
+    <div class="history-search">
+        <span>🔎</span>
+
+        <input
+            type="text"
+            id="historyFilter"
+            placeholder="Cari nama pemain..."
+            onkeyup="renderHistory()">
+    </div>
+
+    <div
+        id="historyList"
+        class="history-list">
+    </div>
+
+</div>
 
     <!-- ================= TAB 2: KEUANGAN & DEPOSIT ================= -->
     <div id="tab-finance" class="tab-content">
@@ -2379,27 +2401,140 @@ function togglePlayerActions(button) {
         }).join('');
     }
 
-    function renderHistory() {
-        const filter = document.getElementById('historyFilter').value.toLowerCase();
-        const container = document.getElementById('historyList');
-        
-        let filtered = matchesHistory.filter(m => {
-            if(!filter) return true;
-            const names = [...m.teamA, ...m.teamB].map(p => p.name.toLowerCase());
-            return names.some(n => n.includes(filter));
-        }).reverse();
+   function renderHistory() {
+    const filterInput = document.getElementById('historyFilter');
+    const container = document.getElementById('historyList');
 
-        container.innerHTML = filtered.map(m => `
-            <div style="border-bottom:1px solid var(--border); padding:10px 0;">
-                <div style="color:var(--text-muted); font-size:0.8rem;">${m.date} - ${m.courtName}</div>
-                <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                    <div>${m.teamA.map(p=>p.name).join(', ')}</div>
-                    <div style="font-weight:bold; color:var(--primary);">${m.scoreA} - ${m.scoreB}</div>
-                    <div style="text-align:right;">${m.teamB.map(p=>p.name).join(', ')}</div>
+    const filter = filterInput
+        ? filterInput.value.toLowerCase().trim()
+        : '';
+
+    let filtered = matchesHistory.filter(m => {
+
+        if (!filter) return true;
+
+        const names = [
+            ...(m.teamA || []),
+            ...(m.teamB || [])
+        ].map(p => (p.name || '').toLowerCase());
+
+        return names.some(name => name.includes(filter));
+    }).reverse();
+
+
+    if (!filtered.length) {
+        container.innerHTML = `
+            <div class="history-empty">
+                <div class="history-empty-icon">🏸</div>
+                <div class="history-empty-title">
+                    Belum ada riwayat pertandingan
+                </div>
+                <div class="history-empty-text">
+                    Pertandingan yang sudah selesai akan muncul di sini.
                 </div>
             </div>
-        `).join('');
+        `;
+
+        return;
     }
+
+
+    container.innerHTML = filtered.map(m => {
+
+        const teamA = (m.teamA || []).map(p => p.name).join(' & ');
+        const teamB = (m.teamB || []).map(p => p.name).join(' & ');
+
+        const scoreA = Number(m.scoreA) || 0;
+        const scoreB = Number(m.scoreB) || 0;
+
+        const teamAWinner = scoreA > scoreB;
+        const teamBWinner = scoreB > scoreA;
+
+        return `
+            <div class="history-match-card">
+
+                <!-- HEADER -->
+                <div class="history-match-header">
+
+                    <div class="history-date">
+                        📅 ${m.date || '-'}
+                    </div>
+
+                    <div class="history-court">
+                        ${m.courtName || 'Lapangan'}
+                    </div>
+
+                </div>
+
+
+                <!-- MATCH -->
+                <div class="history-match-body">
+
+                    <!-- TEAM A -->
+                    <div class="
+                        history-team
+                        ${teamAWinner ? 'winner' : ''}
+                    ">
+
+                        <div class="history-team-label">
+                            TIM A
+                        </div>
+
+                        <div class="history-team-name">
+                            ${teamA}
+                        </div>
+
+                    </div>
+
+
+                    <!-- SCORE -->
+                    <div class="history-score">
+
+                        <div class="
+                            history-score-number
+                            ${teamAWinner ? 'winner' : ''}
+                        ">
+                            ${scoreA}
+                        </div>
+
+                        <div class="history-score-divider">
+                            :
+                        </div>
+
+                        <div class="
+                            history-score-number
+                            ${teamBWinner ? 'winner' : ''}
+                        ">
+                            ${scoreB}
+                        </div>
+
+                    </div>
+
+
+                    <!-- TEAM B -->
+                    <div class="
+                        history-team
+                        history-team-b
+                        ${teamBWinner ? 'winner' : ''}
+                    ">
+
+                        <div class="history-team-label">
+                            TIM B
+                        </div>
+
+                        <div class="history-team-name">
+                            ${teamB}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        `;
+
+    }).join('');
+}
 
     // ================= LOGIKA KHUSUS KEUANGAN & DEPOSIT =================
     function handleTransactionSubmit(e) {
