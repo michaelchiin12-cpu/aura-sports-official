@@ -1245,20 +1245,86 @@ function emptyPlayerStatsSnapshot() {
         const workspace = document.getElementById('eventWorkspace-' + mode);
         if (!host || !workspace) return;
         const ev = activeEvent();
-        if (ev && ev.mode === mode) {
-            const isFinished = ev.status === 'finished';
-            host.innerHTML = `
-                <div class="event-back">
-                    <div><div class="event-back-title">${escapeHTML(ev.name)}</div><div class="event-mode-pill">${eventModeLabel(mode)} · ${formatEventDate(ev.date)}</div></div>
-                    <div class="flex-row" style="margin:0;">
-                        <button onclick="backToEventList()" style="background:var(--border);color:#fff;">← Daftar Pertandingan</button>
-                        ${isFinished ? `<button onclick="reopenEvent('${ev.id}')" class="btn-warning">🔓 Buka Kembali</button>` : `<button onclick="finishCurrentEvent()" class="btn-success">Selesaikan Pertandingan</button>`}
-                    </div>
+if (ev && ev.mode === mode) {
+    const isFinished = ev.status === 'finished';
+
+    host.innerHTML = `
+        <div class="roundmix-event-hero">
+
+            <div class="roundmix-event-top">
+                <button
+                    onclick="backToEventList()"
+                    class="roundmix-back-btn">
+                    ← Daftar Pertandingan
+                </button>
+
+                <div class="roundmix-event-actions">
+                    ${
+                        isFinished
+                        ? `
+                            <button
+                                onclick="reopenEvent('${ev.id}')"
+                                class="roundmix-action-btn warning">
+                                🔓 Buka Kembali
+                            </button>
+                        `
+                        : `
+                            <button
+                                onclick="finishCurrentEvent()"
+                                class="roundmix-action-btn success">
+                                ✓ Selesaikan
+                            </button>
+                        `
+                    }
                 </div>
-                ${isFinished ? `<div style="background:rgba(245,158,11,.12); border:1px solid var(--warning); color:#fcd34d; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:.85rem;">🔒 Pertandingan ini sudah <b>selesai</b> dan terkunci (read-only). Tekan "Buka Kembali" untuk mengedit lagi.</div>` : ''}`;
-            workspace.style.display='block';
-            workspace.classList.toggle('event-readonly', isFinished);
-            return;
+            </div>
+
+            <div class="roundmix-event-info">
+
+                <div class="roundmix-event-icon">
+                    🔄
+                </div>
+
+                <div class="roundmix-event-content">
+
+                    <div class="roundmix-event-label">
+                        ${eventModeLabel(mode)}
+                    </div>
+
+                    <h1 class="roundmix-event-name">
+                        ${escapeHTML(ev.name)}
+                    </h1>
+
+                    <div class="roundmix-event-date">
+                        📅 ${formatEventDate(ev.date)}
+                    </div>
+
+                </div>
+
+                <div class="roundmix-event-status ${isFinished ? 'finished' : 'ongoing'}">
+                    ${isFinished ? 'SELESAI' : 'SEDANG BERLANGSUNG'}
+                </div>
+
+            </div>
+
+        </div>
+
+        ${
+            isFinished
+            ? `
+                <div class="roundmix-finished-notice">
+                    🔒 Pertandingan ini sudah <b>selesai</b> dan terkunci.
+                    Tekan "Buka Kembali" jika ingin mengedit pertandingan.
+                </div>
+            `
+            : ''
+        }
+    `;
+
+    workspace.style.display = 'block';
+    workspace.classList.toggle('event-readonly', isFinished);
+    return;
+}
         }
         workspace.style.display='none';
         workspace.classList.remove('event-readonly');
