@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AURA SPORT MANAGER</title>
+    <title>AURA SPORT CLUB</title>
     <link rel="icon" type="image/png" href="logo-favicon.png">
     <link rel="stylesheet" href="mobile-responsive.css">
     <script src="mobile-responsive.js" defer></script>
@@ -4000,6 +4000,7 @@ function togglePlayerActions(button) {
 
     // Story Best Partner \u2014 vector, gaya seragam dengan Story MVP (bingkai heksagon foto, font brush, ikon vector)
    
+
 async function generateBestPartnerStoryCard() {
     const bestPartner = computeBestPartner();
 
@@ -4011,8 +4012,12 @@ async function generateBestPartnerStoryCard() {
     await ensureStoryFonts();
 
     try {
-        await document.fonts.load('800 80px Montserrat');
-        await document.fonts.load('900 120px Montserrat');
+        await Promise.all([
+            document.fonts.load('800 80px Montserrat'),
+            document.fonts.load('900 120px Montserrat'),
+            document.fonts.load('500 24px Montserrat')
+        ]);
+        await document.fonts.ready;
     } catch (err) {
         console.warn('Montserrat gagal dimuat, menggunakan font fallback.');
     }
@@ -4027,53 +4032,51 @@ async function generateBestPartnerStoryCard() {
     const GOLD = '#d6aa4b';
     const GOLD_LIGHT = '#f4d88b';
     const WHITE = '#ffffff';
-    const MUTED = '#aeb0b8';
+    const MUTED = '#b7b7bd';
 
     const p1 = bestPartner[0];
     const p2 = bestPartner[1];
 
-    // ==================================
-    // HITUNG STATISTIK PASANGAN
-    // ==================================
-    const pairIds = [p1.id, p2.id].sort();
+    // ==========================================
+    // STATISTIK PASANGAN DARI RIWAYAT PERTANDINGAN
+    // ==========================================
+    const pairIds = [String(p1.id), String(p2.id)].sort();
 
     const pairMatches = matchesHistory.filter(m => {
-        const teams = [m.teamA, m.teamB];
-
-        return teams.some(team => {
+        const samePair = team => {
             if (!Array.isArray(team) || team.length !== 2) return false;
 
-            const ids = team.map(p => p.id).sort();
-
+            const ids = team.map(p => String(p.id)).sort();
             return ids[0] === pairIds[0] && ids[1] === pairIds[1];
-        });
+        };
+
+        return samePair(m.teamA) || samePair(m.teamB);
     });
 
     const totalMatch = pairMatches.length;
 
     const totalWin = pairMatches.filter(m => {
-        const sameTeamA = Array.isArray(m.teamA) &&
+        const sameTeamA = m.teamA &&
             m.teamA.length === 2 &&
-            m.teamA.map(p => p.id).sort().join('|') === pairIds.join('|');
+            m.teamA.map(p => String(p.id)).sort().join('|') === pairIds.join('|');
 
-        const sameTeamB = Array.isArray(m.teamB) &&
+        const sameTeamB = m.teamB &&
             m.teamB.length === 2 &&
-            m.teamB.map(p => p.id).sort().join('|') === pairIds.join('|');
+            m.teamB.map(p => String(p.id)).sort().join('|') === pairIds.join('|');
 
-        return sameTeamA
-            ? Number(m.scoreA) > Number(m.scoreB)
-            : sameTeamB
-                ? Number(m.scoreB) > Number(m.scoreA)
-                : false;
+        if (sameTeamA) return Number(m.scoreA) > Number(m.scoreB);
+        if (sameTeamB) return Number(m.scoreB) > Number(m.scoreA);
+
+        return false;
     }).length;
 
-    const winRate = totalMatch
+    const winRate = totalMatch > 0
         ? Math.round((totalWin / totalMatch) * 100)
         : 0;
 
-    // ==================================
-    // HELPER
-    // ==================================
+    // ==========================================
+    // HELPER DESAIN
+    // ==========================================
     function roundedRect(x, y, w, h, r) {
         ctx.beginPath();
         ctx.moveTo(x + r, y);
@@ -4092,21 +4095,34 @@ async function generateBestPartnerStoryCard() {
         ctx.font = `${weight} ${size}px Montserrat, Arial, sans-serif`;
         ctx.fillStyle = color;
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
         ctx.fillText(text, x, y);
     }
 
-    // ==================================
+    function drawGoldLine(x1, y1, x2, y2, alpha = 0.8) {
+        ctx.save();
+        ctx.strokeStyle = `rgba(214,170,75,${alpha})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // ==========================================
     // BACKGROUND
-    // ==================================
+    // ==========================================
     ctx.fillStyle = '#030303';
     ctx.fillRect(0, 0, W, H);
 
     const bgGlow = ctx.createRadialGradient(
-        W / 2, 850, 50,
-        W / 2, 850, 850
+        W / 2, 900, 50,
+        W / 2, 900, 850
     );
 
-    bgGlow.addColorStop(0, 'rgba(180,125,30,0.20)');
+    bgGlow.addColorStop(0, 'rgba(190,135,35,0.22)');
+    bgGlow.addColorStop(0.55, 'rgba(100,65,15,0.08)');
     bgGlow.addColorStop(1, 'rgba(0,0,0,0)');
 
     ctx.fillStyle = bgGlow;
@@ -4116,313 +4132,278 @@ async function generateBestPartnerStoryCard() {
 
     // Bingkai luar
     ctx.save();
-    roundedRect(30, 28, W - 60, H - 56, 34);
-    ctx.strokeStyle = 'rgba(214,170,75,0.85)';
+    roundedRect(28, 28, W - 56, H - 56, 32);
+    ctx.strokeStyle = 'rgba(214,170,75,0.9)';
     ctx.lineWidth = 3;
     ctx.stroke();
     ctx.restore();
 
-    // Aksen diagonal emas
+    // Ornamen sudut
     ctx.save();
-    ctx.strokeStyle = 'rgba(214,170,75,0.22)';
+    ctx.strokeStyle = 'rgba(214,170,75,0.28)';
     ctx.lineWidth = 7;
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
         ctx.beginPath();
-        ctx.moveTo(0 + i * 45, 250);
-        ctx.lineTo(230 + i * 45, 20);
+        ctx.moveTo(i * 45, 210);
+        ctx.lineTo(210 + i * 45, 0);
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.moveTo(W - 230 - i * 45, H - 20);
-        ctx.lineTo(W - i * 45, H - 250);
+        ctx.moveTo(W - 210 - i * 45, H);
+        ctx.lineTo(W - i * 45, H - 210);
         ctx.stroke();
     }
+
     ctx.restore();
 
-    // ==================================
+    // ==========================================
     // HEADER LOGO
-    // ==================================
-    const logo = await loadImageEl('logo.png');
+    // ==========================================
+    const logoImg = await loadImageEl('logo.png');
 
-    if (logo) {
-        const logoW = 135;
-        const logoH = logoW * (logo.height / logo.width);
+    if (logoImg) {
+        const logoW = 130;
+        const logoH = logoW * (logoImg.height / logoImg.width);
 
         ctx.save();
+
         ctx.beginPath();
         ctx.arc(W / 2, 145, 76, 0, Math.PI * 2);
         ctx.strokeStyle = GOLD;
         ctx.lineWidth = 3;
         ctx.stroke();
+
         ctx.drawImage(
-            logo,
+            logoImg,
             W / 2 - logoW / 2,
             145 - logoH / 2,
             logoW,
             logoH
         );
+
         ctx.restore();
     }
 
-    drawText('AURA SPORTS CLUB', W / 2, 300, 43, 900, GOLD);
+    drawText('AURA SPORTS CLUB', W / 2, 270, 43, 900, GOLD);
 
-    ctx.strokeStyle = GOLD;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(300, 335);
-    ctx.lineTo(780, 335);
-    ctx.stroke();
+    drawGoldLine(310, 310, 770, 310);
+    drawText('BADMINTON SESSION', W / 2, 355, 24, 700, MUTED);
 
-    drawText('BADMINTON SESSION', W / 2, 380, 25, 700, MUTED);
-
-    // ==================================
+    // ==========================================
     // JUDUL BEST PARTNER
-    // ==================================
-    drawHandshakeIcon(ctx, W / 2, 455, 75, GOLD);
+    // ==========================================
+    drawGoldLine(280, 430, 420, 430);
+    drawGoldLine(660, 430, 800, 430);
+
+    drawHandshakeIcon(ctx, W / 2, 430, 65, GOLD);
 
     ctx.save();
-    ctx.shadowColor = 'rgba(214,170,75,0.45)';
-    ctx.shadowBlur = 28;
+    ctx.shadowColor = 'rgba(214,170,75,0.5)';
+    ctx.shadowBlur = 30;
 
-    drawText('BEST', W / 2, 590, 125, 900, GOLD_LIGHT);
-    drawText('PARTNER', W / 2, 710, 125, 900, GOLD_LIGHT);
+    const titleGradient = ctx.createLinearGradient(0, 475, 0, 700);
+    titleGradient.addColorStop(0, '#fff0b8');
+    titleGradient.addColorStop(0.5, '#e6bc61');
+    titleGradient.addColorStop(1, '#b77e25');
+
+    drawText('BEST', W / 2, 570, 132, 900, titleGradient);
+    drawText('PARTNER', W / 2, 690, 132, 900, titleGradient);
 
     ctx.restore();
 
-    drawText('GOOD TEAMMATE  •  GREAT MATCH', W / 2, 765, 27, 700, GOLD_LIGHT);
+    drawText(
+        'GOOD TEAMMATE   •   GREAT MATCH',
+        W / 2, 735, 25, 700, GOLD_LIGHT
+    );
 
-    // ==================================
-    // FOTO DUA PEMAIN
-    // ==================================
-    const photoY = 820;
-    const photoW = 475;
-    const photoH = 490;
-    const photoGap = 25;
+    // ==========================================
+    // FOTO PASANGAN
+    // ==========================================
+    const photoY = 770;
+    const photoW = 470;
+    const photoH = 500;
 
     const leftX = 55;
-    const rightX = W - 55 - photoW;
+    const rightX = 555;
 
-    // Glow belakang foto
+    // Glow foto
     ctx.save();
-    ctx.shadowColor = 'rgba(214,170,75,0.65)';
+    ctx.shadowColor = 'rgba(214,170,75,0.6)';
     ctx.shadowBlur = 45;
     ctx.fillStyle = 'rgba(214,170,75,0.12)';
 
-    roundedRect(leftX, photoY, photoW, photoH, 20);
+    roundedRect(leftX, photoY, photoW, photoH, 18);
     ctx.fill();
 
-    roundedRect(rightX, photoY, photoW, photoH, 20);
+    roundedRect(rightX, photoY, photoW, photoH, 18);
     ctx.fill();
+
     ctx.restore();
 
     await drawHexPhotoFrame(
-        ctx, leftX, photoY, photoW, photoH,
-        p1.photo, p1.name
+        ctx,
+        leftX,
+        photoY,
+        photoW,
+        photoH,
+        p1.photo,
+        p1.name
     );
 
     await drawHexPhotoFrame(
-        ctx, rightX, photoY, photoW, photoH,
-        p2.photo, p2.name
+        ctx,
+        rightX,
+        photoY,
+        photoW,
+        photoH,
+        p2.photo,
+        p2.name
     );
 
-    // ==================================
+    // ==========================================
     // PANEL NAMA PASANGAN
-    // ==================================
-    const nameY = 1340;
+    // ==========================================
+    const nameX = 105;
+    const nameY = 1295;
+    const nameW = 870;
     const nameH = 112;
 
     ctx.save();
-    ctx.shadowColor = 'rgba(214,170,75,0.7)';
-    ctx.shadowBlur = 25;
 
-    roundedRect(100, nameY, 880, nameH, 22);
+    ctx.shadowColor = 'rgba(214,170,75,0.75)';
+    ctx.shadowBlur = 28;
+
+    roundedRect(nameX, nameY, nameW, nameH, 22);
     ctx.fillStyle = '#080808';
     ctx.fill();
+
     ctx.strokeStyle = GOLD;
     ctx.lineWidth = 5;
     ctx.stroke();
 
     ctx.restore();
 
-    let nameSize = 43;
+    // Mahkota kecil di atas panel nama
+    ctx.save();
+    ctx.translate(W / 2, nameY + 5);
+    ctx.fillStyle = GOLD;
+
+    ctx.beginPath();
+    ctx.moveTo(-48, -28);
+    ctx.lineTo(-36, 12);
+    ctx.lineTo(36, 12);
+    ctx.lineTo(48, -28);
+    ctx.lineTo(20, -8);
+    ctx.lineTo(0, -42);
+    ctx.lineTo(-20, -8);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+
     const fullName = `${p1.name.toUpperCase()}   &   ${p2.name.toUpperCase()}`;
 
+    let nameSize = 42;
     ctx.textAlign = 'center';
 
-    while (nameSize > 24) {
+    while (nameSize > 22) {
         ctx.font = `900 ${nameSize}px Montserrat, Arial, sans-serif`;
-        if (ctx.measureText(fullName).width <= 810) break;
+
+        if (ctx.measureText(fullName).width <= nameW - 90) break;
+
         nameSize -= 2;
     }
 
-    drawText(fullName, W / 2, nameY + 70, nameSize, 900, GOLD_LIGHT);
+    drawText(
+        fullName,
+        W / 2,
+        nameY + 72,
+        nameSize,
+        900,
+        GOLD_LIGHT
+    );
 
     // Label BEST PARTNER
     ctx.save();
-    roundedRect(365, 1430, 350, 58, 20);
+
+    roundedRect(365, 1390, 350, 58, 18);
     ctx.fillStyle = GOLD;
     ctx.fill();
 
-    drawText('BEST PARTNER', W / 2, 1470, 28, 900, '#080808');
+    drawText('BEST PARTNER', W / 2, 1429, 27, 900, '#080808');
+
     ctx.restore();
 
-    // ==================================
-    // STATISTIK PASANGAN
-    // ==================================
+    // ==========================================
+    // STATISTIK MATCH / WIN / WIN RATE
+    // ==========================================
     const statsX = 120;
-    const statsY = 1530;
+    const statsY = 1480;
     const statsW = 840;
-    const statsH = 170;
+    const statsH = 175;
 
     ctx.save();
 
-    roundedRect(statsX, statsY, statsW, statsH, 24);
-    ctx.fillStyle = 'rgba(8,8,8,0.92)';
+    roundedRect(statsX, statsY, statsW, statsH, 25);
+    ctx.fillStyle = 'rgba(5,5,5,0.94)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(214,170,75,0.85)';
+
+    ctx.strokeStyle = GOLD;
     ctx.lineWidth = 2;
     ctx.stroke();
 
     // Garis pemisah
-    ctx.strokeStyle = 'rgba(214,170,75,0.75)';
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-    ctx.moveTo(400, statsY + 35);
-    ctx.lineTo(400, statsY + statsH - 35);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(680, statsY + 35);
-    ctx.lineTo(680, statsY + statsH - 35);
-    ctx.stroke();
+    drawGoldLine(400, statsY + 32, 400, statsY + statsH - 32, 0.75);
+    drawGoldLine(680, statsY + 32, 680, statsY + statsH - 32, 0.75);
 
     ctx.restore();
 
-    // Angka statistik
-    drawText(totalMatch.toString(), 260, statsY + 85, 62, 900, GOLD_LIGHT);
-    drawText(totalWin.toString(), 540, statsY + 85, 62, 900, GOLD_LIGHT);
-    drawText(`${winRate}%`, 820, statsY + 85, 62, 900, GOLD_LIGHT);
+    const statItems = [
+        { x: 260, value: String(totalMatch), label: 'MATCH' },
+        { x: 540, value: String(totalWin), label: 'WIN' },
+        { x: 820, value: `${winRate}%`, label: 'WIN RATE' }
+    ];
 
-    drawText('MATCH', 260, statsY + 130, 23, 700, MUTED);
-    drawText('WIN', 540, statsY + 130, 23, 700, MUTED);
-    drawText('WIN RATE', 820, statsY + 130, 23, 700, MUTED);
-
-    // ==================================
-    // FOOTER
-    // ==================================
-    const footerY = 1790;
-
-    ctx.strokeStyle = 'rgba(214,170,75,0.65)';
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-    ctx.moveTo(220, footerY - 45);
-    ctx.lineTo(430, footerY - 45);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(650, footerY - 45);
-    ctx.lineTo(860, footerY - 45);
-    ctx.stroke();
-
-    drawShuttlecock(ctx, W / 2, footerY - 55, 45, 20, 0.9);
-
-    drawText('AURA SPORT MANAGER', W / 2, footerY + 15, 23, 700, WHITE);
-
-    const todayStr = new Date().toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
+    statItems.forEach(item => {
+        drawText(item.value, item.x, statsY + 92, 62, 900, GOLD_LIGHT);
+        drawText(item.label, item.x, statsY + 135, 23, 700, MUTED);
     });
 
-    drawText(todayStr.toUpperCase(), W / 2, footerY + 55, 18, 500, MUTED);
+    // ==========================================
+    // QUOTE
+    // ==========================================
+    drawText(
+        '“Partner terbaik bukan yang selalu sama,',
+        W / 2, 1710, 23, 600, GOLD_LIGHT
+    );
 
-    // ==================================
+    drawText(
+        'tapi yang selalu ada di setiap pertandingan.”',
+        W / 2, 1745, 23, 600, GOLD_LIGHT
+    );
+
+    // ==========================================
+    // FOOTER
+    // ==========================================
+    drawGoldLine(220, 1810, 430, 1810);
+    drawGoldLine(650, 1810, 860, 1810);
+
+    drawShuttlecock(ctx, W / 2, 1800, 42, 20, 0.9);
+
+    drawText(
+        'AURA SPORT MANAGER',
+        W / 2, 1850, 22, 700, WHITE
+    );
+
+    // ==========================================
     // DOWNLOAD
-    // ==================================
+    // ==========================================
     const link = document.createElement('a');
     link.download = `AuraSportsClub_BestPartner_${Date.now()}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
 }
-
-        // ==== HEADER ====
-        let y = 90;
-        const logoImg = await loadImageEl('logo.png');
-        if(logoImg) {
-            const logoW = 110, logoH = logoW * (logoImg.height / logoImg.width);
-            ctx.drawImage(logoImg, W/2 - logoW/2, y, logoW, logoH);
-            y += logoH + 26;
-        } else { y += 20; }
-
-        ctx.textAlign = 'center';
-        ctx.fillStyle = GOLD;
-        ctx.font = '800 42px Montserrat, sans-serif';
-        ctx.fillText('A U R A   S P O R T S   C L U B', W/2, y);
-        y += 38;
-        ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(W/2-90, y); ctx.lineTo(W/2+90, y); ctx.stroke();
-        y += 38;
-        ctx.fillStyle = MUTED;
-        ctx.font = '500 22px Montserrat, sans-serif';
-        ctx.fillText('B A D M I N T O N   S E S S I O N', W/2, y);
-        y += 65;
-
-        // ==== JUDUL "BEST PARTNER" ====
-        drawHandshakeIcon(ctx, W/2, y, 60, GOLD);
-        y += 70;
-        ctx.fillStyle = GOLD;
-        ctx.font = '900 108px Montserrat, sans-serif';
-        ctx.save();
-        ctx.shadowColor = 'rgba(200,159,76,0.45)';
-        ctx.shadowBlur = 22;
-        ctx.fillText('BEST PARTNER', W/2, y + 90);
-        ctx.restore();
-        y += 130;
-
-
-        // ==== DUA FOTO (bingkai heksagon kiri & kanan) ====
-        const frameW = 420, frameH = 470, gap = 40;
-        const leftX = W/2 - gap/2 - frameW;
-        const rightX = W/2 + gap/2;
-        const frameY = y;
-        await drawHexPhotoFrame(ctx, leftX, frameY, frameW, frameH, bestPartner[0].photo, bestPartner[0].name);
-        await drawHexPhotoFrame(ctx, rightX, frameY, frameW, frameH, bestPartner[1].photo, bestPartner[1].name);
-
-        // tanda "x" emas di celah tengah
-        ctx.fillStyle = GOLD_LIGHT;
-        ctx.font = '700 40px Oswald, Segoe UI, sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(HANDSHAKE_X, W/2, frameY + frameH/2);
-        ctx.textBaseline = 'alphabetic';
-
-        // ==== PAPAN NAMA DI BAWAH TIAP FOTO ====
-        const plateY = frameY + frameH + 26;
-        drawNamePlate(ctx, leftX + frameW/2, plateY, frameW - 20, bestPartner[0].name);
-        drawNamePlate(ctx, rightX + frameW/2, plateY, frameW - 20, bestPartner[1].name);
-
-        // ==== Ilustrasi net lapangan ====
-        drawCourtNet(ctx, W, H - 330, 0.5);
-
-        // ==== FOOTER ====
-        const footerY = H - 130;
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-        ctx.beginPath(); ctx.moveTo(W/2-90, footerY-35); ctx.lineTo(W/2+90, footerY-35); ctx.stroke();
-        ctx.fillStyle = GOLD;
-        ctx.font = '800 28px Montserrat, sans-serif';
-        ctx.fillText('AURA SPORTS CLUB', W/2, footerY);
-        ctx.fillStyle = MUTED;
-        ctx.font = '500 20px Montserrat, sans-serif';
-        const todayStr = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
-        ctx.fillText(`${todayStr}  \u2022  BADMINTON SESSION`, W/2, footerY + 32);
-
-        const link = document.createElement('a');
-        link.download = `AuraSportsClub_BestPartner_${Date.now()}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-    }
 
     // ================= ROUND ROBIN + KNOCKOUT =================
 
