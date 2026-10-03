@@ -3999,42 +3999,354 @@ function togglePlayerActions(button) {
     }
 
     // Story Best Partner \u2014 vector, gaya seragam dengan Story MVP (bingkai heksagon foto, font brush, ikon vector)
-    async function generateBestPartnerStoryCard() {
-        const HANDSHAKE_X = '×';
-        const bestPartner = computeBestPartner();
-        if(!bestPartner || bestPartner.length !== 2) {
-            alert('Belum ada pasangan ganda yang menang tercatat untuk dibuatkan story Best Partner.');
-            return;
-        }
-        await ensureStoryFonts();
+   
+async function generateBestPartnerStoryCard() {
+    const bestPartner = computeBestPartner();
 
-        const W = 1080, H = 1920;
-        const canvas = document.createElement('canvas');
-        canvas.width = W; canvas.height = H;
-        const ctx = canvas.getContext('2d');
-        const GOLD = '#c89f4c', GOLD_LIGHT = '#e0b865', WHITE = '#ffffff', MUTED = '#9ca3af';
+    if (!bestPartner || bestPartner.length !== 2) {
+        alert('Belum ada pasangan ganda yang menang tercatat untuk dibuatkan story Best Partner.');
+        return;
+    }
 
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, W, H);
-        const glow = ctx.createRadialGradient(W*0.35, H*0.22, 60, W*0.35, H*0.22, 750);
-        glow.addColorStop(0, 'rgba(200,159,76,0.16)');
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow;
-        ctx.fillRect(0, 0, W, H);
+    await ensureStoryFonts();
 
-        drawWatermark(ctx, W, H, 'AURA');
+    try {
+        await document.fonts.load('800 80px Montserrat');
+        await document.fonts.load('900 120px Montserrat');
+    } catch (err) {
+        console.warn('Montserrat gagal dimuat, menggunakan font fallback.');
+    }
+
+    const W = 1080, H = 1920;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+
+    const ctx = canvas.getContext('2d');
+
+    const GOLD = '#d6aa4b';
+    const GOLD_LIGHT = '#f4d88b';
+    const WHITE = '#ffffff';
+    const MUTED = '#aeb0b8';
+
+    const p1 = bestPartner[0];
+    const p2 = bestPartner[1];
+
+    // ==================================
+    // HITUNG STATISTIK PASANGAN
+    // ==================================
+    const pairIds = [p1.id, p2.id].sort();
+
+    const pairMatches = matchesHistory.filter(m => {
+        const teams = [m.teamA, m.teamB];
+
+        return teams.some(team => {
+            if (!Array.isArray(team) || team.length !== 2) return false;
+
+            const ids = team.map(p => p.id).sort();
+
+            return ids[0] === pairIds[0] && ids[1] === pairIds[1];
+        });
+    });
+
+    const totalMatch = pairMatches.length;
+
+    const totalWin = pairMatches.filter(m => {
+        const sameTeamA = Array.isArray(m.teamA) &&
+            m.teamA.length === 2 &&
+            m.teamA.map(p => p.id).sort().join('|') === pairIds.join('|');
+
+        const sameTeamB = Array.isArray(m.teamB) &&
+            m.teamB.length === 2 &&
+            m.teamB.map(p => p.id).sort().join('|') === pairIds.join('|');
+
+        return sameTeamA
+            ? Number(m.scoreA) > Number(m.scoreB)
+            : sameTeamB
+                ? Number(m.scoreB) > Number(m.scoreA)
+                : false;
+    }).length;
+
+    const winRate = totalMatch
+        ? Math.round((totalWin / totalMatch) * 100)
+        : 0;
+
+    // ==================================
+    // HELPER
+    // ==================================
+    function roundedRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
+
+    function drawText(text, x, y, size, weight, color) {
+        ctx.font = `${weight} ${size}px Montserrat, Arial, sans-serif`;
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.fillText(text, x, y);
+    }
+
+    // ==================================
+    // BACKGROUND
+    // ==================================
+    ctx.fillStyle = '#030303';
+    ctx.fillRect(0, 0, W, H);
+
+    const bgGlow = ctx.createRadialGradient(
+        W / 2, 850, 50,
+        W / 2, 850, 850
+    );
+
+    bgGlow.addColorStop(0, 'rgba(180,125,30,0.20)');
+    bgGlow.addColorStop(1, 'rgba(0,0,0,0)');
+
+    ctx.fillStyle = bgGlow;
+    ctx.fillRect(0, 0, W, H);
+
+    drawWatermark(ctx, W, H, 'AURA');
+
+    // Bingkai luar
+    ctx.save();
+    roundedRect(30, 28, W - 60, H - 56, 34);
+    ctx.strokeStyle = 'rgba(214,170,75,0.85)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+
+    // Aksen diagonal emas
+    ctx.save();
+    ctx.strokeStyle = 'rgba(214,170,75,0.22)';
+    ctx.lineWidth = 7;
+
+    for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0 + i * 45, 250);
+        ctx.lineTo(230 + i * 45, 20);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(W - 230 - i * 45, H - 20);
+        ctx.lineTo(W - i * 45, H - 250);
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    // ==================================
+    // HEADER LOGO
+    // ==================================
+    const logo = await loadImageEl('logo.png');
+
+    if (logo) {
+        const logoW = 135;
+        const logoH = logoW * (logo.height / logo.width);
 
         ctx.save();
-        ctx.strokeStyle = 'rgba(200,159,76,0.5)';
-        for(let i=0;i<4;i++){
-            ctx.lineWidth = 6 - i;
-            ctx.globalAlpha = 0.35 - i*0.06;
-            ctx.beginPath(); ctx.moveTo(-40 + i*55, 260); ctx.lineTo(260, -40 + i*55); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(W+40 - i*55, H-260); ctx.lineTo(W-260, H+40 - i*55); ctx.stroke();
-        }
+        ctx.beginPath();
+        ctx.arc(W / 2, 145, 76, 0, Math.PI * 2);
+        ctx.strokeStyle = GOLD;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.drawImage(
+            logo,
+            W / 2 - logoW / 2,
+            145 - logoH / 2,
+            logoW,
+            logoH
+        );
         ctx.restore();
-        drawShuttlecock(ctx, W-110, 140, 130, 200, 0.14);
-        drawShuttlecock(ctx, 90, H-150, 150, 18, 0.12);
+    }
+
+    drawText('AURA SPORTS CLUB', W / 2, 300, 43, 900, GOLD);
+
+    ctx.strokeStyle = GOLD;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(300, 335);
+    ctx.lineTo(780, 335);
+    ctx.stroke();
+
+    drawText('BADMINTON SESSION', W / 2, 380, 25, 700, MUTED);
+
+    // ==================================
+    // JUDUL BEST PARTNER
+    // ==================================
+    drawHandshakeIcon(ctx, W / 2, 455, 75, GOLD);
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(214,170,75,0.45)';
+    ctx.shadowBlur = 28;
+
+    drawText('BEST', W / 2, 590, 125, 900, GOLD_LIGHT);
+    drawText('PARTNER', W / 2, 710, 125, 900, GOLD_LIGHT);
+
+    ctx.restore();
+
+    drawText('GOOD TEAMMATE  •  GREAT MATCH', W / 2, 765, 27, 700, GOLD_LIGHT);
+
+    // ==================================
+    // FOTO DUA PEMAIN
+    // ==================================
+    const photoY = 820;
+    const photoW = 475;
+    const photoH = 490;
+    const photoGap = 25;
+
+    const leftX = 55;
+    const rightX = W - 55 - photoW;
+
+    // Glow belakang foto
+    ctx.save();
+    ctx.shadowColor = 'rgba(214,170,75,0.65)';
+    ctx.shadowBlur = 45;
+    ctx.fillStyle = 'rgba(214,170,75,0.12)';
+
+    roundedRect(leftX, photoY, photoW, photoH, 20);
+    ctx.fill();
+
+    roundedRect(rightX, photoY, photoW, photoH, 20);
+    ctx.fill();
+    ctx.restore();
+
+    await drawHexPhotoFrame(
+        ctx, leftX, photoY, photoW, photoH,
+        p1.photo, p1.name
+    );
+
+    await drawHexPhotoFrame(
+        ctx, rightX, photoY, photoW, photoH,
+        p2.photo, p2.name
+    );
+
+    // ==================================
+    // PANEL NAMA PASANGAN
+    // ==================================
+    const nameY = 1340;
+    const nameH = 112;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(214,170,75,0.7)';
+    ctx.shadowBlur = 25;
+
+    roundedRect(100, nameY, 880, nameH, 22);
+    ctx.fillStyle = '#080808';
+    ctx.fill();
+    ctx.strokeStyle = GOLD;
+    ctx.lineWidth = 5;
+    ctx.stroke();
+
+    ctx.restore();
+
+    let nameSize = 43;
+    const fullName = `${p1.name.toUpperCase()}   &   ${p2.name.toUpperCase()}`;
+
+    ctx.textAlign = 'center';
+
+    while (nameSize > 24) {
+        ctx.font = `900 ${nameSize}px Montserrat, Arial, sans-serif`;
+        if (ctx.measureText(fullName).width <= 810) break;
+        nameSize -= 2;
+    }
+
+    drawText(fullName, W / 2, nameY + 70, nameSize, 900, GOLD_LIGHT);
+
+    // Label BEST PARTNER
+    ctx.save();
+    roundedRect(365, 1430, 350, 58, 20);
+    ctx.fillStyle = GOLD;
+    ctx.fill();
+
+    drawText('BEST PARTNER', W / 2, 1470, 28, 900, '#080808');
+    ctx.restore();
+
+    // ==================================
+    // STATISTIK PASANGAN
+    // ==================================
+    const statsX = 120;
+    const statsY = 1530;
+    const statsW = 840;
+    const statsH = 170;
+
+    ctx.save();
+
+    roundedRect(statsX, statsY, statsW, statsH, 24);
+    ctx.fillStyle = 'rgba(8,8,8,0.92)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(214,170,75,0.85)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Garis pemisah
+    ctx.strokeStyle = 'rgba(214,170,75,0.75)';
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    ctx.moveTo(400, statsY + 35);
+    ctx.lineTo(400, statsY + statsH - 35);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(680, statsY + 35);
+    ctx.lineTo(680, statsY + statsH - 35);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // Angka statistik
+    drawText(totalMatch.toString(), 260, statsY + 85, 62, 900, GOLD_LIGHT);
+    drawText(totalWin.toString(), 540, statsY + 85, 62, 900, GOLD_LIGHT);
+    drawText(`${winRate}%`, 820, statsY + 85, 62, 900, GOLD_LIGHT);
+
+    drawText('MATCH', 260, statsY + 130, 23, 700, MUTED);
+    drawText('WIN', 540, statsY + 130, 23, 700, MUTED);
+    drawText('WIN RATE', 820, statsY + 130, 23, 700, MUTED);
+
+    // ==================================
+    // FOOTER
+    // ==================================
+    const footerY = 1790;
+
+    ctx.strokeStyle = 'rgba(214,170,75,0.65)';
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    ctx.moveTo(220, footerY - 45);
+    ctx.lineTo(430, footerY - 45);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(650, footerY - 45);
+    ctx.lineTo(860, footerY - 45);
+    ctx.stroke();
+
+    drawShuttlecock(ctx, W / 2, footerY - 55, 45, 20, 0.9);
+
+    drawText('AURA SPORT MANAGER', W / 2, footerY + 15, 23, 700, WHITE);
+
+    const todayStr = new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+    });
+
+    drawText(todayStr.toUpperCase(), W / 2, footerY + 55, 18, 500, MUTED);
+
+    // ==================================
+    // DOWNLOAD
+    // ==================================
+    const link = document.createElement('a');
+    link.download = `AuraSportsClub_BestPartner_${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
 
         // ==== HEADER ====
         let y = 90;
