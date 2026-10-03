@@ -7,12 +7,14 @@
     <link rel="icon" type="image/png" href="logo-favicon.png">
     <link rel="stylesheet" href="mobile-responsive.css">
     <script src="mobile-responsive.js" defer></script>
-    <!-- Font untuk Story MVP (gaya brush/marker + display bold) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
-    <!-- Library html2canvas untuk fitur Export Klasemen ke Gambar -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  
+<!-- Font Montserrat untuk Story MVP dan Best Partner -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<!-- Library html2canvas untuk fitur Export Klasemen ke Gambar -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
     <!-- Supabase JS client - untuk penyimpanan data bersama + sinkronisasi realtime antar pengguna -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <style>
@@ -4045,14 +4047,14 @@ function togglePlayerActions(button) {
 
         ctx.textAlign = 'center';
         ctx.fillStyle = GOLD;
-        ctx.font = '700 42px Oswald, Segoe UI, sans-serif';
+        ctx.font = '800 42px Montserrat, sans-serif';
         ctx.fillText('A U R A   S P O R T S   C L U B', W/2, y);
         y += 38;
         ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(W/2-90, y); ctx.lineTo(W/2+90, y); ctx.stroke();
         y += 38;
         ctx.fillStyle = MUTED;
-        ctx.font = '500 22px Oswald, Segoe UI, sans-serif';
+        ctx.font = '500 22px Montserrat, sans-serif';
         ctx.fillText('B A D M I N T O N   S E S S I O N', W/2, y);
         y += 65;
 
@@ -4060,17 +4062,14 @@ function togglePlayerActions(button) {
         drawHandshakeIcon(ctx, W/2, y, 60, GOLD);
         y += 70;
         ctx.fillStyle = GOLD;
-        ctx.font = '108px "Permanent Marker", Oswald, sans-serif';
+        ctx.font = '900 108px Montserrat, sans-serif';
         ctx.save();
         ctx.shadowColor = 'rgba(200,159,76,0.45)';
         ctx.shadowBlur = 22;
         ctx.fillText('BEST PARTNER', W/2, y + 90);
         ctx.restore();
         y += 130;
-        ctx.fillStyle = WHITE;
-        ctx.font = '600 26px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('TWO PLAYERS   \u2022   ONE TEAM', W/2, y);
-        y += 55;
+
 
         // ==== DUA FOTO (bingkai heksagon kiri & kanan) ====
         const frameW = 420, frameH = 470, gap = 40;
@@ -4092,19 +4091,6 @@ function togglePlayerActions(button) {
         drawNamePlate(ctx, leftX + frameW/2, plateY, frameW - 20, bestPartner[0].name);
         drawNamePlate(ctx, rightX + frameW/2, plateY, frameW - 20, bestPartner[1].name);
 
-        // ==== TAGLINE ====
-        let ty = plateY + 62 + 70;
-        ctx.strokeStyle = 'rgba(200,159,76,0.5)'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(W/2-235, ty); ctx.lineTo(W/2-70, ty); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(W/2+70, ty); ctx.lineTo(W/2+235, ty); ctx.stroke();
-        drawCrossedRacketsIcon(ctx, W/2, ty, 56, GOLD);
-        ty += 55;
-        ctx.fillStyle = WHITE;
-        ctx.font = '500 24px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('GREAT PARTNERS MAKE', W/2, ty);
-        ty += 32;
-        ctx.fillText('BETTER GAMES', W/2, ty);
-
         // ==== Ilustrasi net lapangan ====
         drawCourtNet(ctx, W, H - 330, 0.5);
 
@@ -4113,10 +4099,10 @@ function togglePlayerActions(button) {
         ctx.strokeStyle = 'rgba(255,255,255,0.15)';
         ctx.beginPath(); ctx.moveTo(W/2-90, footerY-35); ctx.lineTo(W/2+90, footerY-35); ctx.stroke();
         ctx.fillStyle = GOLD;
-        ctx.font = '700 28px Oswald, Segoe UI, sans-serif';
+        ctx.font = '800 28px Montserrat, sans-serif';
         ctx.fillText('AURA SPORTS CLUB', W/2, footerY);
         ctx.fillStyle = MUTED;
-        ctx.font = '500 20px Oswald, Segoe UI, sans-serif';
+        ctx.font = '500 20px Montserrat, sans-serif';
         const todayStr = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
         ctx.fillText(`${todayStr}  \u2022  BADMINTON SESSION`, W/2, footerY + 32);
 
