@@ -2880,8 +2880,13 @@ function togglePlayerActions(button) {
      * LOGIKA RANKING TETAP SAMA
      * 1. Jumlah kemenangan terbanyak
      * 2. Jika sama, total point terbanyak
+     *
+     * Hanya pemain yang BENAR-BENAR MAIN di pertandingan ini yang ditampilkan
+     * (stats.played > 0). Setiap pertandingan baru selalu mulai dari 0 (lihat
+     * createEvent -> emptyPlayerStatsSnapshot), jadi pemain dari sesi lain yang
+     * tidak ikut main di sini otomatis tidak muncul di klasemen.
      */
-    const sorted = [...players].sort((a, b) => {
+    const sorted = players.filter(p => p.stats.played > 0).sort((a, b) => {
 
         if (b.stats.wins !== a.stats.wins) {
             return b.stats.wins - a.stats.wins;
