@@ -1303,16 +1303,12 @@ function emptyPlayerStatsSnapshot() {
     function formatEventDate(date){ if(!date)return '-'; const d=new Date(date+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}); }
     function escapeHTML(v){ return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]||c)); }
 
+    // Dulu fungsi ini punya jalur simpannya sendiri (menimpa semua kolom langsung).
+    // Sekarang didelegasikan ke performSaveToSupabase() supaya SEMUA aksi — termasuk
+    // buat/pilih/selesaikan/buka-kembali/hapus pertandingan — lewat mesin simpan
+    // level-kolom yang sama dan aman dipakai banyak HP sekaligus.
     async function persistStateOnly() {
-        if (!stateLoaded) { console.error('Simpan dibatalkan: data awal belum berhasil dimuat.'); return; }
-        snapshotCurrentEvent();
-        const settingsToSave = cloneJSON(rrSettings || {});
-        settingsToSave.__eventRegistry = cloneJSON(eventRegistry);
-        const {error}=await supabaseClient.from('sport_manager_state').update({
-            players, matches_history:matchesHistory, active_matches:activeMatches, finance_transactions:financeTransactions, finance_settings:financeSettings,
-            rr_teams:rrTeams, rr_matches:rrMatches, rr_settings:settingsToSave, rr_phase:rrPhase, rr_bracket:rrBracket, updated_at:new Date().toISOString()
-        }).eq('id',STATE_ROW_ID);
-        if(error){ console.error(error); alert('Gagal menyimpan data: '+error.message); }
+        return performSaveToSupabase();
     }
 
 
@@ -1342,6 +1338,14 @@ function emptyPlayerStatsSnapshot() {
         rrBracket = data.rr_bracket || [];
         eventRegistry = getEventRegistryFromSettings(data.rr_settings || {});
         stateLoaded = true; // data awal berhasil ditarik -> baru boleh menyimpan
+
+        // Catat persis isi 10 kolom + updated_at yang baru saja kita tarik, sebagai baseline
+        // untuk merge level-kolom (lihat performSaveToSupabase). Dicatat SEBELUM migrasi data
+        // lama di bawah ini, supaya migrasi (yang mengubah kolom secara lokal) terdeteksi
+        // sebagai "perubahan" pada simpanan pertama setelahnya.
+        lastSyncedRow = {};
+        STATE_COLUMNS.forEach(col => { lastSyncedRow[col] = cloneJSON(data[col] ?? null); });
+        lastSyncedRow.updated_at = data.updated_at;
 
         // Migrasi otomatis data lama menjadi satu event agar data sebelumnya tetap ada.
         if (eventRegistry.events.length === 0 && (matchesHistory.length || activeMatches.length || rrTeams.length || rrMatches.length || rrBracket.length)) {
@@ -1378,10 +1382,86 @@ function emptyPlayerStatsSnapshot() {
     // ============================================================================
     let stateLoaded = false;        // true hanya setelah data awal BERHASIL ditarik dari server
     let pendingScoreOps = 0;        // jumlah aksi skor yang masih antre/berjalan di HP ini
+
+    // ============================================================================
+    // SIMPAN LEVEL-KOLOM (mencegah 1 aksi apa pun menimpa SELURUH baris)
+    // ----------------------------------------------------------------------------
+    // Baris `sport_manager_state` punya 10 kolom JSON. Sebelumnya, SETIAP aksi (tambah
+    // pemain, acak match, selesai match, buat/hapus pertandingan, dst) menulis ulang
+    // SEMUA 10 kolom sekaligus pakai salinan di memori HP itu. Kalau salinan itu "basi"
+    // (HP lain baru saja mengubah kolom LAIN yang tidak kita sentuh), perubahan HP lain
+    // itu ikut tertimpa/hilang — ini penyebab "match tiba-tiba hilang semua".
+    // Perbaikan: `lastSyncedRow` menyimpan isi 10 kolom itu PERSIS seperti terakhir kali
+    // kita tahu dari server. Saat menyimpan, kita bandingkan kolom demi kolom — HANYA
+    // kolom yang BENAR-BENAR berubah di HP ini yang ikut ditulis; kolom lain dibiarkan
+    // dan kita AMBIL nilai terbaru server untuk kolom itu (supaya tidak ketinggalan
+    // perubahan HP lain). Lihat performSaveToSupabase() di bawah.
+    // ============================================================================
+    const STATE_COLUMNS = ['players','matches_history','active_matches','finance_transactions','finance_settings','rr_teams','rr_matches','rr_settings','rr_phase','rr_bracket'];
+    let lastSyncedRow = null; // { players, matches_history, ..., updated_at } — salinan 10 kolom + updated_at terakhir yang KITA TAHU ada di server
+
+    function currentColumnsSnapshot() {
+        snapshotCurrentEvent();
+        const settingsToSave = cloneJSON(rrSettings || {});
+        settingsToSave.__eventRegistry = cloneJSON(eventRegistry);
+        return {
+            players: cloneJSON(players),
+            matches_history: cloneJSON(matchesHistory),
+            active_matches: cloneJSON(activeMatches),
+            finance_transactions: cloneJSON(financeTransactions),
+            finance_settings: cloneJSON(financeSettings),
+            rr_teams: cloneJSON(rrTeams),
+            rr_matches: cloneJSON(rrMatches),
+            rr_settings: settingsToSave,
+            rr_phase: rrPhase,
+            rr_bracket: cloneJSON(rrBracket)
+        };
+    }
+
+    function columnsEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+
+    // Terapkan isi kolom (gabungan hasil kita + kolom lain yang baru diambil dari server)
+    // ke variabel state lokal. Kalau ada pertandingan yang sedang dibuka di HP ini,
+    // tampilannya diisi ulang dari snapshot event tsb (bukan dari kolom cermin teratas),
+    // sama seperti applyServerRow — supaya HP ini tidak "terseret" ke event HP lain.
+    function applyMergedColumnsToState(cols) {
+        const localActiveId = eventRegistry ? eventRegistry.activeEventId : null;
+        players = cols.players || [];
+        matchesHistory = cols.matches_history || [];
+        activeMatches = cols.active_matches || [];
+        financeTransactions = cols.finance_transactions || [];
+        financeSettings = cols.finance_settings || { payPerPlay: 0 };
+        rrTeams = cols.rr_teams || [];
+        rrMatches = cols.rr_matches || [];
+        rrSettings = cols.rr_settings || { qualifyCount: 4, totalCourts: 2 };
+        rrPhase = cols.rr_phase || 'setup';
+        rrBracket = cols.rr_bracket || [];
+        eventRegistry = getEventRegistryFromSettings(cols.rr_settings || {});
+        const active = localActiveId ? eventRegistry.events.find(e => e.id === localActiveId) : null;
+        if (active) {
+            const s = active.snapshot || {};
+            applyPlayerStatsSnapshot(s.playerStats || {});
+            matchesHistory = cloneJSON(s.matchesHistory || []);
+            activeMatches = cloneJSON(s.activeMatches || []);
+            rrTeams = cloneJSON(s.rrTeams || []);
+            rrMatches = cloneJSON(s.rrMatches || []);
+            rrSettings = cloneJSON(s.rrSettings || { qualifyCount: 4, totalCourts: 2 });
+            rrPhase = s.rrPhase || 'setup';
+            rrBracket = cloneJSON(s.rrBracket || []);
+            eventRegistry.activeEventId = active.id;
+        }
+    }
     let refreshTimer = null;
     let refreshRunning = false;
 
     function applyServerRow(data) {
+        // Catat baseline merge level-kolom terbaru juga di sini, supaya setelah refresh
+        // (dipicu realtime HP lain) saveData() berikutnya di HP ini membandingkan terhadap
+        // data server YANG PALING BARU, bukan data lama saat load pertama.
+        lastSyncedRow = {};
+        STATE_COLUMNS.forEach(col => { lastSyncedRow[col] = cloneJSON(data[col] ?? null); });
+        lastSyncedRow.updated_at = data.updated_at;
+
         // Event yang sedang dibuka di HP INI dipertahankan (tidak ikut "dibajak" HP lain)
         const localActiveId = eventRegistry ? eventRegistry.activeEventId : null;
         players = data.players || [];
@@ -1569,17 +1649,54 @@ function emptyPlayerStatsSnapshot() {
 
     async function performSaveToSupabase() {
         if (!stateLoaded) { console.error('Simpan dibatalkan: data awal belum berhasil dimuat dari server (mencegah menimpa server dengan data kosong).'); return; }
-        const settingsToSave = cloneJSON(rrSettings || {});
-        settingsToSave.__eventRegistry = cloneJSON(eventRegistry);
-        const { error } = await supabaseClient
-            .from('sport_manager_state')
-            .update({
-                players, matches_history: matchesHistory, active_matches: activeMatches,
-                finance_transactions: financeTransactions, finance_settings: financeSettings,
-                rr_teams: rrTeams, rr_matches: rrMatches, rr_settings: settingsToSave,
-                rr_phase: rrPhase, rr_bracket: rrBracket, updated_at: new Date().toISOString()
-            }).eq('id', STATE_ROW_ID);
-        if (error) { console.error('Gagal menyimpan ke Supabase:', error); alert('Gagal menyimpan perubahan ke server: ' + error.message); }
+
+        const MAX_ATTEMPT = 8;
+        for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
+            const current = currentColumnsSnapshot();
+
+            // Kolom mana saja yang BENAR-BENAR berubah di HP ini sejak sinkron terakhir?
+            const changedCols = {};
+            STATE_COLUMNS.forEach(col => {
+                if (!lastSyncedRow || !columnsEqual(current[col], lastSyncedRow[col])) {
+                    changedCols[col] = current[col];
+                }
+            });
+
+            if (Object.keys(changedCols).length === 0) {
+                return true; // tidak ada perubahan nyata, tidak perlu menulis apa pun
+            }
+
+            // Ambil baris TERBARU dari server: untuk tahu updated_at saat ini (kunci CAS)
+            // dan untuk mengambil nilai kolom yang TIDAK kita ubah (supaya tidak ketinggalan
+            // perubahan HP lain di kolom tsb).
+            const { data: fresh, error: fetchErr } = await supabaseClient
+                .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
+            if (fetchErr || !fresh) {
+                console.error('Gagal ambil data server sebelum menyimpan:', fetchErr);
+                await _sleep(150 + attempt * 100);
+                continue;
+            }
+
+            const nowIso = new Date().toISOString();
+            const patch = { ...changedCols, updated_at: nowIso };
+            let q = supabaseClient.from('sport_manager_state').update(patch).eq('id', STATE_ROW_ID);
+            q = (fresh.updated_at === null || fresh.updated_at === undefined) ? q.is('updated_at', null) : q.eq('updated_at', fresh.updated_at);
+            const { data: updData, error: updErr } = await q.select();
+
+            if (!updErr && updData && updData.length) {
+                // Berhasil. Kolom yang TIDAK kita ubah diambil nilai terbarunya dari server,
+                // supaya layar HP ini juga ikut tahu perubahan HP lain di kolom tsb.
+                STATE_COLUMNS.forEach(col => { if (!(col in changedCols)) current[col] = fresh[col]; });
+                lastSyncedRow = { ...current, updated_at: nowIso };
+                applyMergedColumnsToState(current);
+                return true;
+            }
+            // Gagal (HP lain baru saja menulis di antara kita membaca & menulis) -> ulangi
+            await _sleep(80 + Math.random() * 150 + attempt * 40);
+        }
+        console.error('performSaveToSupabase: gagal setelah beberapa kali percobaan.');
+        alert('Gagal menyimpan perubahan ke server setelah beberapa kali percobaan (banyak perubahan bersamaan / koneksi tidak stabil). Coba lagi.');
+        return false;
     }
 
     // ============================================================================
@@ -1673,6 +1790,17 @@ function emptyPlayerStatsSnapshot() {
                     activeMatches = cloneJSON(view.active_matches);
                     rrMatches = cloneJSON(view.rr_matches);
                     rrBracket = cloneJSON(view.rr_bracket);
+                }
+                // Jalur ini menulis sebagian kolom secara manual (di luar performSaveToSupabase),
+                // jadi baseline merge level-kolom (lastSyncedRow) perlu ikut diperbarui untuk
+                // kolom yang baru saja ditulis, supaya saveData() berikutnya tidak menganggapnya
+                // "berubah di HP ini" lagi dan menulis ulang data yang sama tanpa perlu.
+                if (lastSyncedRow) {
+                    Object.keys(patch).forEach(col => {
+                        if (col === 'updated_at') return;
+                        lastSyncedRow[col] = cloneJSON(patch[col]);
+                    });
+                    lastSyncedRow.updated_at = nowIso;
                 }
                 return true;
             }
