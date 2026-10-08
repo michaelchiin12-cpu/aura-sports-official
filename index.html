@@ -509,6 +509,31 @@
 .event-participant-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
 @media(max-width:600px){.member-card-grid{grid-template-columns:1fr;}.member-career-stats{grid-template-columns:repeat(4,1fr);}.member-card-info{grid-template-columns:1fr 1fr;}.event-participant-table{min-width:620px;}.event-participant-table-wrap{overflow-x:auto;}}
 
+
+/* ===== Header utility menu ===== */
+.header { position: relative; }
+.header-menu-wrap { position: absolute; top: 12px; right: 12px; z-index: 50; }
+.header-menu-btn {
+    width: 40px; height: 40px; padding: 0; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--card, #171717);
+    color: var(--text, #fff); font-size: 24px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+}
+.header-menu-btn:hover { border-color: var(--primary); }
+.header-menu-dropdown {
+    position: absolute; top: 46px; right: 0; min-width: 205px;
+    padding: 8px; border: 1px solid var(--border);
+    border-radius: 12px; background: var(--card, #171717);
+    box-shadow: 0 12px 30px rgba(0,0,0,.35);
+    display: none;
+}
+.header-menu-dropdown.open { display: block; }
+.header-menu-dropdown button {
+    width: 100%; margin: 0; text-align: left; border-radius: 8px;
+    padding: 10px 12px; font-size: .88rem;
+}
+
 </style>
 </head>
 <body>
@@ -543,15 +568,18 @@
     </div>
 
     <div class="header">
+        <div class="header-menu-wrap">
+            <button class="header-menu-btn" type="button" aria-label="Menu" onclick="toggleHeaderMenu(event)">⋮</button>
+            <div id="headerMenuDropdown" class="header-menu-dropdown">
+                <button onclick="exportData(); closeHeaderMenu();">📤 Export Backup (JSON)</button>
+                <input type="file" id="importFile" accept=".json" onchange="importData(event); closeHeaderMenu();" style="display:none;">
+                <button onclick="document.getElementById('importFile').click();">📥 Import Backup</button>
+                <button onclick="clearMatchDataOnly(); closeHeaderMenu();" class="btn-warning">🗑️ Reset Pertandingan Saja</button>
+                <button onclick="clearAllData(); closeHeaderMenu();" class="btn-danger">⚠️ Reset Total Aplikasi</button>
+            </div>
+        </div>
         <img src="logo.png" alt="Logo Aura Sport" style="width: 120px; height: auto; margin-bottom: 10px;">
         <h1 style="color: var(--primary);">AURA SPORT MANAGER</h1>
-        <div class="flex-row" style="justify-content: center; margin-top: 10px;">
-            <button onclick="exportData()">Export Backup (JSON)</button>
-            <input type="file" id="importFile" accept=".json" onchange="importData(event)" style="display:none;">
-            <button onclick="document.getElementById('importFile').click()" class="btn-warning">Import Backup</button>
-            <button onclick="clearMatchDataOnly()" class="btn-warning">Reset Pertandingan Saja</button>
-            <button onclick="clearAllData()" class="btn-danger">Reset Total Aplikasi</button>
-        </div>
     </div>
 
     <!-- Navigasi Utama System Tab -->
@@ -1377,6 +1405,8 @@
         rrTeams = cloneJSON(s.rrTeams || []);
         rrMatches = cloneJSON(s.rrMatches || []);
         rrSettings = cloneJSON(s.rrSettings || {qualifyCount:4,totalCourts:2});
+        const eventCourtInput = document.getElementById('totalCourts');
+        if (eventCourtInput) eventCourtInput.value = Math.max(1, Math.min(10, parseInt(rrSettings.totalCourts) || 2));
         rrPhase = s.rrPhase || 'setup';
         rrBracket = cloneJSON(s.rrBracket || []);
         currentEventMode = ev.mode;
@@ -1400,6 +1430,9 @@
                 <input id="eventNameInput" type="text" placeholder="Contoh: Latihan Rutin Selasa" maxlength="100">
                 <label>Tanggal *</label>
                 <input id="eventDateInput" type="date" value="${todayISO()}">
+                <label>Jumlah Lapangan *</label>
+                <input id="eventCourtsInput" type="number" value="2" min="1" max="10" placeholder="Contoh: 2">
+                <div style="font-size:.78rem;color:var(--text-muted);margin-top:-4px;margin-bottom:10px;">Jumlah ini akan menjadi jumlah lapangan saat event dibuka dan saat Generate Ronde.</div>
                 <div class="event-modal-actions">
                     <button type="button" id="eventCancelBtn" style="background:var(--border); color:#fff;">Batal</button>
                     <button type="button" id="eventCreateBtn" class="btn-success">Buat Pertandingan</button>
@@ -1427,8 +1460,10 @@
     async function createEvent(mode) {
         const nameEl = document.getElementById('eventNameInput');
         const dateEl = document.getElementById('eventDateInput');
+        const courtsEl = document.getElementById('eventCourtsInput');
         const name = nameEl ? nameEl.value.trim() : '';
         const date = (dateEl && dateEl.value) ? dateEl.value : todayISO();
+        const totalCourts = Math.max(1, Math.min(10, parseInt(courtsEl?.value) || 2));
 
         if (!name) {
             if (nameEl) nameEl.focus();
@@ -1462,7 +1497,7 @@
         rrMatches: [],
         rrSettings: {
             qualifyCount: 4,
-            totalCourts: 2
+            totalCourts: totalCourts
         },
         rrPhase: 'setup',
         rrBracket: []
@@ -3515,6 +3550,13 @@
         return `${m}:${s}`;
     }
 
+    async function skipMatch(matchId) {
+        const match = activeMatches.find(m => m.id === matchId);
+        if (!match) return;
+        if (!confirm(`Skip / batalkan pertandingan ${match.courtName || ''}?\n\nMatch ini tidak masuk histori, tidak menambah statistik pemain, dan tidak dihitung sebagai pertandingan selesai.`)) return;
+        return finishMatch(matchId, true);
+    }
+
     async function finishMatch(matchId, isSkip = false) {
         // Pastikan klik skor terakhir benar-benar masuk server sebelum match ditutup.
         // Tanpa ini, finish bisa bentrok dengan batch skor yang masih berjalan.
@@ -3607,9 +3649,9 @@
         if (window.scoreDashboardOpen && window.scoreDashboardMatchId === matchId) closeScoreDashboard();
         renderCourts(); renderQueue(); renderStandings(); renderHistory();
         if (generatedNextRound > 0) {
-            markSyncSuccess(`Ronde berikutnya otomatis dibuat (${generatedNextRound} match).`);
+            markSyncSuccess(isSkip ? `Pertandingan di-skip. Ronde berikutnya otomatis dibuat (${generatedNextRound} match).` : `Ronde berikutnya otomatis dibuat (${generatedNextRound} match).`);
         } else {
-            markSyncSuccess('Match selesai dan data tersimpan. Belum ada ronde berikutnya karena pemain belum cukup / kombinasi level belum memenuhi.');
+            markSyncSuccess(isSkip ? 'Pertandingan di-skip dan tidak masuk histori. Belum ada ronde berikutnya karena pemain belum cukup / kombinasi level belum memenuhi.' : 'Match selesai dan data tersimpan. Belum ada ronde berikutnya karena pemain belum cukup / kombinasi level belum memenuhi.');
         }
         return true;
     }
@@ -3821,6 +3863,11 @@
                         onclick="finishMatch('${match.id}', false)"
                         style="width:100%;padding:12px;font-size:1rem;background:#b42318;color:#fff;border:1px solid #d92d20;border-radius:8px;font-weight:800;">
                         ✓ SELESAIKAN MATCH
+                    </button>
+                    <button
+                        onclick="skipMatch('${match.id}')"
+                        style="width:100%;padding:10px;font-size:.92rem;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:8px;font-weight:700;">
+                        ⏭️ SKIP / BATAL PERTANDINGAN
                     </button>
                 </div>
             </div>
@@ -5965,6 +6012,20 @@ async function generateBestPartnerStoryCard() {
     } else {
         bootApp();
     }
+</script>
+
+<script>
+function toggleHeaderMenu(event) {
+    if (event) event.stopPropagation();
+    document.getElementById('headerMenuDropdown')?.classList.toggle('open');
+}
+function closeHeaderMenu() {
+    document.getElementById('headerMenuDropdown')?.classList.remove('open');
+}
+document.addEventListener('click', function(event) {
+    const wrap = document.querySelector('.header-menu-wrap');
+    if (wrap && !wrap.contains(event.target)) closeHeaderMenu();
+});
 </script>
 </body>
 </html>
