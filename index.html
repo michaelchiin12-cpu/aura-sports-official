@@ -1835,7 +1835,7 @@
         refreshRunning = true;
         try {
             const { data, error } = await supabaseClient
-                .from('sport_manager_state').select('id,updated_at,rr_settings,active_matches,rr_matches,rr_bracket').eq('id', STATE_ROW_ID).single();
+                .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
             if (error || !data) { console.error('Gagal menyegarkan data:', error); return; }
             // Selama menunggu jawaban server, mungkin ada perubahan lokal baru -> jangan timpa
             if (pendingScoreOps > 0 || saveInFlight || savePending) { requestRefresh(); return; }
