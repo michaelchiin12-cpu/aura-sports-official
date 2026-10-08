@@ -448,9 +448,43 @@
         @keyframes splashRingSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes splashLogoIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
         @keyframes splashTextIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- STATUS SINKRONISASI DATA --- */
+        #syncStatusToast {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translate(-50%, -18px);
+            z-index: 20000;
+            min-width: 220px;
+            max-width: min(92vw, 430px);
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(17,17,17,.96);
+            color: #fff;
+            box-shadow: 0 10px 35px rgba(0,0,0,.45);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s ease, transform .2s ease;
+            text-align: center;
+            font-size: .88rem;
+            font-weight: 700;
+            backdrop-filter: blur(8px);
+        }
+        #syncStatusToast.show { opacity: 1; transform: translate(-50%, 0); }
+        #syncStatusToast.saving { border-color: rgba(245,158,11,.55); color: #fcd34d; }
+        #syncStatusToast.success { border-color: rgba(16,185,129,.55); color: #6ee7b7; }
+        #syncStatusToast.error { border-color: rgba(239,68,68,.7); color: #fca5a5; pointer-events: auto; }
+        #syncStatusToast .sync-status-sub { display:block; margin-top:3px; font-size:.72rem; font-weight:500; color:var(--text-muted); }
+        @media (max-width: 600px) {
+            #syncStatusToast { top: 10px; min-width: 200px; padding: 10px 14px; font-size: .82rem; }
+        }
     </style>
 </head>
 <body>
+
+    <div id="syncStatusToast" role="status" aria-live="polite"></div>
 
     <!-- ================= SPLASH SCREEN ANIMASI PEMBUKA ================= -->
     <div id="splashScreen">
@@ -1934,14 +1968,53 @@
     let saveInFlight = false;
     let savePending = false;
 
+    // Status penyimpanan yang terlihat operator. Ini BUKAN alert blocking:
+    // - Menyimpan... = request sedang diproses
+    // - Data tersimpan = server benar-benar menerima perubahan
+    // - Data belum tersimpan = retry sudah habis / perubahan belum aman di server
+    let syncStatusTimer = null;
+    let syncStatusError = false;
+    function showSyncStatus(type, message, detail = '') {
+        const el = document.getElementById('syncStatusToast');
+        if (!el) return;
+        clearTimeout(syncStatusTimer);
+        syncStatusError = type === 'error';
+        el.className = 'show ' + type;
+        el.innerHTML = message + (detail ? '<span class="sync-status-sub">' + detail + '</span>' : '');
+        if (type === 'success') {
+            syncStatusTimer = setTimeout(() => {
+                if (!syncStatusError) el.className = '';
+            }, 1800);
+        } else if (type === 'saving') {
+            // Tetap tampil selama request berlangsung.
+        }
+    }
+
+    function markSyncSaving(detail = 'Perubahan sedang dikirim ke server...') {
+        showSyncStatus('saving', '🟡 Menyimpan...', detail);
+    }
+    function markSyncSuccess(detail = 'Perubahan sudah tersimpan di server.') {
+        showSyncStatus('success', '🟢 Data tersimpan', detail);
+    }
+    function markSyncError(detail = 'Jangan refresh atau menutup halaman dulu. Coba ulangi aksi setelah koneksi stabil.') {
+        showSyncStatus('error', '🔴 Data belum tersimpan', detail);
+    }
+
     async function saveData() {
         snapshotCurrentEvent();
         init();
+        markSyncSaving();
         if(saveInFlight) { savePending = true; return true; }
         saveInFlight = true;
         const result = await performSaveToSupabase();
         saveInFlight = false;
-        if(savePending) { savePending = false; saveData(); }
+        if(savePending) {
+            savePending = false;
+            const nextResult = await saveData();
+            return nextResult;
+        }
+        if(result) markSyncSuccess();
+        else markSyncError();
         return result;
     }
 
@@ -2002,7 +2075,6 @@
             await _sleep(80 + Math.random() * 150 + attempt * 40);
         }
         console.error('performSaveToSupabase: gagal setelah beberapa kali percobaan.');
-        alert('Gagal menyimpan perubahan ke server setelah beberapa kali percobaan (banyak perubahan bersamaan / koneksi tidak stabil). Coba lagi.');
         return false;
     }
 
@@ -2057,9 +2129,13 @@
     // Mutasi atomik Round Mix: seluruh perubahan penting (rotasi, attendance, generate,
     // swap, finish, statistik, history, finance) dihitung ulang dari event TERBARU di server.
     // Ini mencegah device B menimpa perubahan device A dengan snapshot lama.
-    async function safeRoundMixMutation(mutateFn, options = {}) {
-        if (!stateLoaded || !supabaseClient) return false;
-        const MAX_ATTEMPT=16;
+    async function safeRoundMixMutationCore(mutateFn, options = {}) {
+        if (!stateLoaded || !supabaseClient) {
+            markSyncError('Data awal belum siap atau koneksi database belum tersedia.');
+            return false;
+        }
+        markSyncSaving();
+        const MAX_ATTEMPT=8;
         for(let attempt=0;attempt<MAX_ATTEMPT;attempt++){
             const {data:fresh,error}=await supabaseClient.from('sport_manager_state').select('*').eq('id',STATE_ROW_ID).single();
             if(error||!fresh){await _sleep(100+attempt*50);continue;}
@@ -2101,19 +2177,36 @@
             if(!updErr&&upd?.length){
                 players=cloneJSON(view.players);matchesHistory=cloneJSON(view.matchesHistory);activeMatches=cloneJSON(view.activeMatches);financeTransactions=cloneJSON(view.financeTransactions);financeSettings=cloneJSON(view.financeSettings);rrTeams=cloneJSON(view.rrTeams);rrMatches=cloneJSON(view.rrMatches);rrSettings=cloneJSON(view.rrSettings);rrPhase=view.rrPhase;rrBracket=cloneJSON(view.rrBracket);eventRegistry=reg;eventRegistry.activeEventId=ev.id;
                 lastSyncedRow={...fresh,...patch};
+                markSyncSuccess();
                 return true;
             }
             await _sleep(50+Math.random()*100+attempt*30);
         }
+        markSyncError('Perubahan belum tersimpan setelah beberapa kali percobaan. Periksa koneksi lalu ulangi aksi.');
         return false;
     }
 
+
+    // Semua mutasi Round Mix diantrikan di device yang sama agar aksi cepat
+    // (finish, generate, swap, attendance, dll.) tidak saling menabrak.
+    let roundMixMutationQueue = Promise.resolve();
+    function safeRoundMixMutation(mutateFn, options = {}) {
+        const run = roundMixMutationQueue.then(() => safeRoundMixMutationCore(mutateFn, options));
+        roundMixMutationQueue = run.catch(err => {
+            console.error('Round Mix mutation error:', err);
+            markSyncError('Perubahan Round Mix gagal disimpan.');
+            return false;
+        });
+        return run;
+    }
+
     async function safeApplyToServer(mutateFn) {
+        markSyncSaving();
         // Jangan cepat menganggap gagal. Pada multi-device, updated_at bisa berubah
         // beberapa kali dalam waktu singkat karena device lain / realtime / save lain.
         // Sebelumnya hanya 16 percobaan dan error fetch langsung dianggap gagal,
         // sehingga alert "Skor mungkin belum tersimpan" terlalu sering muncul.
-        const MAX_ATTEMPT = 40;
+        const MAX_ATTEMPT = 6;
         let notFoundStreak = 0;
         let lastError = null;
         for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
@@ -2122,7 +2215,7 @@
             if (fetchErr || !fresh) {
                 lastError = fetchErr || new Error('Data server kosong');
                 // Error koneksi sementara juga di-retry. Jangan langsung memunculkan alert.
-                await _sleep(Math.min(250 + attempt * 40, 900));
+                await _sleep(Math.min(80 + attempt * 45, 300));
                 continue;
             }
 
@@ -2144,7 +2237,7 @@
                 // Tunggu & coba lagi dulu, jangan langsung menyerah.
                 notFoundStreak++;
                 if (notFoundStreak >= MAX_ATTEMPT) return false;
-                await _sleep(80 + Math.random() * 120 + notFoundStreak * 40);
+                await _sleep(60 + Math.random() * 90 + notFoundStreak * 25);
                 continue;
             }
 
@@ -2191,12 +2284,14 @@
                     });
                     lastSyncedRow.updated_at = nowIso;
                 }
+                markSyncSuccess();
                 return true;
             }
             // Backoff bertahap agar tidak terus menabrak write dari device lain.
-            await _sleep(Math.min(60 + attempt * 25 + Math.random() * 120, 700));
+            await _sleep(Math.min(50 + attempt * 25 + Math.random() * 60, 250));
         }
         console.error('safeApplyToServer: gagal setelah retry. Error terakhir:', lastError);
+        markSyncError('Perubahan belum tersimpan ke server. Periksa koneksi, lalu ulangi aksi.');
         return false;
     }
 
@@ -2210,14 +2305,49 @@
         setTimeout(() => requestRefresh(), 1200);
     }
 
-    // Antrean khusus skor: setiap klik diproses SATU PER SATU dan berurutan.
+    // Antrean khusus skor. Klik cepat dikumpulkan sebentar lalu dikirim sebagai SATU
+    // transaksi server. Ini mencegah 10 klik +POINT menjadi 10x fetch + update berurutan
+    // yang terasa sangat lambat. Operasi tetap diterapkan berurutan di atas data terbaru
+    // server, sehingga aman untuk multi-device.
     let scoreOpQueue = Promise.resolve();
+    let scoreBatch = [];
+    let scoreBatchTimer = null;
     function queueScoreOp(fn) {
         pendingScoreOps++;
-        scoreOpQueue = scoreOpQueue
-            .then(fn)
-            .catch(err => console.error('Gagal proses skor:', err))
-            .then(() => { pendingScoreOps--; if (pendingScoreOps === 0) requestRefresh(); });
+        scoreBatch.push(fn);
+        if (!scoreBatchTimer) {
+            scoreBatchTimer = setTimeout(() => {
+                scoreBatchTimer = null;
+                const batch = scoreBatch.splice(0);
+                scoreOpQueue = scoreOpQueue
+                    .then(async () => {
+                        const ok = await safeApplyToServer(row => {
+                            for (const op of batch) {
+                                const result = op(row);
+                                if (result === false) return false;
+                            }
+                            return true;
+                        });
+                        if (!ok) {
+                            markSyncError('Perubahan skor belum tersimpan ke server.');
+                        } else {
+                            renderCourts();
+                            if (window.scoreDashboardOpen) {
+                                const openId = window.scoreDashboardMatchId;
+                                if (openId) renderScoreDashboard(openId);
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Gagal proses batch skor:', err);
+                        markSyncError('Terjadi error saat menyimpan perubahan skor.');
+                    })
+                    .then(() => {
+                        pendingScoreOps = Math.max(0, pendingScoreOps - batch.length);
+                        if (pendingScoreOps === 0) requestRefresh();
+                    });
+            }, 120);
+        }
         return scoreOpQueue;
     }
 
@@ -2938,10 +3068,102 @@
         return best;
     }
 
+    function buildGeneratedMatchesForView(view, teamSize, maxCourts) {
+        const requiredPlayersPerMatch = teamSize * 2;
+        const attendance = (view.event && view.event.attendance) || {};
+        const eligible = (view.players || []).filter(p =>
+            p.status === 'active' && attendance[p.id]
+        ).sort((a,b) => (Number(a.stats?.played || 0) - Number(b.stats?.played || 0)));
+
+        const needed = Math.min(maxCourts, Math.floor(eligible.length / requiredPlayersPerMatch));
+        if (needed <= 0) return { matches: [], reason: `Pemain hadir & aktif tidak cukup. Butuh minimal ${requiredPlayersPerMatch} pemain, tersedia ${eligible.length}.` };
+
+        const localPartnerRepeats = (team) => {
+            let count = 0;
+            for (let i = 0; i < team.length; i++) for (let j = i + 1; j < team.length; j++) {
+                const ref = view.players.find(x => x.id === team[i].id);
+                if (ref?.lastPartners?.includes(team[j].id)) count++;
+            }
+            return count;
+        };
+        const localOpponentRepeats = (teamA, teamB) => {
+            let count = 0;
+            teamA.forEach(pa => {
+                const ref = view.players.find(x => x.id === pa.id);
+                if (!ref?.lastOpponents) return;
+                teamB.forEach(pb => { if (ref.lastOpponents.includes(pb.id)) count++; });
+            });
+            return count;
+        };
+        const localRecordPartners = (team) => team.forEach(p => {
+            const ref = view.players.find(x => x.id === p.id);
+            if (!ref) return;
+            ref.lastPartners = [...team.filter(x => x.id !== p.id).map(x => x.id), ...(ref.lastPartners || [])].filter((v,i,a) => a.indexOf(v) === i).slice(0,3);
+        });
+        const localRecordOpponents = (teamA, teamB) => {
+            teamA.forEach(p => {
+                const ref = view.players.find(x => x.id === p.id); if (!ref) return;
+                ref.lastOpponents = [...teamB.map(x => x.id), ...(ref.lastOpponents || [])].filter((v,i,a) => a.indexOf(v) === i).slice(0,4);
+            });
+            teamB.forEach(p => {
+                const ref = view.players.find(x => x.id === p.id); if (!ref) return;
+                ref.lastOpponents = [...teamA.map(x => x.id), ...(ref.lastOpponents || [])].filter((v,i,a) => a.indexOf(v) === i).slice(0,4);
+            });
+        };
+
+        const work = [...eligible];
+        const generatedMatches = [];
+        const rounds = [...(view.activeMatches || []), ...(view.matchesHistory || [])].map(m => Number(m.round || 0));
+        const round = rounds.length ? Math.max(...rounds) + 1 : 1;
+
+        for (let c = 0; c < needed; c++) {
+            if (work.length < requiredPlayersPerMatch) break;
+            const minPlayed = Math.min(...work.map(p => Number(p.stats?.played || 0)));
+            const tierPlayers = work.filter(p => Number(p.stats?.played || 0) <= minPlayed + 1);
+            const candidatePool = tierPlayers.length >= requiredPlayersPerMatch
+                ? tierPlayers
+                : work.slice(0, Math.max(requiredPlayersPerMatch, tierPlayers.length));
+
+            let bestGroup = null, bestTeams = null, bestScore = Infinity;
+            for (let attempt = 0; attempt < 180; attempt++) {
+                const group = shuffleArray(candidatePool).slice(0, requiredPlayersPerMatch);
+                const balanced = findBalancedTeams(group, teamSize);
+                if (!balanced || balanced.diff > 1) continue;
+                const partnerRepeats = localPartnerRepeats(balanced.teamA) + localPartnerRepeats(balanced.teamB);
+                const opponentRepeats = localOpponentRepeats(balanced.teamA, balanced.teamB);
+                const playedPenalty = group.reduce((sum,p) => sum + Number(p.stats?.played || 0), 0);
+                const score = partnerRepeats * 80 + opponentRepeats * 50 + playedPenalty * .05 + balanced.diff * 5 + Math.random();
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestGroup = group;
+                    bestTeams = balanced;
+                    if (partnerRepeats === 0 && opponentRepeats === 0 && balanced.diff === 0) break;
+                }
+            }
+            if (!bestGroup || !bestTeams) break;
+
+            const { teamA, teamB } = bestTeams;
+            work.splice(0, work.length, ...work.filter(p => !bestGroup.some(g => g.id === p.id)));
+            const match = {
+                id: Date.now().toString() + '-' + c + '-' + Math.random().toString(36).slice(2,7),
+                round,
+                courtName: `Lapangan ${c + 1}`,
+                teamA: teamA.map(p => ({...cloneJSON(p), matchPoints:0, matchOuts:0, matchFaults:0})),
+                teamB: teamB.map(p => ({...cloneJSON(p), matchPoints:0, matchOuts:0, matchFaults:0})),
+                scoreA:0, scoreB:0, time:0, isRunning:false
+            };
+            generatedMatches.push(match);
+            bestGroup.forEach(p => { const ref = view.players.find(x => x.id === p.id); if (ref) ref.status = 'playing'; });
+            localRecordPartners(teamA); localRecordPartners(teamB); localRecordOpponents(teamA, teamB);
+        }
+
+        if (!generatedMatches.length) return { matches: [], reason: 'Belum bisa membuat kombinasi level yang seimbang. Selisih total level tim maksimal 1. Coba tambah pemain dari level yang sesuai.' };
+        return { matches: generatedMatches, reason: '' };
+    }
+
     async function generateMatches(options = {}) {
         const teamSize = parseInt(document.getElementById('playersPerTeam').value) || 2;
         const maxCourts = parseInt(document.getElementById('totalCourts').value) || 1;
-        const requiredPlayersPerMatch = teamSize * 2;
         const ev = activeEvent();
         if (!ev || ev.mode !== 'match') { if(!options.auto) alert('Pilih event Round Mix terlebih dahulu.'); return false; }
         if (ev.status === 'finished') { if(!options.auto) alert('Event sudah selesai. Buka kembali event terlebih dahulu.'); return false; }
@@ -2951,71 +3173,19 @@
         }
 
         ensureEventAttendance(ev, true);
-        let eligible = players.filter(p => p.status === 'active' && ev.attendance[p.id])
-            .sort((a,b) => (a.stats.played||0) - (b.stats.played||0));
-
-        const needed = Math.min(maxCourts, Math.floor(eligible.length / requiredPlayersPerMatch));
-        if (needed <= 0) {
-            if(!options.auto) alert(`Pemain hadir & aktif tidak cukup. Butuh minimal ${requiredPlayersPerMatch} pemain, tersedia ${eligible.length}.`);
-            return false;
-        }
-
-        const generatedMatches = [];
-        const round = nextRoundNumber();
-        for(let c=0;c<needed;c++) {
-            if(eligible.length < requiredPlayersPerMatch) break;
-            const minPlayed = Math.min(...eligible.map(p => Number(p.stats?.played || 0)));
-            const tierPlayers = eligible.filter(p => Number(p.stats?.played || 0) <= minPlayed + 1);
-            const candidatePool = tierPlayers.length >= requiredPlayersPerMatch ? tierPlayers : eligible.slice(0, Math.max(requiredPlayersPerMatch, tierPlayers.length));
-            let bestGroup=null,bestTeams=null,bestScore=Infinity;
-
-            for(let attempt=0;attempt<180;attempt++) {
-                const group=shuffleArray(candidatePool).slice(0,requiredPlayersPerMatch);
-                const balanced=findBalancedTeams(group,teamSize);
-                if(!balanced || balanced.diff>1) continue;
-                const partnerRepeats=countRecentPartnerRepeats(balanced.teamA)+countRecentPartnerRepeats(balanced.teamB);
-                const opponentRepeats=countRecentOpponentRepeats(balanced.teamA,balanced.teamB);
-                const playedPenalty=group.reduce((sum,p)=>sum+Number(p.stats?.played||0),0);
-                const score=partnerRepeats*80+opponentRepeats*50+playedPenalty*.05+balanced.diff*5+Math.random();
-                if(score<bestScore){ bestScore=score; bestGroup=group; bestTeams=balanced; if(partnerRepeats===0&&opponentRepeats===0&&balanced.diff===0) break; }
-            }
-            if(!bestGroup || !bestTeams) break;
-            const {teamA,teamB}=bestTeams;
-            eligible=eligible.filter(p=>!bestGroup.some(g=>g.id===p.id));
-            [...teamA,...teamB].forEach(p=>{ const ref=players.find(x=>x.id===p.id); if(ref) ref.status='playing'; });
-            recordPartners(teamA); recordPartners(teamB); recordOpponents(teamA,teamB);
-            generatedMatches.push({
-                id: Date.now().toString()+'-'+c+'-'+Math.random().toString(36).slice(2,7),
-                round, courtName:`Lapangan ${c+1}`,
-                teamA:teamA.map(p=>({...p,matchPoints:0,matchOuts:0,matchFaults:0})),
-                teamB:teamB.map(p=>({...p,matchPoints:0,matchOuts:0,matchFaults:0})),
-                scoreA:0,scoreB:0,time:0,isRunning:false
-            });
-        }
-        if(!generatedMatches.length) {
-            if(!options.auto) alert('Belum bisa membuat kombinasi level yang seimbang. Selisih total level tim maksimal 1. Coba tambah pemain dari level yang sesuai.');
-            return false;
-        }
-
-        // Commit satu ronde sebagai satu operasi atomik di server.
-        const ok=await safeRoundMixMutation(view=>{
-            const added=cloneJSON(generatedMatches);
-            view.activeMatches.push(...added);
-            added.forEach(m=>{
-                [...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{ const ref=view.players.find(x=>x.id===mp.id); if(ref) ref.status='playing'; });
-            });
+        const ok = await safeRoundMixMutation(view => {
+            const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
+            if (!result.matches.length) return false;
+            view.activeMatches.push(...result.matches);
             rebuildRotationForView(view);
             return true;
         });
-        if(!ok){
-            generatedMatches.forEach(m=>[...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{const ref=players.find(p=>p.id===mp.id);if(ref)ref.status='active';}));
-            renderQueue();
-            if(!options.auto) alert('Gagal menyimpan ronde baru ke server. Data lokal tidak dihapus. Coba generate lagi.');
+        if (!ok) {
+            if (!options.auto) alert('Gagal membuat / menyimpan ronde baru. Pastikan pemain hadir dan kombinasi level memungkinkan, lalu coba lagi.');
             return false;
         }
         return true;
     }
-
 
     // --- Kontrol Pertandingan ---
     function updateScore(matchId, team, playerIdx, type, isMinus) {
@@ -3077,21 +3247,13 @@
             }
         }
 
-        // Simpan perubahan yang sama di atas data TERBARU server.
-        queueScoreOp(async () => {
-            const ok = await safeApplyToServer(row => {
-                const m = (row.active_matches || []).find(x => x.id === matchId);
-                if(!m) return false;
-                const p = m[team] && m[team][playerIdx];
-                return applyScoreChange(m, p);
-            });
-
-            if(ok) {
-                renderCourts();
-                if(window.scoreDashboardOpen) renderScoreDashboard(matchId);
-            } else {
-                await handleScoreSaveFailure(renderCourts);
-            }
+        // Simpan perubahan di atas data TERBARU server. queueScoreOp akan
+        // menggabungkan klik-klik cepat menjadi satu transaksi.
+        queueScoreOp(row => {
+            const m = (row.active_matches || []).find(x => x.id === matchId);
+            if(!m) return false;
+            const p = m[team] && m[team][playerIdx];
+            return applyScoreChange(m, p);
         });
     }
 
@@ -3331,52 +3493,90 @@
     }
 
     async function finishMatch(matchId, isSkip = false) {
-        const localMatch = activeMatches.find(m=>m.id===matchId);
-        if(!localMatch) return;
+        const localMatch = activeMatches.find(m => m.id === matchId);
+        if (!localMatch) return;
         clearInterval(timers[matchId]);
 
+        const teamSize = parseInt(document.getElementById('playersPerTeam')?.value) || 2;
+        const maxCourts = parseInt(document.getElementById('totalCourts')?.value) || 1;
+        let generatedNextRound = 0;
+
+        // Selesaikan match + (jika ini match terakhir di ronde) generate ronde berikutnya
+        // dalam SATU transaksi logis ke server. Ini menghilangkan delay dua kali save.
         const ok = await safeRoundMixMutation(view => {
-            const match = view.activeMatches.find(m=>m.id===matchId);
-            if(!match) return false;
+            const match = view.activeMatches.find(m => m.id === matchId);
+            if (!match) return false;
+
             const winner = match.scoreA > match.scoreB ? 'A' : (match.scoreB > match.scoreA ? 'B' : 'Draw');
             const fee = parseInt(view.financeSettings.payPerPlay) || 0;
-            if(!isSkip){
-                const update = (mp,team) => {
-                    const ref=view.players.find(x=>x.id===mp.id);
-                    if(!ref) return;
-                    if(!ref.stats) ref.stats={played:0,wins:0,points:0,out:0,fault:0,errors:0};
-                    ref.stats.played=Number(ref.stats.played||0)+1;
-                    ref.stats.points=Number(ref.stats.points||0)+Number(mp.matchPoints||0);
-                    ref.stats.out=Number(ref.stats.out||0)+Number(mp.matchOuts||0);
-                    ref.stats.fault=Number(ref.stats.fault||0)+Number(mp.matchFaults||0);
-                    ref.stats.errors=Number(ref.stats.out||0)+Number(ref.stats.fault||0);
-                    if(winner===team) ref.stats.wins=Number(ref.stats.wins||0)+1;
-                    ref.status='active';
-                    if(fee>0){
-                        ref.deposit=Number(ref.deposit||0)-fee;
-                        view.financeTransactions.push({id:Date.now().toString()+Math.random().toString().slice(2,5),date:new Date().toLocaleString('id-ID'),playerId:ref.id,playerName:ref.name,type:'out',amount:fee,desc:`Otomatis Match (${match.courtName})`});
+
+            if (!isSkip) {
+                const update = (mp, team) => {
+                    const ref = view.players.find(x => x.id === mp.id);
+                    if (!ref) return;
+                    if (!ref.stats) ref.stats = {played:0,wins:0,points:0,out:0,fault:0,errors:0};
+                    ref.stats.played = Number(ref.stats.played||0) + 1;
+                    ref.stats.points = Number(ref.stats.points||0) + Number(mp.matchPoints||0);
+                    ref.stats.out = Number(ref.stats.out||0) + Number(mp.matchOuts||0);
+                    ref.stats.fault = Number(ref.stats.fault||0) + Number(mp.matchFaults||0);
+                    ref.stats.errors = Number(ref.stats.out||0) + Number(ref.stats.fault||0);
+                    if (winner === team) ref.stats.wins = Number(ref.stats.wins||0) + 1;
+                    ref.status = 'active';
+                    if (fee > 0) {
+                        ref.deposit = Number(ref.deposit||0) - fee;
+                        view.financeTransactions.push({
+                            id: Date.now().toString()+Math.random().toString().slice(2,5),
+                            date: new Date().toLocaleString('id-ID'),
+                            playerId: ref.id,
+                            playerName: ref.name,
+                            type: 'out',
+                            amount: fee,
+                            desc: `Otomatis Match (${match.courtName})`
+                        });
                     }
                 };
-                (match.teamA||[]).forEach(p=>update(p,'A')); (match.teamB||[]).forEach(p=>update(p,'B'));
-                view.matchesHistory.push({...cloneJSON(match),finishedAt:new Date().toISOString()});
+                (match.teamA||[]).forEach(p => update(p,'A'));
+                (match.teamB||[]).forEach(p => update(p,'B'));
+                view.matchesHistory.push({...cloneJSON(match), finishedAt:new Date().toISOString()});
             }
-            (match.teamA||[]).concat(match.teamB||[]).forEach(mp=>{const ref=view.players.find(p=>p.id===mp.id);if(ref)ref.status='active';});
-            view.activeMatches=view.activeMatches.filter(m=>m.id!==matchId);
-            view.activeMatches.forEach((m,i)=>m.courtName=`Lapangan ${i+1}`);
+
+            (match.teamA||[]).concat(match.teamB||[]).forEach(mp => {
+                const ref = view.players.find(p => p.id === mp.id);
+                if (ref) ref.status = 'active';
+            });
+            view.activeMatches = view.activeMatches.filter(m => m.id !== matchId);
+            view.activeMatches.forEach((m,i) => m.courtName = `Lapangan ${i+1}`);
+
+            // Kalau ini match terakhir pada ronde, langsung bentuk ronde berikutnya
+            // dari data yang BARU saja dihitung. Tidak perlu request kedua.
+            if (view.activeMatches.length === 0) {
+                rebuildRotationForView(view);
+                const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
+                if (result.matches.length) {
+                    view.activeMatches.push(...result.matches);
+                    generatedNextRound = result.matches.length;
+                    rebuildRotationForView(view);
+                }
+            } else {
+                rebuildRotationForView(view);
+            }
             return true;
         });
-        if(!ok){ alert('Match belum berhasil diselesaikan di server. Data di layar tidak dihapus, silakan coba lagi.'); return; }
 
-        const stillActive=activeMatches.length>0;
-        if(window.scoreDashboardOpen && window.scoreDashboardMatchId===matchId) closeScoreDashboard();
-        renderCourts(); renderQueue(); renderStandings(); renderHistory();
-
-        if(!stillActive){
-            // Semua lapangan pada ronde ini sudah selesai -> otomatis buat ronde berikutnya.
-            setTimeout(()=>generateMatches({auto:true}),100);
+        if (!ok) {
+            markSyncError('Match belum tersimpan. Jangan refresh dulu, lalu coba Selesaikan Match lagi.');
+            return false;
         }
-    }
 
+        if (window.scoreDashboardOpen && window.scoreDashboardMatchId === matchId) closeScoreDashboard();
+        renderCourts(); renderQueue(); renderStandings(); renderHistory();
+        if (generatedNextRound > 0) {
+            markSyncSuccess(`Ronde berikutnya otomatis dibuat (${generatedNextRound} match).`);
+        } else {
+            markSyncSuccess('Match selesai dan data tersimpan. Belum ada ronde berikutnya karena pemain belum cukup / kombinasi level belum memenuhi.');
+        }
+        return true;
+    }
 
 
     // ================= DASHBOARD UPDATE SKOR TERPISAH =================
@@ -3404,6 +3604,7 @@
 
     function closeScoreDashboard() {
         window.scoreDashboardOpen = false;
+        window.scoreDashboardMatchId = null;
         window.scoreDashboardMatchId = null;
 
         const dashboard = document.getElementById('scoreDashboard');
