@@ -5873,22 +5873,62 @@ async function generateBestPartnerStoryCard() {
         `;
     }
 
-    // Jalankan aplikasi saat load: tampilkan splash screen animasi dulu,
-    // sambil ambil data bersama dari Supabase, lalu masuk ke aplikasi & dengarkan realtime
-    window.onload = async function() {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Inisialisasi lebih cepat di mobile: jangan menunggu window.onload / semua asset selesai.
+    // Splash hanya minimum 500ms, tetapi tetap menunggu data awal Supabase sebelum membuka app.
+    let appBooted = false;
+    async function bootApp() {
+        if (appBooted) return;
+        appBooted = true;
 
-        const minSplashTime = new Promise(resolve => setTimeout(resolve, 2200));
-        await Promise.all([loadState(), minSplashTime]);
-        init();
-        subscribeRealtime();
+        // Pastikan library Supabase sudah tersedia. Karena script memakai defer, biasanya sudah siap
+        // saat DOMContentLoaded. Jika CDN lambat, tunggu sebentar tanpa membuat browser terasa hang.
+        for (let i = 0; i < 50 && !window.supabase; i++) {
+            await new Promise(r => setTimeout(r, 100));
+        }
 
         const splash = document.getElementById('splashScreen');
-        if (splash) {
-            splash.classList.add('hide');
-            setTimeout(() => splash.remove(), 700);
+        if (!window.supabase) {
+            console.error('Supabase library belum termuat.');
+            if (splash) {
+                const msg = splash.querySelector('.splash-loading');
+                if (msg) msg.textContent = 'Gagal memuat koneksi. Coba refresh.';
+            }
+            appBooted = false;
+            return;
         }
-    };
+
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const startedAt = Date.now();
+        try {
+            await loadState();
+        } catch (err) {
+            console.error('Boot/loadState gagal:', err);
+        }
+
+        // Beri sedikit waktu agar splash tidak berkedip, tapi jangan lagi menunggu 2.2 detik.
+        const elapsed = Date.now() - startedAt;
+        if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
+
+        if (stateLoaded) {
+            init();
+            subscribeRealtime();
+            if (splash) {
+                splash.classList.add('hide');
+                setTimeout(() => splash.remove(), 400);
+            }
+        } else if (splash) {
+            const msg = splash.querySelector('.splash-loading');
+            if (msg) msg.textContent = 'Belum tersambung ke server. Coba refresh.';
+            appBooted = false;
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootApp, { once: true });
+    } else {
+        bootApp();
+    }
 </script>
 </body>
 </html>
