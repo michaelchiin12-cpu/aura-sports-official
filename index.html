@@ -535,7 +535,9 @@
 }
 
         /* ================= PIC ================= */
-        .pic-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:16px}.pic-card{background:var(--bg-main);border:1px solid var(--border);border-radius:12px;padding:16px}.pic-card-head{display:flex;align-items:center;gap:12px}.pic-icon{width:42px;height:42px;border-radius:10px;background:rgba(200,159,76,.1);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0}.pic-role{font-weight:800;color:var(--primary);font-size:.95rem}.pic-person{font-weight:700;margin-top:3px}.pic-desc{color:var(--text-muted);font-size:.82rem;line-height:1.5;margin:12px 0}.pic-assign-btn{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);font-weight:700;cursor:pointer}.pic-assign-btn:hover{border-color:var(--primary);color:var(--primary)}.pic-note{margin-top:16px;padding:12px;border:1px dashed var(--border);border-radius:10px;color:var(--text-muted);font-size:.82rem;line-height:1.5}@media(max-width:600px){.pic-grid{grid-template-columns:1fr}}
+        .pic-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:16px}
+        .pic-toolbar{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin-top:16px}.pic-summary{min-width:130px;background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column}.pic-summary strong{font-size:1.15rem;color:var(--primary)}.pic-summary span{font-size:.75rem;color:var(--text-muted)}.pic-add-btn{margin-left:auto;padding:10px 14px;border:1px solid var(--primary);border-radius:9px;background:var(--primary);color:#111;font-weight:800;cursor:pointer}.pic-card-actions{display:grid;grid-template-columns:1fr auto auto;gap:6px}.pic-edit-btn,.pic-delete-btn{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);font-weight:700;cursor:pointer}.pic-delete-btn{color:#ff6b6b}.pic-editor-modal label{display:block;font-size:.78rem;color:var(--text-muted);margin:9px 0 5px}.pic-editor-modal input,.pic-editor-modal textarea,.pic-editor-modal select{width:100%;margin:0}.pic-editor-modal textarea{resize:vertical}
+.pic-card{background:var(--bg-main);border:1px solid var(--border);border-radius:12px;padding:16px}.pic-card-head{display:flex;align-items:center;gap:12px}.pic-icon{width:42px;height:42px;border-radius:10px;background:rgba(200,159,76,.1);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0}.pic-role{font-weight:800;color:var(--primary);font-size:.95rem}.pic-person{font-weight:700;margin-top:3px}.pic-desc{color:var(--text-muted);font-size:.82rem;line-height:1.5;margin:12px 0}.pic-assign-btn{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);font-weight:700;cursor:pointer}.pic-assign-btn:hover{border-color:var(--primary);color:var(--primary)}.pic-note{margin-top:16px;padding:12px;border:1px dashed var(--border);border-radius:10px;color:var(--text-muted);font-size:.82rem;line-height:1.5}@media(max-width:600px){.pic-grid{grid-template-columns:1fr}}
 .pic-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:10001;padding:18px}.pic-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:100%;max-width:430px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.55)}.pic-modal h3{margin:0 0 6px;color:var(--primary)}.pic-modal p{font-size:.82rem;color:var(--text-muted);margin:0 0 14px}.pic-modal select{width:100%;margin:0 0 14px}.pic-modal-actions{display:flex;gap:8px}.pic-modal-actions button{flex:1}
 </style>
 </head>
@@ -1273,20 +1275,112 @@
     </div>
 
 <script>
-function getPicDefinitions(){return [
+function getDefaultPicDefinitions(){return [
 {id:'ketua',icon:'👑',title:'Ketua Team',desc:'Mengkoordinasikan seluruh team dan mengambil keputusan utama.'},
 {id:'keuangan',icon:'💰',title:'Keuangan',desc:'Nagih uang + payment dan memastikan pembayaran tercatat.'},
 {id:'operasional',icon:'🏸',title:'Operasional + Perlengkapan',desc:'Cari jadwal, cari lapangan, dan siapin perlengkapan main.'},
 {id:'p3k',icon:'🩹',title:'PIC P3K',desc:'Menyiapkan dan memastikan perlengkapan P3K tersedia saat kegiatan.'},
 {id:'lapangan',icon:'📋',title:'PIC Lapangan',desc:'Mengatur point di samping lapangan dan membantu koordinasi pergantian pemain.'},
 {id:'dokumentasi',icon:'📸',title:'PIC Dokumentasi',desc:'Dokumentasi gameplay, foto keluarga internal maupun mabar.'},
-{id:'hospitality',icon:'🤝',title:'PIC Hospitality',desc:'Menyambut dan menemani orang baru yang datang sendiri saat mabar agar tidak merasa sendirian.'},
-{id:'medsos',icon:'📱',title:'PIC Medsos',desc:'Publikasi hasil dokumentasi ke media sosial.'}];}
-function ensurePicRegistry(){if(!eventRegistry||typeof eventRegistry!=='object')eventRegistry={activeEventId:null,events:[]};if(!eventRegistry.picAssignments||typeof eventRegistry.picAssignments!=='object')eventRegistry.picAssignments={};}
-function renderPicTab(){ensurePicRegistry();const el=document.getElementById('picContent');if(!el)return;const defs=getPicDefinitions();const assigned={};defs.forEach(d=>{const id=eventRegistry.picAssignments[d.id];if(id)assigned[id]=(assigned[id]||0)+1;});el.innerHTML=`<div class="pic-grid">${defs.map(d=>{const id=eventRegistry.picAssignments[d.id];const p=(players||[]).find(x=>x.id===id);return `<div class="pic-card"><div class="pic-card-head"><div class="pic-icon">${d.icon}</div><div><div class="pic-role">${d.title}</div><div class="pic-person">${p?p.name:'Belum ada PIC'}</div></div></div><div class="pic-desc">${d.desc}</div><button class="pic-assign-btn" type="button" onclick="openPicAssign('${d.id}')">${p?'✏️ Ubah PIC':'＋ Assign PIC'}</button></div>`;}).join('')}</div><div class="pic-note"><strong>Catatan:</strong> Satu orang boleh memegang lebih dari satu PIC. PIC mengambil nama dari data Member, sehingga tidak membuat data member baru.</div>`;}
-function openPicAssign(roleId){ensurePicRegistry();const d=getPicDefinitions().find(x=>x.id===roleId);if(!d)return;const current=eventRegistry.picAssignments[roleId]||'';const opts=(players||[]).filter(p=>p&&p.name).sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');const ov=document.createElement('div');ov.className='pic-modal-overlay';ov.id='picAssignOverlay';ov.innerHTML=`<div class="pic-modal"><h3>${d.icon} ${d.title}</h3><p>Pilih penanggung jawab dari Data Member. Satu member boleh memegang lebih dari satu PIC.</p><select id="picAssignSelect"><option value="">Belum ada PIC</option>${opts}</select><div class="pic-modal-actions"><button type="button" onclick="closePicAssign()">Batal</button><button type="button" onclick="savePicAssignment('${roleId}')">Simpan</button></div></div>`;document.body.appendChild(ov);const sel=document.getElementById('picAssignSelect');if(sel)sel.value=current;}
+{id:'hospitality',icon:'🤝',title:'PIC Hospitality',desc:'Menyambut dan menemani orang baru yang datang sendiri saat mabar agar tidak merasa sendirian. Tidak perlu deep talk, cukup basa-basi dan ajak berbaur.'},
+{id:'medsos',icon:'📱',title:'PIC Medsos',desc:'Publikasi hasil dokumentasi ke media sosial.'}
+];}
+function getPicDefinitions(){
+    ensurePicRegistry();
+    return eventRegistry.picRoles.map(x=>({...x}));
+}
+function ensurePicRegistry(){
+    if(!eventRegistry||typeof eventRegistry!=='object') eventRegistry={activeEventId:null,events:[]};
+    if(!Array.isArray(eventRegistry.picRoles)||!eventRegistry.picRoles.length) eventRegistry.picRoles=getDefaultPicDefinitions();
+    if(!eventRegistry.picAssignments||typeof eventRegistry.picAssignments!=='object') eventRegistry.picAssignments={};
+    // Default PIC yang sudah ditentukan user. Hanya diisi jika belum pernah ada assignment.
+    const findMemberId = name => (players||[]).find(p=>String(p.name||'').trim().toLowerCase()===name.toLowerCase())?.id || null;
+    if(eventRegistry.picAssignments.ketua===undefined) eventRegistry.picAssignments.ketua=findMemberId('Michael');
+    if(eventRegistry.picAssignments.keuangan===undefined) eventRegistry.picAssignments.keuangan=findMemberId('Michael');
+    if(eventRegistry.picAssignments.operasional===undefined) eventRegistry.picAssignments.operasional=findMemberId('Julius');
+}
+function picEscape(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function renderPicTab(){
+    ensurePicRegistry();
+    const el=document.getElementById('picContent'); if(!el)return;
+    const defs=getPicDefinitions();
+    const counts={}; defs.forEach(d=>{const id=eventRegistry.picAssignments[d.id];if(id)counts[id]=(counts[id]||0)+1;});
+    const assignedPeople=Object.entries(counts).map(([id,count])=>({p:(players||[]).find(x=>x.id===id),count})).filter(x=>x.p);
+    el.innerHTML=`
+      <div class="pic-toolbar">
+        <div class="pic-summary"><strong>${defs.length}</strong><span>Posisi PIC</span></div>
+        <div class="pic-summary"><strong>${assignedPeople.length}</strong><span>Member menjadi PIC</span></div>
+        <div class="pic-summary"><strong>${defs.filter(d=>eventRegistry.picAssignments[d.id]).length}</strong><span>Posisi terisi</span></div>
+        <button class="pic-add-btn" type="button" onclick="openPicEditor()">＋ Tambah Divisi</button>
+      </div>
+      <div class="pic-grid">
+        ${defs.map(d=>{
+          const id=eventRegistry.picAssignments[d.id];
+          const person=(players||[]).find(x=>x.id===id);
+          return `<div class="pic-card">
+            <div class="pic-card-head"><div class="pic-icon">${picEscape(d.icon)}</div><div><div class="pic-role">${picEscape(d.title)}</div><div class="pic-person">${person?picEscape(person.name):'Belum ada PIC'}</div></div></div>
+            <div class="pic-desc">${picEscape(d.desc)}</div>
+            <div class="pic-card-actions">
+              <button class="pic-assign-btn" type="button" onclick="openPicAssign('${picEscape(d.id)}')">${person?'👤 Ganti PIC':'＋ Assign PIC'}</button>
+              <button class="pic-edit-btn" type="button" onclick="openPicEditor('${picEscape(d.id)}')">✏️ Ubah Divisi</button>
+              <button class="pic-delete-btn" type="button" onclick="deletePicRole('${picEscape(d.id)}')">🗑️</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="pic-note"><strong>Catatan:</strong> Satu orang boleh memegang lebih dari satu PIC. PIC mengambil nama dari Data Member, sehingga tidak membuat data member baru. Mengubah data Member tidak memutus hubungan PIC karena yang disimpan adalah ID member.</div>`;
+}
+function openPicAssign(roleId){
+    ensurePicRegistry(); const d=getPicDefinitions().find(x=>x.id===roleId); if(!d)return;
+    const current=eventRegistry.picAssignments[roleId]||'';
+    const opts=(players||[]).filter(p=>p&&p.name).sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${picEscape(p.id)}">${picEscape(p.name)}</option>`).join('');
+    const ov=document.createElement('div'); ov.className='pic-modal-overlay'; ov.id='picAssignOverlay';
+    ov.innerHTML=`<div class="pic-modal"><h3>${picEscape(d.icon)} ${picEscape(d.title)}</h3><p>Pilih penanggung jawab dari Data Member. Satu member boleh memegang lebih dari satu PIC.</p><select id="picAssignSelect"><option value="">Belum ada PIC</option>${opts}</select><div class="pic-modal-actions"><button type="button" onclick="closePicAssign()">Batal</button><button type="button" onclick="savePicAssignment('${picEscape(roleId)}')">Simpan</button></div></div>`;
+    document.body.appendChild(ov); const sel=document.getElementById('picAssignSelect'); if(sel)sel.value=current;
+}
 function closePicAssign(){document.getElementById('picAssignOverlay')?.remove();}
-async function savePicAssignment(roleId){ensurePicRegistry();const sel=document.getElementById('picAssignSelect');if(!sel)return;eventRegistry.picAssignments[roleId]=sel.value||null;closePicAssign();renderPicTab();const ok=await saveData();if(!ok)markSyncError();}
+async function savePicAssignment(roleId){
+    ensurePicRegistry(); const sel=document.getElementById('picAssignSelect'); if(!sel)return;
+    eventRegistry.picAssignments[roleId]=sel.value||null; closePicAssign(); renderPicTab();
+    const ok=await saveData(); if(!ok)markSyncError();
+}
+function openPicEditor(roleId=''){
+    ensurePicRegistry(); const d=getPicDefinitions().find(x=>x.id===roleId) || {id:'',icon:'👤',title:'',desc:''};
+    const opts=(players||[]).filter(p=>p&&p.name).sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${picEscape(p.id)}">${picEscape(p.name)}</option>`).join('');
+    const current=roleId ? (eventRegistry.picAssignments[roleId]||'') : '';
+    const ov=document.createElement('div'); ov.className='pic-modal-overlay'; ov.id='picEditorOverlay';
+    ov.innerHTML=`<div class="pic-modal pic-editor-modal">
+      <h3>${roleId?'✏️ Ubah Divisi / PIC':'＋ Tambah Divisi'}</h3>
+      <label>Icon</label><input id="picEditIcon" value="${picEscape(d.icon)}" maxlength="4" placeholder="👤">
+      <label>Nama Divisi / Posisi</label><input id="picEditTitle" value="${picEscape(d.title)}" placeholder="Contoh: PIC Konsumsi / PIC Transportasi">
+      <label>Keterangan / Tanggung Jawab</label><textarea id="picEditDesc" rows="4" placeholder="Jelaskan keterangan dan tanggung jawab divisi ini...">${picEscape(d.desc)}</textarea>
+      <label>Penanggung Jawab</label><select id="picEditPerson"><option value="">Belum ada PIC</option>${opts}</select>
+      <div class="pic-modal-actions"><button type="button" onclick="closePicEditor()">Batal</button><button type="button" onclick="savePicEditor('${picEscape(roleId)}')">Simpan</button></div>
+    </div>`;
+    document.body.appendChild(ov);
+    const sel=document.getElementById('picEditPerson'); if(sel)sel.value=current;
+}
+function closePicEditor(){document.getElementById('picEditorOverlay')?.remove();}
+async function savePicEditor(roleId=''){
+    ensurePicRegistry();
+    const icon=(document.getElementById('picEditIcon')?.value||'👤').trim();
+    const title=(document.getElementById('picEditTitle')?.value||'').trim();
+    const desc=(document.getElementById('picEditDesc')?.value||'').trim();
+    const person=document.getElementById('picEditPerson')?.value||null;
+    if(!title){alert('Nama divisi / posisi wajib diisi.');return;}
+    if(!desc){alert('Keterangan / tanggung jawab wajib diisi.');return;}
+    let id=roleId;
+    if(!id){id='pic-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);eventRegistry.picRoles.push({id,icon,title,desc});}
+    else {const d=eventRegistry.picRoles.find(x=>x.id===id);if(!d)return;d.icon=icon;d.title=title;d.desc=desc;}
+    eventRegistry.picAssignments[id]=person; closePicEditor(); renderPicTab();
+    const ok=await saveData(); if(!ok)markSyncError();
+}
+async function deletePicRole(roleId){
+    ensurePicRegistry(); const d=eventRegistry.picRoles.find(x=>x.id===roleId); if(!d)return;
+    if(!confirm(`Hapus posisi PIC "${d.title}"?\n\nAssignment PIC untuk posisi ini juga akan dihapus.`))return;
+    eventRegistry.picRoles=eventRegistry.picRoles.filter(x=>x.id!==roleId); delete eventRegistry.picAssignments[roleId];
+    renderPicTab(); const ok=await saveData(); if(!ok)markSyncError();
+}
 
 
     // ================= KONEKSI SUPABASE (Data Bersama + Realtime) =================
@@ -2482,6 +2576,7 @@ async function savePicAssignment(roleId){ensurePicRegistry();const sel=document.
             currentEventMode = tabName;
             renderEventManager(tabName);
         }
+        if (tabName === 'pic') renderPicTab();
     }
 
     // --- Fitur Pemain ---
