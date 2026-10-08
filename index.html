@@ -2249,8 +2249,8 @@
             settings.__eventRegistry=cloneJSON(reg);
             let q=supabaseClient.from('sport_manager_state').update(patch).eq('id',STATE_ROW_ID);
             q=(fresh.updated_at==null)?q.is('updated_at',null):q.eq('updated_at',fresh.updated_at);
-            const {error:updErr}=await q;
-            if(!updErr&&upd?.length){
+            const {data:updData,error:updErr}=await q.select('id');
+            if(!updErr&&updData?.length){
                 players=cloneJSON(view.players);matchesHistory=cloneJSON(view.matchesHistory);activeMatches=cloneJSON(view.activeMatches);financeTransactions=cloneJSON(view.financeTransactions);financeSettings=cloneJSON(view.financeSettings);rrTeams=cloneJSON(view.rrTeams);rrMatches=cloneJSON(view.rrMatches);rrSettings=cloneJSON(view.rrSettings);rrPhase=view.rrPhase;rrBracket=cloneJSON(view.rrBracket);eventRegistry=reg;eventRegistry.activeEventId=ev.id;
                 lastSyncedRow={...fresh,...patch};
                 markSyncSuccess();
@@ -3615,7 +3615,7 @@
                 };
                 (match.teamA||[]).forEach(p => update(p,'A'));
                 (match.teamB||[]).forEach(p => update(p,'B'));
-                view.matchesHistory.push({...cloneJSON(match), finishedAt:new Date().toISOString()});
+                view.matchesHistory.push({...cloneJSON(match), finishedAt:new Date().toISOString(), matchFee: fee});
             }
 
             (match.teamA||[]).concat(match.teamB||[]).forEach(mp => {
@@ -4213,6 +4213,149 @@ function togglePlayerActions(button) {
     }).join('');
 }
 
+    // ============================================================
+    // AKSI RIWAYAT PERTANDINGAN
+    // ============================================================
+    async function editHistoryMatch(matchId) {
+        const match = matchesHistory.find(m => m.id === matchId);
+        if (!match) return;
+
+        const scoreA = prompt(`Edit skor TIM A\n\n${(match.teamA||[]).map(p=>p.name).join(' & ')}\n\nMasukkan skor baru:`, String(Number(match.scoreA)||0));
+        if (scoreA === null) return;
+        const scoreB = prompt(`Edit skor TIM B\n\n${(match.teamB||[]).map(p=>p.name).join(' & ')}\n\nMasukkan skor baru:`, String(Number(match.scoreB)||0));
+        if (scoreB === null) return;
+
+        const a = Math.max(0, parseInt(scoreA, 10));
+        const b = Math.max(0, parseInt(scoreB, 10));
+        if (!Number.isFinite(a) || !Number.isFinite(b)) {
+            alert('Skor harus berupa angka.');
+            return;
+        }
+
+        const oldWinner = Number(match.scoreA) > Number(match.scoreB) ? 'A' : (Number(match.scoreB) > Number(match.scoreA) ? 'B' : 'Draw');
+        const newWinner = a > b ? 'A' : (b > a ? 'B' : 'Draw');
+
+        const ok = await safeRoundMixMutation(view => {
+            const target = view.matchesHistory.find(m => m.id === matchId);
+            if (!target) return false;
+
+            // Jika pemenang berubah, koreksi statistik kemenangan tanpa mengubah
+            // jumlah main / point / error yang berasal dari aksi selama pertandingan.
+            if (oldWinner !== newWinner) {
+                const adjustWins = (team, delta) => {
+                    (target[team] || []).forEach(mp => {
+                        const ref = view.players.find(p => p.id === mp.id);
+                        if (!ref) return;
+                        if (!ref.stats) ref.stats = {played:0,wins:0,points:0,out:0,fault:0,errors:0};
+                        if (!ref.careerStats) ref.careerStats = {played:0,wins:0,points:0,out:0,fault:0,errors:0};
+                        if (delta > 0) {
+                            ref.stats.wins = Number(ref.stats.wins||0) + delta;
+                            ref.careerStats.wins = Number(ref.careerStats.wins||0) + delta;
+                        } else {
+                            ref.stats.wins = Math.max(0, Number(ref.stats.wins||0) + delta);
+                            ref.careerStats.wins = Math.max(0, Number(ref.careerStats.wins||0) + delta);
+                        }
+                    });
+                };
+                if (oldWinner === 'A') adjustWins('teamA', -1);
+                if (oldWinner === 'B') adjustWins('teamB', -1);
+                if (newWinner === 'A') adjustWins('teamA', 1);
+                if (newWinner === 'B') adjustWins('teamB', 1);
+            }
+
+            target.scoreA = a;
+            target.scoreB = b;
+            target.updatedAt = new Date().toISOString();
+            rebuildRotationForView(view);
+            return true;
+        });
+
+        if (ok) {
+            renderStandings();
+            renderHistory();
+            markSyncSuccess('Pertandingan berhasil diedit dan tersimpan.');
+        }
+    }
+
+    async function deleteHistoryMatch(matchId) {
+        const match = matchesHistory.find(m => m.id === matchId);
+        if (!match) return;
+
+        const teamA = (match.teamA||[]).map(p=>p.name).join(' & ');
+        const teamB = (match.teamB||[]).map(p=>p.name).join(' & ');
+        const confirmDelete = confirm(
+            `Hapus pertandingan ini?\n\n${teamA} ${match.scoreA ?? 0} - ${match.scoreB ?? 0} ${teamB}\n\n` +
+            `Data riwayat akan dihapus dan statistik pertandingan ini akan dikurangi kembali.\n` +
+            `Tindakan ini tidak bisa dibatalkan.`
+        );
+        if (!confirmDelete) return;
+
+        const ok = await safeRoundMixMutation(view => {
+            const targetIndex = view.matchesHistory.findIndex(m => m.id === matchId);
+            if (targetIndex < 0) return false;
+            const target = view.matchesHistory[targetIndex];
+
+            const winner = Number(target.scoreA) > Number(target.scoreB) ? 'A' : (Number(target.scoreB) > Number(target.scoreA) ? 'B' : 'Draw');
+            const reversePlayer = (mp, team) => {
+                const ref = view.players.find(p => p.id === mp.id);
+                if (!ref) return;
+                if (!ref.stats) ref.stats = {played:0,wins:0,points:0,out:0,fault:0,errors:0};
+                if (!ref.careerStats) ref.careerStats = {played:0,wins:0,points:0,out:0,fault:0,errors:0};
+
+                ref.stats.played = Math.max(0, Number(ref.stats.played||0) - 1);
+                ref.stats.points = Math.max(0, Number(ref.stats.points||0) - Number(mp.matchPoints||0));
+                ref.stats.out = Math.max(0, Number(ref.stats.out||0) - Number(mp.matchOuts||0));
+                ref.stats.fault = Math.max(0, Number(ref.stats.fault||0) - Number(mp.matchFaults||0));
+                ref.stats.errors = Number(ref.stats.out||0) + Number(ref.stats.fault||0);
+                if (winner === team) ref.stats.wins = Math.max(0, Number(ref.stats.wins||0) - 1);
+
+                ref.careerStats.played = Math.max(0, Number(ref.careerStats.played||0) - 1);
+                ref.careerStats.points = Math.max(0, Number(ref.careerStats.points||0) - Number(mp.matchPoints||0));
+                ref.careerStats.out = Math.max(0, Number(ref.careerStats.out||0) - Number(mp.matchOuts||0));
+                ref.careerStats.fault = Math.max(0, Number(ref.careerStats.fault||0) - Number(mp.matchFaults||0));
+                ref.careerStats.errors = Number(ref.careerStats.out||0) + Number(ref.careerStats.fault||0);
+                if (winner === team) ref.careerStats.wins = Math.max(0, Number(ref.careerStats.wins||0) - 1);
+            };
+
+            (target.teamA||[]).forEach(mp => reversePlayer(mp, 'A'));
+            (target.teamB||[]).forEach(mp => reversePlayer(mp, 'B'));
+
+            // Match fee hanya dibalik jika riwayat lama memang menyimpan nominalnya.
+            const fee = Number(target.matchFee || 0);
+            if (fee > 0) {
+                [...(target.teamA||[]), ...(target.teamB||[])].forEach(mp => {
+                    const ref = view.players.find(p => p.id === mp.id);
+                    if (ref) ref.deposit = Number(ref.deposit||0) + fee;
+                });
+                view.financeTransactions = (view.financeTransactions || []).filter(tx => {
+                    if (tx.type !== 'out') return true;
+                    if (Number(tx.amount) !== fee) return true;
+                    if (!String(tx.desc||'').startsWith('Otomatis Match')) return true;
+                    return !(target.teamA||[]).concat(target.teamB||[]).some(mp => mp.id === tx.playerId);
+                });
+            }
+
+            view.matchesHistory.splice(targetIndex, 1);
+            rebuildRotationForView(view);
+            return true;
+        });
+
+        if (ok) {
+            renderStandings();
+            renderHistory();
+            markSyncSuccess('Pertandingan dan statistiknya berhasil dihapus.');
+        }
+    }
+
+    function historyActionMenu(matchId) {
+        const safeId = String(matchId).replace(/'/g, "\\'");
+        return `
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+                <button onclick="editHistoryMatch('${safeId}')" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-main);color:var(--text);font-weight:700;cursor:pointer;">✏️ Edit</button>
+                <button onclick="deleteHistoryMatch('${safeId}')" style="padding:8px 12px;border:1px solid #7f1d1d;border-radius:8px;background:transparent;color:#ef4444;font-weight:700;cursor:pointer;">🗑️ Hapus</button>
+            </div>`;
+    }
+
    function renderHistory() {
     const filterInput = document.getElementById('historyFilter');
     const container = document.getElementById('historyList');
@@ -4348,6 +4491,8 @@ function togglePlayerActions(button) {
                     ${m.time ? `<span>⏱ ${formatTime(m.time)}</span>` : ''}
                     <span>⚠️ Error ${[...(m.teamA||[]),...(m.teamB||[])].reduce((n,p)=>n+Number(p.matchOuts||0)+Number(p.matchFaults||0),0)}</span>
                 </div>
+
+                ${historyActionMenu(m.id)}
 
             </div>
         `;
