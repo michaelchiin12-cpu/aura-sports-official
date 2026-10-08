@@ -130,6 +130,28 @@
         .picker-item:hover { border-color: var(--primary); }
         .picker-item-active { border-color: var(--primary); background: rgba(200,159,76,0.1); }
 
+        /* ================= ROTATION / ATTENDANCE ================= */
+        .rotation-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+        .rotation-stat { background:var(--bg-main); border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center; }
+        .rotation-stat .v { display:block; color:var(--primary); font-size:1.15rem; font-weight:900; }
+        .rotation-stat .l { display:block; color:var(--text-muted); font-size:.72rem; margin-top:3px; }
+        .attendance-panel { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:20px; }
+        .attendance-header { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+        .attendance-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:7px; max-height:260px; overflow:auto; }
+        .attendance-player { display:flex; align-items:center; gap:8px; background:var(--bg-main); border:1px solid var(--border); border-radius:8px; padding:8px; cursor:pointer; }
+        .attendance-player.present { border-color:var(--success); background:rgba(16,185,129,.08); }
+        .attendance-player .attendance-name { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:700; }
+        .rotation-priority { font-size:.7rem; padding:2px 7px; border-radius:10px; background:rgba(200,159,76,.12); color:var(--primary); }
+        .rotation-priority.high { background:rgba(16,185,129,.12); color:#6ee7b7; }
+        .rotation-priority.busy { background:rgba(245,158,11,.12); color:#fcd34d; }
+        .round-label { display:inline-flex; align-items:center; gap:6px; padding:4px 9px; border-radius:999px; background:rgba(200,159,76,.12); color:var(--primary); font-size:.75rem; font-weight:800; }
+        .manual-generate-btn { background:var(--bg-main); color:var(--primary); border:1px solid var(--primary); }
+        .history-round { color:var(--primary); font-weight:800; font-size:.75rem; }
+        @media (max-width:640px) {
+            .rotation-summary { grid-template-columns:repeat(2,1fr); }
+            .attendance-list { grid-template-columns:1fr 1fr; }
+        }
+
         /* ================= EVENT / HISTORY MANAGER ================= */
         .event-manager { max-width: 1100px; margin: 0 auto; }
         .event-toolbar { display:grid; grid-template-columns: 1fr 180px 180px auto; gap:10px; margin-bottom:18px; }
@@ -557,9 +579,12 @@
                     </div>
                 </div>
 
+                <div id="eventAttendancePanel"></div>
+
                 <div class="card">
-                    <h2>Daftar Antrean (Waiting List)</h2>
-                    <p style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted);">Diurutkan otomatis berdasarkan yang paling sedikit bermain.</p>
+                    <h2>🔄 Rotasi & Waiting List</h2>
+                    <div id="rotationSummary"></div>
+                    <p style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted);">Prioritas otomatis berdasarkan jumlah main paling sedikit, level, partner/lawan terakhir, dan pemain yang sedang bermain.</p>
                     <div style="overflow-x: auto;">
                         <table>
                             <thead>
@@ -580,7 +605,10 @@
             <div>
                 <div class="card">
                     <h2>Manajemen Lapangan</h2>
-                    <button onclick="generateMatches()" class="btn-success" style="width: 100%; margin-bottom: 15px; padding: 12px; font-size: 1.1rem;">Acak Pertandingan Baru</button>
+                    <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px;">
+                        <div id="currentRoundBadge"></div>
+                        <button onclick="generateMatches()" class="manual-generate-btn" style="padding:9px 12px;">⚙️ Generate Manual</button>
+                    </div>
                     <div id="courtsContainer"></div>
                 </div>
 
@@ -672,8 +700,8 @@
                     <th>Menang</th>
                     <th>WR %</th>
                     <th>Point</th>
-                    <th>Out</th>
-                    <th>Fault</th>
+                    <th>W/L</th>
+                    <th>Error</th>
                 </tr>
             </thead>
 
@@ -1199,34 +1227,79 @@
 
     function currentPlayerStatsSnapshot() {
         const out = {};
-        players.forEach(p => { out[p.id] = cloneJSON(p.stats || {played:0,wins:0,points:0,out:0,fault:0}); });
+        players.forEach(p => {
+            const s = p.stats || {};
+            out[p.id] = {
+                played: Number(s.played || 0),
+                wins: Number(s.wins || 0),
+                points: Number(s.points || 0),
+                out: Number(s.out || 0),
+                fault: Number(s.fault || 0),
+                errors: Number(s.errors ?? ((Number(s.out || 0)) + (Number(s.fault || 0))))
+            };
+        });
         return out;
     }
-function emptyPlayerStatsSnapshot() {
-    const out = {};
-    players.forEach(p => {
-        out[p.id] = {
-            played: 0,
-            wins: 0,
-            points: 0,
-            out: 0,
-            fault: 0
-        };
-    });
-    return out;
-}
+    function emptyPlayerStatsSnapshot() {
+        const out = {};
+        players.forEach(p => {
+            out[p.id] = { played:0, wins:0, points:0, out:0, fault:0, errors:0 };
+        });
+        return out;
+    }
+    function currentRotationSnapshot() {
+        const out = {};
+        players.forEach(p => {
+            out[p.id] = {
+                lastPartners: Array.isArray(p.lastPartners) ? [...p.lastPartners] : [],
+                lastOpponents: Array.isArray(p.lastOpponents) ? [...p.lastOpponents] : []
+            };
+        });
+        return out;
+    }
     function applyPlayerStatsSnapshot(statsByPlayer) {
         players.forEach(p => {
             const s = statsByPlayer && statsByPlayer[p.id];
-            p.stats = s ? cloneJSON(s) : {played:0,wins:0,points:0,out:0,fault:0};
+            p.stats = s ? cloneJSON(s) : {played:0,wins:0,points:0,out:0,fault:0,errors:0};
+            if (p.stats.errors === undefined) p.stats.errors = Number(p.stats.out || 0) + Number(p.stats.fault || 0);
         });
     }
+    function applyRotationSnapshot(rotationByPlayer) {
+        players.forEach(p => {
+            const r = rotationByPlayer && rotationByPlayer[p.id];
+            p.lastPartners = r && Array.isArray(r.lastPartners) ? [...r.lastPartners] : [];
+            p.lastOpponents = r && Array.isArray(r.lastOpponents) ? [...r.lastOpponents] : [];
+        });
+    }
+    function ensureEventAttendance(ev, legacyReady = false) {
+        if (!ev) return {};
+        const hadAttendance = !!(ev.attendance && typeof ev.attendance === 'object');
+        if (!hadAttendance) ev.attendance = {};
+        players.forEach(p => {
+            if (ev.attendance[p.id] === undefined) ev.attendance[p.id] = hadAttendance ? false : (legacyReady ? p.ready !== false : false);
+        });
+        return ev.attendance;
+    }
+    function isPlayerPresent(p) {
+        const ev = activeEvent();
+        if (!ev || ev.mode !== 'match') return p.ready !== false;
+        return !!ensureEventAttendance(ev, true)[p.id];
+    }
+    function currentRoundNumber() {
+        const rounds = [];
+        activeMatches.forEach(m => { if (Number(m.round)) rounds.push(Number(m.round)); });
+        matchesHistory.forEach(m => { if (Number(m.round)) rounds.push(Number(m.round)); });
+        return rounds.length ? Math.max(...rounds) : 0;
+    }
+    function nextRoundNumber() { return currentRoundNumber() + 1; }
 
     function snapshotCurrentEvent() {
         const ev = eventRegistry.events.find(e => e.id === eventRegistry.activeEventId);
         if (!ev) return;
         ev.snapshot = {
             playerStats: currentPlayerStatsSnapshot(),
+            rotation: currentRotationSnapshot(),
+            attendance: cloneJSON(ev.attendance || {}),
             matchesHistory: cloneJSON(matchesHistory),
             activeMatches: cloneJSON(activeMatches),
             rrTeams: cloneJSON(rrTeams),
@@ -1249,6 +1322,9 @@ function emptyPlayerStatsSnapshot() {
         eventRegistry.activeEventId = ev.id;
         const s = ev.snapshot || {};
         applyPlayerStatsSnapshot(s.playerStats || {});
+        applyRotationSnapshot(s.rotation || {});
+        ensureEventAttendance(ev, true);
+        if (s.attendance && typeof s.attendance === 'object') ev.attendance = cloneJSON(s.attendance);
         matchesHistory = cloneJSON(s.matchesHistory || []);
         activeMatches = cloneJSON(s.activeMatches || []);
         rrTeams = cloneJSON(s.rrTeams || []);
@@ -1329,6 +1405,8 @@ function emptyPlayerStatsSnapshot() {
     snapshot: {
         // SETIAP PERTANDINGAN BARU MULAI DARI 0
         playerStats: emptyPlayerStatsSnapshot(),
+        rotation: currentRotationSnapshot(),
+        attendance: {},
 
         matchesHistory: [],
         activeMatches: [],
@@ -1422,15 +1500,15 @@ function emptyPlayerStatsSnapshot() {
     // Jaring pengaman: pemain 'playing' yang tidak ada di match aktif mana pun
     // (event yang dibuka maupun snapshot event lain) dikembalikan ke 'active'.
     function reconcilePlayerStatuses() {
+        // Status PLAYING sekarang hanya berlaku untuk event yang sedang dibuka.
+        // Event Sabtu tidak boleh membuat pemain terlihat "Playing" ketika event Minggu dibuka.
         const busy = new Set();
-        const addFrom = list => (list || []).forEach(m =>
-            [...(m.teamA || []), ...(m.teamB || [])].forEach(p => busy.add(p.id)));
-        addFrom(activeMatches);
-        (eventRegistry.events || []).forEach(e => {
-            if (e.id !== eventRegistry.activeEventId) addFrom((e.snapshot || {}).activeMatches);
+        (activeMatches || []).forEach(m => {
+            [...(m.teamA || []), ...(m.teamB || [])].forEach(p => busy.add(p.id));
         });
         players.forEach(p => {
-            if (p.status === 'playing' && !busy.has(p.id)) p.status = 'active';
+            if (busy.has(p.id)) p.status = 'playing';
+            else if (p.status === 'playing') p.status = 'active';
         });
     }
 
@@ -1566,7 +1644,7 @@ function emptyPlayerStatsSnapshot() {
             const baseStats = currentPlayerStatsSnapshot();
             const migrated = [];
             if (matchesHistory.length || activeMatches.length) {
-                migrated.push({ id:'event-legacy-mix-'+Date.now(), name:'Data Lama (Sebelum Update)', date:todayISO(), mode:'match', status:activeMatches.length?'ongoing':'finished', createdAt:now, updatedAt:now, snapshot:{playerStats:cloneJSON(baseStats),matchesHistory:cloneJSON(matchesHistory),activeMatches:cloneJSON(activeMatches),rrTeams:[],rrMatches:[],rrSettings:{qualifyCount:4,totalCourts:2},rrPhase:'setup',rrBracket:[]} });
+                migrated.push({ id:'event-legacy-mix-'+Date.now(), name:'Data Lama (Sebelum Update)', date:todayISO(), mode:'match', status:activeMatches.length?'ongoing':'finished', createdAt:now, updatedAt:now, snapshot:{playerStats:cloneJSON(baseStats),rotation:currentRotationSnapshot(),attendance:Object.fromEntries(players.map(p=>[p.id,p.ready!==false])),matchesHistory:cloneJSON(matchesHistory),activeMatches:cloneJSON(activeMatches),rrTeams:[],rrMatches:[],rrSettings:{qualifyCount:4,totalCourts:2},rrPhase:'setup',rrBracket:[]} });
             }
             if (rrTeams.length || rrMatches.length || rrBracket.length) {
                 migrated.push({ id:'event-legacy-rr-'+Date.now(), name:'Data Lama Round Robin (Sebelum Update)', date:todayISO(), mode:'roundrobin', status:rrMatches.some(m=>m.status==='ongoing')||rrBracket.some(r=>r.matches.some(m=>m.status==='ongoing'))?'ongoing':'finished', createdAt:now, updatedAt:now, snapshot:{playerStats:cloneJSON(baseStats),matchesHistory:[],activeMatches:[],rrTeams:cloneJSON(rrTeams),rrMatches:cloneJSON(rrMatches),rrSettings:cloneJSON(rrSettings),rrPhase,rrBracket:cloneJSON(rrBracket)} });
@@ -1654,6 +1732,9 @@ function emptyPlayerStatsSnapshot() {
         if (active) {
             const s = active.snapshot || {};
             applyPlayerStatsSnapshot(s.playerStats || {});
+            applyRotationSnapshot(s.rotation || {});
+            if (s.attendance && typeof s.attendance === 'object') active.attendance = cloneJSON(s.attendance);
+            ensureEventAttendance(active, true);
             matchesHistory = cloneJSON(s.matchesHistory || []);
             activeMatches = cloneJSON(s.activeMatches || []);
             rrTeams = cloneJSON(s.rrTeams || []);
@@ -1806,11 +1887,13 @@ function emptyPlayerStatsSnapshot() {
         players.forEach(p => {
             if(p.deposit === undefined) p.deposit = 0;
             if(!Array.isArray(p.lastPartners)) p.lastPartners = [];
-            // Pemain lama (didaftarkan sebelum fitur "Hadir?" ada) dianggap sudah hadir,
-            // supaya tidak tiba-tiba hilang dari antrean. Pemain BARU sengaja default false
-            // (lihat addPlayer) karena biasanya banyak yang telat.
+            if(!Array.isArray(p.lastOpponents)) p.lastOpponents = [];
             if(p.ready === undefined) p.ready = true;
+            if(!p.stats) p.stats = {played:0,wins:0,points:0,out:0,fault:0,errors:0};
+            if(p.stats.errors === undefined) p.stats.errors = Number(p.stats.out || 0) + Number(p.stats.fault || 0);
         });
+        const evNow = activeEvent();
+        if (evNow && evNow.mode === 'match') ensureEventAttendance(evNow, true);
         reconcilePlayerStatuses();
         
         renderEventManager('match');
@@ -1818,6 +1901,7 @@ function emptyPlayerStatsSnapshot() {
         renderEventManager('roundgroup');
 
         renderPlayers();
+        renderEventAttendance();
         renderQueue();
         renderCourts();
         renderStandings();
@@ -1951,6 +2035,78 @@ function emptyPlayerStatsSnapshot() {
     //   (2) snapshot event di dalam rr_settings.__eventRegistry    -> yang dipakai saat memuat ulang
     // Keduanya WAJIB diperbarui bersamaan. (Versi sebelumnya hanya memperbarui (1), akibatnya
     // (2) jadi basi dan skor "mundur"/hilang saat layar disegarkan.)
+    function rebuildRotationForView(view) {
+        const byId = {};
+        (view.players || []).forEach(p => { byId[p.id] = p; p.lastPartners=[]; p.lastOpponents=[]; });
+        const allMatches = [...(view.matchesHistory || []), ...(view.activeMatches || [])].sort((a,b) => {
+            const ar = Number(a.round || 0), br = Number(b.round || 0);
+            if (ar !== br) return ar - br;
+            return String(a.finishedAt || a.date || a.id).localeCompare(String(b.finishedAt || b.date || b.id));
+        });
+        allMatches.forEach(m => {
+            const A=m.teamA||[], B=m.teamB||[];
+            const add=(id,key,vals,max)=>{ const p=byId[id]; if(!p) return; p[key]=[...vals,...(p[key]||[])].filter((v,i,a)=>a.indexOf(v)===i).slice(0,max); };
+            A.forEach(pa=>add(pa.id,'lastPartners',A.filter(x=>x.id!==pa.id).map(x=>x.id),3));
+            B.forEach(pb=>add(pb.id,'lastPartners',B.filter(x=>x.id!==pb.id).map(x=>x.id),3));
+            A.forEach(pa=>add(pa.id,'lastOpponents',B.map(x=>x.id),4));
+            B.forEach(pb=>add(pb.id,'lastOpponents',A.map(x=>x.id),4));
+        });
+    }
+
+    // Mutasi atomik Round Mix: seluruh perubahan penting (rotasi, attendance, generate,
+    // swap, finish, statistik, history, finance) dihitung ulang dari event TERBARU di server.
+    // Ini mencegah device B menimpa perubahan device A dengan snapshot lama.
+    async function safeRoundMixMutation(mutateFn, options = {}) {
+        if (!stateLoaded || !supabaseClient) return false;
+        const MAX_ATTEMPT=16;
+        for(let attempt=0;attempt<MAX_ATTEMPT;attempt++){
+            const {data:fresh,error}=await supabaseClient.from('sport_manager_state').select('*').eq('id',STATE_ROW_ID).single();
+            if(error||!fresh){await _sleep(100+attempt*50);continue;}
+            const settings=cloneJSON(fresh.rr_settings||{});
+            const reg=getEventRegistryFromSettings(settings);
+            const targetId=eventRegistry?.activeEventId;
+            const ev=targetId?reg.events.find(e=>e.id===targetId):null;
+            if(!ev) return false;
+            if(ev.mode!=='match') return false;
+            const s=ev.snapshot||{};
+            const view={
+                event:ev,
+                players:cloneJSON(fresh.players||[]),
+                matchesHistory:cloneJSON(s.matchesHistory||[]),
+                activeMatches:cloneJSON(s.activeMatches||[]),
+                financeTransactions:cloneJSON(fresh.finance_transactions||[]),
+                financeSettings:cloneJSON(fresh.finance_settings||{payPerPlay:0}),
+                rrTeams:cloneJSON(s.rrTeams||[]), rrMatches:cloneJSON(s.rrMatches||[]), rrSettings:cloneJSON(s.rrSettings||{qualifyCount:4,totalCourts:2}), rrPhase:s.rrPhase||'setup', rrBracket:cloneJSON(s.rrBracket||[])
+            };
+            const stats=s.playerStats||{};
+            view.players.forEach(p=>{p.stats=cloneJSON(stats[p.id]||{played:0,wins:0,points:0,out:0,fault:0,errors:0});});
+            const rotation=s.rotation||{};
+            view.players.forEach(p=>{const r=rotation[p.id];p.lastPartners=r&&Array.isArray(r.lastPartners)?[...r.lastPartners]:[];p.lastOpponents=r&&Array.isArray(r.lastOpponents)?[...r.lastOpponents]:[];});
+            if(!ev.attendance || typeof ev.attendance !== 'object') ev.attendance={};
+            if(s.attendance) ev.attendance=cloneJSON(s.attendance);
+            view.players.forEach(p=>{ if(ev.attendance[p.id]===undefined) ev.attendance[p.id]=false; });
+            if(!mutateFn(view)) return false;
+            ev.snapshot={playerStats:{},rotation:{},attendance:cloneJSON(ev.attendance||{}),matchesHistory:cloneJSON(view.matchesHistory),activeMatches:cloneJSON(view.activeMatches),rrTeams:cloneJSON(view.rrTeams),rrMatches:cloneJSON(view.rrMatches),rrSettings:cloneJSON(view.rrSettings),rrPhase:view.rrPhase,rrBracket:cloneJSON(view.rrBracket)};
+            view.players.forEach(p=>{ev.snapshot.playerStats[p.id]=cloneJSON(p.stats||{});ev.snapshot.rotation[p.id]={lastPartners:[...(p.lastPartners||[])],lastOpponents:[...(p.lastOpponents||[])]};});
+            ev.updatedAt=new Date().toISOString();
+            ev.status=view.activeMatches.length?'ongoing':(view.matchesHistory.length?'ongoing':'draft');
+            const nowIso=new Date().toISOString();
+            const patch={players:cloneJSON(view.players),matches_history:cloneJSON(view.matchesHistory),active_matches:cloneJSON(view.activeMatches),finance_transactions:cloneJSON(view.financeTransactions),rr_settings:settings,updated_at:nowIso};
+            if(reg.activeEventId===ev.id){patch.rr_matches=view.rrMatches;patch.rr_teams=view.rrTeams;patch.rr_phase=view.rrPhase;patch.rr_bracket=view.rrBracket;}
+            settings.__eventRegistry=cloneJSON(reg);
+            let q=supabaseClient.from('sport_manager_state').update(patch).eq('id',STATE_ROW_ID);
+            q=(fresh.updated_at==null)?q.is('updated_at',null):q.eq('updated_at',fresh.updated_at);
+            const {data:upd,error:updErr}=await q.select();
+            if(!updErr&&upd?.length){
+                players=cloneJSON(view.players);matchesHistory=cloneJSON(view.matchesHistory);activeMatches=cloneJSON(view.activeMatches);financeTransactions=cloneJSON(view.financeTransactions);financeSettings=cloneJSON(view.financeSettings);rrTeams=cloneJSON(view.rrTeams);rrMatches=cloneJSON(view.rrMatches);rrSettings=cloneJSON(view.rrSettings);rrPhase=view.rrPhase;rrBracket=cloneJSON(view.rrBracket);eventRegistry=reg;eventRegistry.activeEventId=ev.id;
+                lastSyncedRow={...fresh,...patch};
+                return true;
+            }
+            await _sleep(50+Math.random()*100+attempt*30);
+        }
+        return false;
+    }
+
     async function safeApplyToServer(mutateFn) {
         const MAX_ATTEMPT = 16;
         let notFoundStreak = 0;
@@ -2163,11 +2319,58 @@ function emptyPlayerStatsSnapshot() {
 
     // Tandai pemain sudah datang / belum datang. Yang "Belum Hadir" tidak akan ikut
     // diacak ke pertandingan (lihat generateMatches & renderQueue) sampai ditandai hadir.
-    function toggleReady(id) {
+    async function toggleReady(id) {
         const p = players.find(x => x.id === id);
+        const ev = activeEvent();
         if(!p) return;
-        p.ready = !p.ready;
-        saveData();
+        if (!ev || ev.mode !== 'match') return alert('Buka / pilih event Round Mix terlebih dahulu agar kehadiran tersimpan khusus untuk event ini.');
+        const nextValue = !isPlayerPresent(p);
+        ensureEventAttendance(ev, true)[id] = nextValue;
+        renderPlayers(); renderQueue(); renderEventAttendance();
+        const ok = await safeRoundMixMutation(view => {
+            const serverEv = view.event;
+            ensureEventAttendance(serverEv, true)[id] = nextValue;
+            return true;
+        });
+        if (!ok) requestRefresh();
+    }
+
+    async function setAllAttendance(value) {
+        const ev = activeEvent();
+        if (!ev || ev.mode !== 'match') return alert('Buka / pilih event Round Mix terlebih dahulu.');
+        ensureEventAttendance(ev, true);
+        players.forEach(p => { ev.attendance[p.id] = !!value; });
+        renderPlayers(); renderQueue(); renderEventAttendance();
+        const ok = await safeRoundMixMutation(view => {
+            players.forEach(p => { view.event.attendance[p.id] = !!value; });
+            return true;
+        });
+        if (!ok) requestRefresh();
+    }
+
+    function renderEventAttendance() {
+        const host = document.getElementById('eventAttendancePanel');
+        if (!host) return;
+        const ev = activeEvent();
+        if (!ev || ev.mode !== 'match') { host.innerHTML = ''; return; }
+        const attendance = ensureEventAttendance(ev, true);
+        const present = players.filter(p => p.status !== 'resting' && attendance[p.id]).length;
+        host.innerHTML = `
+            <div class="attendance-panel">
+                <div class="attendance-header">
+                    <div>
+                        <h2 style="margin-bottom:4px;">👥 Kehadiran Event</h2>
+                        <div style="color:var(--text-muted);font-size:.8rem;">${escapeHTML(ev.name)} · <b style="color:var(--primary);">${present}/${players.length} hadir</b></div>
+                    </div>
+                    <div class="flex-row" style="margin:0;">
+                        <button class="btn-success" onclick="setAllAttendance(true)">✅ Hadir Semua</button>
+                        <button class="btn-warning" onclick="setAllAttendance(false)">↺ Reset</button>
+                    </div>
+                </div>
+                <div class="attendance-list">
+                    ${players.map(p => { const yes = !!attendance[p.id]; return `<div class="attendance-player ${yes?'present':''}" onclick="toggleReady('${p.id}')">${avatarHTML(p)}<span class="attendance-name">${escapeHTML(p.name)}</span>${getLevelBadge(p.level)}<span>${yes?'✅':'○'}</span></div>`; }).join('')}
+                </div>
+            </div>`;
     }
 
     // Ubah nama pemain yang sudah terdaftar (misal salah ketik, atau salah nama sebelum ready)
@@ -2182,7 +2385,12 @@ function emptyPlayerStatsSnapshot() {
             return alert('Nama pemain sudah ada!');
         }
         p.name = trimmed;
-        saveData();
+        const ev = activeEvent();
+        if (ev && ev.mode === 'match') {
+            safeRoundMixMutation(view => { const sp=view.players.find(x=>x.id===id); if(!sp) return false; sp.name=trimmed; return true; }).then(()=>{ renderPlayers(); renderQueue(); renderCourts(); renderStandings(); });
+        } else {
+            saveData();
+        }
     }
 
     // ================= TANGGAL LAHIR & STORY ULANG TAHUN =================
@@ -2423,7 +2631,12 @@ function emptyPlayerStatsSnapshot() {
         }
 
         p.level = newLevel;
-        saveData();
+        const ev = activeEvent();
+        if (ev && ev.mode === 'match') {
+            safeRoundMixMutation(view => { const sp=view.players.find(x=>x.id===id); if(!sp) return false; sp.level=newLevel; return true; }).then(()=>{ renderPlayers(); renderQueue(); });
+        } else {
+            saveData();
+        }
     }
 
     function deletePlayer(id) {
@@ -2498,9 +2711,9 @@ function emptyPlayerStatsSnapshot() {
 
                 <button
                     onclick="toggleReady('${p.id}')"
-                    class="${p.ready ? 'btn-success' : 'btn-warning'} member-ready-btn">
+                    class="${isPlayerPresent(p) ? 'btn-success' : 'btn-warning'} member-ready-btn">
 
-                    ${p.ready ? '✅ Hadir' : '⏳ Belum Hadir'}
+                    ${isPlayerPresent(p) ? '✅ Hadir Event' : '⏳ Belum Hadir'}
 
                 </button>
 
@@ -2571,25 +2784,36 @@ function emptyPlayerStatsSnapshot() {
 }
     function renderQueue() {
         const tbody = document.getElementById('queueList');
-        const notReadyCount = players.filter(p => p.status === 'active' && !p.ready).length;
-        const queue = players
-            .filter(p => p.status === 'active' && p.ready)
-            .sort((a, b) => a.stats.played - b.stats.played);
+        const summary = document.getElementById('rotationSummary');
+        const roundBadge = document.getElementById('currentRoundBadge');
+        if (!tbody) return;
 
-        tbody.innerHTML = queue.map((p, idx) => `
-            <tr>
-                <td>${idx + 1}</td>
-                <td>${p.name}</td>
-                <td>${getLevelBadge(p.level)}</td>
-                <td style="text-align:center; font-weight:bold; color: var(--primary);">${p.stats.played}x</td>
-            </tr>
-        `).join('') + (notReadyCount > 0 ? `
-            <tr>
-                <td colspan="4" style="text-align:center; color: var(--warning); font-size:0.85rem; padding-top:10px;">
-                    ⏳ ${notReadyCount} pemain aktif belum ditandai hadir, jadi belum masuk antrean
-                </td>
-            </tr>
-        ` : '');
+        const ev = activeEvent();
+        const attendance = ev && ev.mode === 'match' ? ensureEventAttendance(ev, true) : {};
+        const activeCount = players.filter(p => p.status === 'playing').length;
+        const presentPlayers = players.filter(p => p.status === 'active' && (ev && ev.mode === 'match' ? !!attendance[p.id] : p.ready !== false));
+        const minPlayed = presentPlayers.length ? Math.min(...presentPlayers.map(p => Number(p.stats?.played || 0))) : 0;
+        const queue = presentPlayers.sort((a,b) => {
+            const d = (a.stats.played||0) - (b.stats.played||0);
+            if (d) return d;
+            return (a.name||'').localeCompare(b.name||'');
+        });
+        const notReadyCount = players.filter(p => p.status === 'active' && !(ev && ev.mode === 'match' ? !!attendance[p.id] : p.ready !== false)).length;
+
+        if (summary) summary.innerHTML = `
+            <div class="rotation-summary">
+                <div class="rotation-stat"><span class="v">${currentRoundNumber() || 0}</span><span class="l">Ronde berjalan</span></div>
+                <div class="rotation-stat"><span class="v">${presentPlayers.length}</span><span class="l">Hadir & siap</span></div>
+                <div class="rotation-stat"><span class="v">${activeCount}</span><span class="l">Sedang main</span></div>
+                <div class="rotation-stat"><span class="v">${minPlayed}x</span><span class="l">Main minimum</span></div>
+            </div>`;
+        if (roundBadge) roundBadge.innerHTML = `<span class="round-label">🏸 Ronde ${currentRoundNumber() || 1}</span>`;
+
+        tbody.innerHTML = queue.map((p, idx) => {
+            const played = Number(p.stats?.played || 0);
+            const priority = played === minPlayed ? '<span class="rotation-priority high">Prioritas</span>' : '<span class="rotation-priority">Normal</span>';
+            return `<tr><td>${idx + 1}</td><td>${escapeHTML(p.name)}</td><td>${getLevelBadge(p.level)}</td><td style="text-align:center;font-weight:bold;color:var(--primary);">${played}x ${priority}</td></tr>`;
+        }).join('') + (notReadyCount > 0 ? `<tr><td colspan="4" style="text-align:center;color:var(--warning);font-size:.85rem;padding-top:10px;">⏳ ${notReadyCount} pemain aktif belum hadir di event ini</td></tr>` : '') + (queue.length === 0 ? `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px;">Belum ada pemain siap.</td></tr>` : '');
     }
 
     // --- Algoritma Matchmaking Dinamis ---
@@ -2701,154 +2925,81 @@ function emptyPlayerStatsSnapshot() {
         return best;
     }
 
-    function generateMatches(options = {}) {
-        const teamSize = parseInt(document.getElementById('playersPerTeam').value);
-        const maxCourts = parseInt(document.getElementById('totalCourts').value);
+    async function generateMatches(options = {}) {
+        const teamSize = parseInt(document.getElementById('playersPerTeam').value) || 2;
+        const maxCourts = parseInt(document.getElementById('totalCourts').value) || 1;
         const requiredPlayersPerMatch = teamSize * 2;
-
-        let courtsToFill = maxCourts - activeMatches.length;
-        if(courtsToFill <= 0) {
-            if(!options.auto) alert('Semua lapangan sedang digunakan!');
+        const ev = activeEvent();
+        if (!ev || ev.mode !== 'match') { if(!options.auto) alert('Pilih event Round Mix terlebih dahulu.'); return false; }
+        if (ev.status === 'finished') { if(!options.auto) alert('Event sudah selesai. Buka kembali event terlebih dahulu.'); return false; }
+        if (activeMatches.length > 0) {
+            if(!options.auto) alert('Masih ada match di ronde berjalan. Selesaikan semua match dulu agar ronde berikutnya tidak tercampur.');
             return false;
         }
 
-        // Pool pemain aktif yang sudah hadir.
-        let eligible = players.filter(p => p.status === 'active' && p.ready)
-            .sort((a, b) => a.stats.played - b.stats.played);
+        ensureEventAttendance(ev, true);
+        let eligible = players.filter(p => p.status === 'active' && ev.attendance[p.id])
+            .sort((a,b) => (a.stats.played||0) - (b.stats.played||0));
 
-        if(eligible.length < requiredPlayersPerMatch) {
-            if(!options.auto) {
-                const notReady = players.filter(p => p.status === 'active' && !p.ready).length;
-                alert(`Pemain yang sudah hadir & aktif tidak cukup. Butuh ${requiredPlayersPerMatch}, tersedia ${eligible.length}.` +
-                    (notReady > 0
-                        ? `\n\n(${notReady} pemain masih ditandai "Belum Hadir" — tandai hadir dulu di tab Member 👑 kalau mereka sudah datang)`
-                        : ''));
-            }
+        const needed = Math.min(maxCourts, Math.floor(eligible.length / requiredPlayersPerMatch));
+        if (needed <= 0) {
+            if(!options.auto) alert(`Pemain hadir & aktif tidak cukup. Butuh minimal ${requiredPlayersPerMatch} pemain, tersedia ${eligible.length}.`);
             return false;
         }
 
         const generatedMatches = [];
-
-        for(let c = 0; c < courtsToFill; c++) {
+        const round = nextRoundNumber();
+        for(let c=0;c<needed;c++) {
             if(eligible.length < requiredPlayersPerMatch) break;
+            const minPlayed = Math.min(...eligible.map(p => Number(p.stats?.played || 0)));
+            const tierPlayers = eligible.filter(p => Number(p.stats?.played || 0) <= minPlayed + 1);
+            const candidatePool = tierPlayers.length >= requiredPlayersPerMatch ? tierPlayers : eligible.slice(0, Math.max(requiredPlayersPerMatch, tierPlayers.length));
+            let bestGroup=null,bestTeams=null,bestScore=Infinity;
 
-            // Tetap utamakan pemain yang paling sedikit main, tetapi ambil beberapa
-            // tier terdekat agar pairing tidak selalu identik.
-            const tiers = [...new Set(eligible.map(p => p.stats.played))].sort((a, b) => a - b);
-            let candidatePool = eligible.filter(p => tiers.slice(0, 2).includes(p.stats.played));
-
-            if(candidatePool.length < requiredPlayersPerMatch) {
-                candidatePool = eligible.slice(0, Math.max(requiredPlayersPerMatch, candidatePool.length));
+            for(let attempt=0;attempt<180;attempt++) {
+                const group=shuffleArray(candidatePool).slice(0,requiredPlayersPerMatch);
+                const balanced=findBalancedTeams(group,teamSize);
+                if(!balanced || balanced.diff>1) continue;
+                const partnerRepeats=countRecentPartnerRepeats(balanced.teamA)+countRecentPartnerRepeats(balanced.teamB);
+                const opponentRepeats=countRecentOpponentRepeats(balanced.teamA,balanced.teamB);
+                const playedPenalty=group.reduce((sum,p)=>sum+Number(p.stats?.played||0),0);
+                const score=partnerRepeats*80+opponentRepeats*50+playedPenalty*.05+balanced.diff*5+Math.random();
+                if(score<bestScore){ bestScore=score; bestGroup=group; bestTeams=balanced; if(partnerRepeats===0&&opponentRepeats===0&&balanced.diff===0) break; }
             }
-
-            let bestGroup = null;
-            let bestTeams = null;
-            let bestScore = Infinity;
-
-            // Coba beberapa group + split. Level balance mendapat prioritas paling tinggi.
-            for(let attempt = 0; attempt < 80; attempt++) {
-                const shuffledPool = shuffleArray(candidatePool);
-                const group = shuffledPool.slice(0, requiredPlayersPerMatch);
-                const balanced = findBalancedTeams(group, teamSize);
-                if(!balanced) continue;
-
-                const { teamA, teamB, diff } = balanced;
-
-                const partnerRepeats =
-                    countRecentPartnerRepeats(teamA) +
-                    countRecentPartnerRepeats(teamB);
-
-                const opponentRepeats =
-                    countRecentOpponentRepeats(teamA, teamB);
-
-                // Selisih level > 1 dianggap sangat tidak layak.
-                // Setelah level seimbang, fairness pemain tetap jadi pertimbangan.
-                const levelPenalty = diff <= 1 ? diff : 1000 + diff * 100;
-                const partnerPenalty = partnerRepeats * 50;
-                const opponentPenalty = opponentRepeats * 30;
-
-                const playedPenalty = group.reduce(
-                    (sum, p) => sum + (p.stats.played || 0),
-                    0
-                );
-
-                const totalScore =
-                    levelPenalty +
-                    partnerPenalty +
-                    opponentPenalty +
-                    playedPenalty * 0.05 +
-                    Math.random() * 0.01;
-
-                if(totalScore < bestScore) {
-                    bestScore = totalScore;
-                    bestGroup = group;
-                    bestTeams = { teamA, teamB };
-
-                    // Sudah dapat balance sempurna + tidak ada repeat.
-                    if(diff <= 1 && partnerRepeats === 0 && opponentRepeats === 0) {
-                        break;
-                    }
-                }
-            }
-
-            if(!bestGroup || !bestTeams) {
-                // Safety fallback: jangan membuat match dengan data setengah jadi.
-                break;
-            }
-
-            const { teamA, teamB } = bestTeams;
-
-            // Keluarkan pemain yang sudah dipakai dari pool.
-            eligible = eligible.filter(
-                p => !bestGroup.some(g => g.id === p.id)
-            );
-
-            [...teamA, ...teamB].forEach(p => {
-                const playerRef = players.find(x => x.id === p.id);
-                if(playerRef) playerRef.status = 'playing';
-            });
-
-            recordPartners(teamA);
-            recordPartners(teamB);
-            recordOpponents(teamA, teamB);
-
+            if(!bestGroup || !bestTeams) break;
+            const {teamA,teamB}=bestTeams;
+            eligible=eligible.filter(p=>!bestGroup.some(g=>g.id===p.id));
+            [...teamA,...teamB].forEach(p=>{ const ref=players.find(x=>x.id===p.id); if(ref) ref.status='playing'; });
+            recordPartners(teamA); recordPartners(teamB); recordOpponents(teamA,teamB);
             generatedMatches.push({
-                id: Date.now().toString() + '-' + c + '-' + Math.random().toString(36).slice(2, 7),
-                courtName: `Lapangan ${activeMatches.length + generatedMatches.length + 1}`,
-                teamA: teamA.map(p => ({
-                    ...p,
-                    matchPoints: 0,
-                    matchOuts: 0,
-                    matchFaults: 0
-                })),
-                teamB: teamB.map(p => ({
-                    ...p,
-                    matchPoints: 0,
-                    matchOuts: 0,
-                    matchFaults: 0
-                })),
-                scoreA: 0,
-                scoreB: 0,
-                time: 0,
-                isRunning: false
+                id: Date.now().toString()+'-'+c+'-'+Math.random().toString(36).slice(2,7),
+                round, courtName:`Lapangan ${c+1}`,
+                teamA:teamA.map(p=>({...p,matchPoints:0,matchOuts:0,matchFaults:0})),
+                teamB:teamB.map(p=>({...p,matchPoints:0,matchOuts:0,matchFaults:0})),
+                scoreA:0,scoreB:0,time:0,isRunning:false
             });
         }
-
-        if(generatedMatches.length === 0) {
-            if(!options.auto) {
-                alert(
-                    'Belum bisa membuat pertandingan yang levelnya seimbang.\n\n' +
-                    'Sistem 4 level mensyaratkan total level Tim A dan Tim B ' +
-                    'memiliki selisih maksimal 1.\n\n' +
-                    'Contoh valid: 1+3 vs 2+2 atau 4+1 vs 3+2.\n' +
-                    'Coba tambah pemain dari level yang lebih seimbang.'
-                );
-            }
+        if(!generatedMatches.length) {
+            if(!options.auto) alert('Belum bisa membuat kombinasi level yang seimbang. Selisih total level tim maksimal 1. Coba tambah pemain dari level yang sesuai.');
             return false;
         }
 
-        activeMatches.push(...generatedMatches);
-        saveData();
+        // Commit satu ronde sebagai satu operasi atomik di server.
+        const ok=await safeRoundMixMutation(view=>{
+            const added=cloneJSON(generatedMatches);
+            view.activeMatches.push(...added);
+            added.forEach(m=>{
+                [...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{ const ref=view.players.find(x=>x.id===mp.id); if(ref) ref.status='playing'; });
+            });
+            rebuildRotationForView(view);
+            return true;
+        });
+        if(!ok){
+            generatedMatches.forEach(m=>[...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{const ref=players.find(p=>p.id===mp.id);if(ref)ref.status='active';}));
+            renderQueue();
+            if(!options.auto) alert('Gagal menyimpan ronde baru ke server. Data lokal tidak dihapus. Coba generate lagi.');
+            return false;
+        }
         return true;
     }
 
@@ -3034,7 +3185,17 @@ function emptyPlayerStatsSnapshot() {
                 matchFaults: currentPlayer.matchFaults
             };
 
-            saveData();
+            const swappedMatch = cloneJSON(match);
+            safeRoundMixMutation(view => {
+                const serverMatch=view.activeMatches.find(x=>x.id===matchId);
+                if(!serverMatch) return false;
+                serverMatch[team][playerIdx] = cloneJSON(swappedMatch[team][playerIdx]);
+                // Status & histori rotasi dibangun ulang dari match yang benar-benar ada di server.
+                (view.players||[]).forEach(p=>{ if(p.status==='playing') p.status='active'; });
+                view.activeMatches.forEach(m=>[...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{const ref=view.players.find(p=>p.id===mp.id);if(ref)ref.status='playing';}));
+                rebuildRotationForView(view);
+                return true;
+            }).then(ok=>{ if(!ok) requestRefresh(); renderCourts(); renderQueue(); if(window.scoreDashboardOpen) renderScoreDashboard(matchId); });
         });
     }
 
@@ -3123,19 +3284,31 @@ function emptyPlayerStatsSnapshot() {
         }
     }
 
-    function toggleTimer(matchId) {
+    async function toggleTimer(matchId) {
         const match = activeMatches.find(m => m.id === matchId);
-        match.isRunning = !match.isRunning;
-        
-        if(match.isRunning) {
+        if(!match) return;
+        const nextRunning = !match.isRunning;
+        const nextTime = Number(match.time || 0);
+        if(nextRunning) {
+            match.isRunning = true;
             timers[matchId] = setInterval(() => {
                 match.time++;
-                const mainTimer = document.getElementById(`timer-${matchId}`); if (mainTimer) mainTimer.innerText = formatTime(match.time); const scoreTimer = document.getElementById(`score-dashboard-timer-${matchId}`); if (scoreTimer) scoreTimer.innerText = formatTime(match.time);
+                const mainTimer = document.getElementById(`timer-${matchId}`); if (mainTimer) mainTimer.innerText = formatTime(match.time);
+                const scoreTimer = document.getElementById(`score-dashboard-timer-${matchId}`); if (scoreTimer) scoreTimer.innerText = formatTime(match.time);
             }, 1000);
         } else {
+            match.isRunning = false;
             clearInterval(timers[matchId]);
         }
-        saveData();
+        renderScoreDashboard(matchId);
+        const ok = await safeRoundMixMutation(view => {
+            const serverMatch=view.activeMatches.find(m=>m.id===matchId);
+            if(!serverMatch) return false;
+            serverMatch.isRunning=nextRunning;
+            if(!nextRunning) serverMatch.time=Math.max(Number(serverMatch.time||0), nextTime);
+            return true;
+        });
+        if(!ok) requestRefresh();
     }
 
     function formatTime(seconds) {
@@ -3145,69 +3318,52 @@ function emptyPlayerStatsSnapshot() {
     }
 
     async function finishMatch(matchId, isSkip = false) {
+        const localMatch = activeMatches.find(m=>m.id===matchId);
+        if(!localMatch) return;
         clearInterval(timers[matchId]);
-        const match = activeMatches.find(m => m.id === matchId);
-        if(!match) return;
 
-        if(!isSkip) {
+        const ok = await safeRoundMixMutation(view => {
+            const match = view.activeMatches.find(m=>m.id===matchId);
+            if(!match) return false;
             const winner = match.scoreA > match.scoreB ? 'A' : (match.scoreB > match.scoreA ? 'B' : 'Draw');
-            const fee = parseInt(financeSettings.payPerPlay) || 0;
-
-            const updatePlayerStats = (p, team) => {
-                const ref = players.find(x => x.id === p.id);
-                if(ref) {
-                    // Statistik final selalu masuk ke ID pemain yang BENAR-BENAR berada
-                    // di slot match. Jadi kalau ada swap/manual override, pemain pengganti
-                    // yang mendapat +1 played; pemain lama tidak ikut dihitung.
-                    ref.stats.played += 1;
-                    ref.stats.points += Number(p.matchPoints || 0);
-                    ref.stats.out += Number(p.matchOuts || 0);
-                    ref.stats.fault += Number(p.matchFaults || 0);
-                    if(winner === team) ref.stats.wins += 1;
-                    ref.status = 'active';
-
-                    if(fee > 0) {
-                        ref.deposit -= fee;
-                        financeTransactions.push({
-                            id: Date.now().toString() + Math.random().toString().slice(2,5),
-                            date: new Date().toLocaleString('id-ID'),
-                            playerId: ref.id,
-                            playerName: ref.name,
-                            type: 'out',
-                            amount: fee,
-                            desc: `Otomatis Match (${match.courtName})`
-                        });
+            const fee = parseInt(view.financeSettings.payPerPlay) || 0;
+            if(!isSkip){
+                const update = (mp,team) => {
+                    const ref=view.players.find(x=>x.id===mp.id);
+                    if(!ref) return;
+                    if(!ref.stats) ref.stats={played:0,wins:0,points:0,out:0,fault:0,errors:0};
+                    ref.stats.played=Number(ref.stats.played||0)+1;
+                    ref.stats.points=Number(ref.stats.points||0)+Number(mp.matchPoints||0);
+                    ref.stats.out=Number(ref.stats.out||0)+Number(mp.matchOuts||0);
+                    ref.stats.fault=Number(ref.stats.fault||0)+Number(mp.matchFaults||0);
+                    ref.stats.errors=Number(ref.stats.out||0)+Number(ref.stats.fault||0);
+                    if(winner===team) ref.stats.wins=Number(ref.stats.wins||0)+1;
+                    ref.status='active';
+                    if(fee>0){
+                        ref.deposit=Number(ref.deposit||0)-fee;
+                        view.financeTransactions.push({id:Date.now().toString()+Math.random().toString().slice(2,5),date:new Date().toLocaleString('id-ID'),playerId:ref.id,playerName:ref.name,type:'out',amount:fee,desc:`Otomatis Match (${match.courtName})`});
                     }
-                }
-            };
+                };
+                (match.teamA||[]).forEach(p=>update(p,'A')); (match.teamB||[]).forEach(p=>update(p,'B'));
+                view.matchesHistory.push({...cloneJSON(match),finishedAt:new Date().toISOString()});
+            }
+            (match.teamA||[]).concat(match.teamB||[]).forEach(mp=>{const ref=view.players.find(p=>p.id===mp.id);if(ref)ref.status='active';});
+            view.activeMatches=view.activeMatches.filter(m=>m.id!==matchId);
+            view.activeMatches.forEach((m,i)=>m.courtName=`Lapangan ${i+1}`);
+            return true;
+        });
+        if(!ok){ alert('Match belum berhasil diselesaikan di server. Data di layar tidak dihapus, silakan coba lagi.'); return; }
 
-            match.teamA.forEach(p => updatePlayerStats(p, 'A'));
-            match.teamB.forEach(p => updatePlayerStats(p, 'B'));
-            matchesHistory.push({ date: new Date().toLocaleString(), ...cloneJSON(match) });
-        } else {
-            [...match.teamA, ...match.teamB].forEach(p => {
-                const ref = players.find(x => x.id === p.id);
-                if(ref) ref.status = 'active';
-            });
-        }
+        const stillActive=activeMatches.length>0;
+        if(window.scoreDashboardOpen && window.scoreDashboardMatchId===matchId) closeScoreDashboard();
+        renderCourts(); renderQueue(); renderStandings(); renderHistory();
 
-        activeMatches = activeMatches.filter(m => m.id !== matchId);
-        activeMatches.forEach((m, idx) => m.courtName = `Lapangan ${idx + 1}`);
-
-        // Pastikan hasil match + statistik pemain sudah landing dulu sebelum ronde berikutnya
-        // dibuat. Ini penting supaya generator membaca played terbaru, termasuk hasil swap.
-        const saved = await saveData();
-        await waitForSaveIdle();
-
-        if(window.scoreDashboardOpen && window.scoreDashboardMatchId === matchId) closeScoreDashboard();
-
-        if(saved !== false) {
-            // Otomatis cari ronde berikutnya. Tidak perlu klik "Acak Pertandingan Baru" lagi.
-            // Generator tetap menghormati status active/playing, played, level balance,
-            // partner repeat dan opponent repeat.
-            setTimeout(() => generateMatches({ auto: true }), 0);
+        if(!stillActive){
+            // Semua lapangan pada ronde ini sudah selesai -> otomatis buat ronde berikutnya.
+            setTimeout(()=>generateMatches({auto:true}),100);
         }
     }
+
 
 
     // ================= DASHBOARD UPDATE SKOR TERPISAH =================
@@ -3304,7 +3460,7 @@ function emptyPlayerStatsSnapshot() {
 
         content.innerHTML = `
             <div class="score-dashboard-status">
-                ${match.isRunning ? '● SEDANG MAIN' : 'Ⅱ PAUSED'}
+                ${match.round ? `🏸 RONDE ${match.round} · ` : ''}${match.isRunning ? '● SEDANG MAIN' : 'Ⅱ PAUSED'}
             </div>
 
             <div class="score-bigboard">
@@ -3370,7 +3526,7 @@ function emptyPlayerStatsSnapshot() {
             <div class="court" style="padding:16px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;">
                     <div>
-                        <div style="color:var(--primary);font-weight:800;">🏸 ${match.courtName || 'Lapangan'}</div>
+                        <div style="color:var(--primary);font-weight:800;">🏸 ${match.courtName || 'Lapangan'} ${match.round ? `<span class="round-label" style="margin-left:6px;">Ronde ${match.round}</span>` : ''}</div>
                         <div style="color:var(--text-muted);font-size:.78rem;margin-top:3px;">
                             ${match.isRunning ? '● Sedang Main' : 'Ⅱ Paused'}
                         </div>
@@ -3624,7 +3780,7 @@ function togglePlayerActions(button) {
 
         tbody.innerHTML = `
             <tr class="standings-empty-row">
-                <td colspan="8">
+                <td colspan="9">
                     <div class="standings-empty">
                         <div class="standings-empty-icon">🔎</div>
                         <strong>Pemain tidak ditemukan</strong>
@@ -3742,16 +3898,16 @@ function togglePlayerActions(button) {
 
 
                 <td
-                    data-label="Out"
-                    class="standings-number standings-out">
-                    ${p.stats.out}
+                    data-label="W/L"
+                    class="standings-number">
+                    ${Number(p.stats.wins || 0)}W - ${Math.max(0, Number(p.stats.played || 0) - Number(p.stats.wins || 0))}L
                 </td>
 
 
                 <td
-                    data-label="Fault"
-                    class="standings-number standings-fault">
-                    ${p.stats.fault}
+                    data-label="Error"
+                    class="standings-number standings-out">
+                    ${Number(p.stats.errors ?? ((p.stats.out || 0) + (p.stats.fault || 0)))}
                 </td>
 
             </tr>
@@ -3821,6 +3977,7 @@ function togglePlayerActions(button) {
 
                     <div class="history-court">
                         ${m.courtName || 'Lapangan'}
+                        ${m.round ? `<div class="history-round">Ronde ${m.round}</div>` : ''}
                     </div>
 
                 </div>
@@ -3887,6 +4044,12 @@ function togglePlayerActions(button) {
 
                     </div>
 
+                </div>
+
+                <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;color:var(--text-muted);font-size:.75rem;margin-top:10px;">
+                    ${m.round ? `<span>🏸 Ronde ${m.round}</span>` : ''}
+                    ${m.time ? `<span>⏱ ${formatTime(m.time)}</span>` : ''}
+                    <span>⚠️ Error ${[...(m.teamA||[]),...(m.teamB||[])].reduce((n,p)=>n+Number(p.matchOuts||0)+Number(p.matchFaults||0),0)}</span>
                 </div>
 
             </div>
