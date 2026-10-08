@@ -480,7 +480,36 @@
         @media (max-width: 600px) {
             #syncStatusToast { top: 10px; min-width: 200px; padding: 10px 14px; font-size: .82rem; }
         }
-    </style>
+    
+/* ===== MEMBER CARD & EVENT PARTICIPANTS ===== */
+.member-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;margin-top:18px;}
+.member-card{position:relative;background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.018));border:1px solid var(--border);border-radius:16px;padding:16px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.16);}
+.member-card:before{content:'';position:absolute;inset:0 auto 0 0;width:3px;background:var(--primary);opacity:.9;}
+.member-card-head{display:flex;gap:12px;align-items:center;}
+.member-card-photo{width:62px;height:62px;border-radius:50%;overflow:hidden;flex:0 0 62px;border:2px solid rgba(200,159,76,.65);}
+.member-card-photo img{width:100%;height:100%;object-fit:cover;}
+.member-card-photo .avatar-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+.member-card-name{font-size:1.08rem;font-weight:800;letter-spacing:.2px;}
+.member-card-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px;}
+.member-card-info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+.member-info-box{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:9px;}
+.member-info-label{display:block;font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;}
+.member-info-value{display:block;font-weight:800;margin-top:2px;}
+.member-career-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:12px;}
+.member-career-stat{text-align:center;background:rgba(200,159,76,.07);border-radius:9px;padding:8px 3px;}
+.member-career-stat b{display:block;font-size:1rem;}
+.member-career-stat span{font-size:.62rem;color:var(--text-muted);text-transform:uppercase;}
+.member-card-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:13px;}
+.member-card-actions button{flex:1;min-width:70px;padding:7px 8px;font-size:.74rem;}
+.member-birthday-today{position:absolute;top:10px;right:10px;background:rgba(245,158,11,.16);color:#fcd34d;border:1px solid rgba(245,158,11,.35);border-radius:999px;padding:4px 7px;font-size:.68rem;font-weight:800;}
+.event-participant-table{width:100%;border-collapse:collapse;}
+.event-participant-table th,.event-participant-table td{padding:9px 7px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left;}
+.event-participant-avatar{width:34px;height:34px;border-radius:50%;overflow:hidden;display:inline-flex;vertical-align:middle;margin-right:7px;}
+.event-participant-avatar img{width:100%;height:100%;object-fit:cover;}
+.event-participant-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+@media(max-width:600px){.member-card-grid{grid-template-columns:1fr;}.member-career-stats{grid-template-columns:repeat(4,1fr);}.member-card-info{grid-template-columns:1fr 1fr;}.event-participant-table{min-width:620px;}.event-participant-table-wrap{overflow-x:auto;}}
+
+</style>
 </head>
 <body>
 
@@ -566,27 +595,12 @@
                     <option value="2">Intermediate</option>
                     <option value="1">Beginner</option>
                 </select>
+                <input type="date" id="playerBirthDate" title="Tanggal lahir" style="flex:1;">
                 <input type="file" id="playerPhoto" accept="image/*" style="flex:1 1 100%;">
                 <button type="submit" id="playerFormSubmitBtn">+ Tambah Member</button>
             </form>
 
-            <div style="overflow-x: auto;">
-                <table id="playersTable">
-                    <thead>
-                        <tr>
-                            <th>Foto</th>
-                            <th>Nama</th>
-                            <th>L/P</th>
-                            <th>Level</th>
-                            <th>Hadir?</th>
-                            <th>Saldo</th>
-                            <th>Status</th>
-                            <th>Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="playersList"></tbody>
-                </table>
-            </div>
+            <div id="playersList" class="member-card-grid"></div>
         </div>
     </div>
 
@@ -1307,13 +1321,12 @@
     }
     function ensureEventAttendance(ev, legacyReady = false) {
         if (!ev) return {};
-        const hadAttendance = !!(ev.attendance && typeof ev.attendance === 'object');
-        if (!hadAttendance) ev.attendance = {};
-        players.forEach(p => {
-            if (ev.attendance[p.id] === undefined) ev.attendance[p.id] = hadAttendance ? false : (legacyReady ? p.ready !== false : false);
-        });
+        if (!ev.attendance || typeof ev.attendance !== 'object') ev.attendance = {};
+        // Penting: Member master TIDAK otomatis masuk event.
+        // Hanya pemain yang dipilih lewat "Tambah Member" yang menjadi peserta event.
         return ev.attendance;
     }
+
     function isPlayerPresent(p) {
         const ev = activeEvent();
         if (!ev || ev.mode !== 'match') return p.ready !== false;
@@ -1915,8 +1928,31 @@
         return null;
     }
 
+    function ensureCareerStatsFromHistory() {
+        players.forEach(p => {
+            if (p.careerStats) return;
+            p.careerStats = {played:0,wins:0,points:0,out:0,fault:0,errors:0};
+        });
+        // Legacy data: hitung dari seluruh history event yang sudah selesai.
+        const byId = new Map(players.map(p=>[p.id,p]));
+        let found = 0;
+        (eventRegistry.events||[]).forEach(ev => {
+            const history = ev?.snapshot?.matchesHistory || [];
+            history.forEach(m => {
+                const winner = Number(m.scoreA||0)>Number(m.scoreB||0)?'A':(Number(m.scoreB||0)>Number(m.scoreA||0)?'B':'Draw');
+                [['A',m.teamA||[]],['B',m.teamB||[]]].forEach(([team,list])=>list.forEach(mp=>{
+                    const p=byId.get(mp.id); if(!p) return; found++;
+                    const c=p.careerStats; c.played++; c.points+=Number(mp.matchPoints||0); c.out+=Number(mp.matchOuts||0); c.fault+=Number(mp.matchFaults||0); if(winner===team)c.wins++; c.errors=c.out+c.fault;
+                }));
+            });
+        });
+        // Jika tidak ada history yang bisa dihitung, pertahankan statistik lama sebagai fallback.
+        if(found===0) players.forEach(p=>{ if(Number(p.stats?.played||0)>0 && Number(p.careerStats.played||0)===0) p.careerStats=cloneJSON(p.stats); });
+    }
+
     // --- Inisialisasi ---
     function init() {
+        ensureCareerStatsFromHistory();
         // Pastikan setiap pemain memiliki properti deposit & histori pasangan terakhir
         players.forEach(p => {
             if(p.deposit === undefined) p.deposit = 0;
@@ -1925,6 +1961,10 @@
             if(p.ready === undefined) p.ready = true;
             if(!p.stats) p.stats = {played:0,wins:0,points:0,out:0,fault:0,errors:0};
             if(p.stats.errors === undefined) p.stats.errors = Number(p.stats.out || 0) + Number(p.stats.fault || 0);
+            if(!p.joinDate) p.joinDate = todayISO();
+            if(p.birthDate === undefined) p.birthDate = null;
+            if(!p.careerStats) p.careerStats = {played:0,wins:0,points:0,out:0,fault:0,errors:0};
+            if(p.careerStats.errors === undefined) p.careerStats.errors = Number(p.careerStats.out||0)+Number(p.careerStats.fault||0);
         });
         const evNow = activeEvent();
         if (evNow && evNow.mode === 'match') ensureEventAttendance(evNow, true);
@@ -2161,7 +2201,8 @@
             view.players.forEach(p=>{const r=rotation[p.id];p.lastPartners=r&&Array.isArray(r.lastPartners)?[...r.lastPartners]:[];p.lastOpponents=r&&Array.isArray(r.lastOpponents)?[...r.lastOpponents]:[];});
             if(!ev.attendance || typeof ev.attendance !== 'object') ev.attendance={};
             if(s.attendance) ev.attendance=cloneJSON(s.attendance);
-            view.players.forEach(p=>{ if(ev.attendance[p.id]===undefined) ev.attendance[p.id]=false; });
+            // Jangan menambahkan seluruh Member ke event secara otomatis. Attendance/participant
+            // hanya berisi player ID yang memang dipilih untuk event tersebut.
             if(!mutateFn(view)) return false;
             ev.snapshot={playerStats:{},rotation:{},attendance:cloneJSON(ev.attendance||{}),matchesHistory:cloneJSON(view.matchesHistory),activeMatches:cloneJSON(view.activeMatches),rrTeams:cloneJSON(view.rrTeams),rrMatches:cloneJSON(view.rrMatches),rrSettings:cloneJSON(view.rrSettings),rrPhase:view.rrPhase,rrBracket:cloneJSON(view.rrBracket)};
             view.players.forEach(p=>{ev.snapshot.playerStats[p.id]=cloneJSON(p.stats||{});ev.snapshot.rotation[p.id]={lastPartners:[...(p.lastPartners||[])],lastOpponents:[...(p.lastOpponents||[])]};});
@@ -2369,6 +2410,7 @@
         const name = document.getElementById('playerName').value.trim();
         const gender = document.getElementById('playerGender').value;
         const level = parseInt(document.getElementById('playerLevel').value);
+        const birthDate = document.getElementById('playerBirthDate')?.value || null;
         const photoFile = document.getElementById('playerPhoto').files[0] || null;
 
         if(players.find(p => p.name.toLowerCase() === name.toLowerCase())) {
@@ -2389,7 +2431,10 @@
         players.push({
             id: Date.now().toString(),
             name, gender, level,
+            birthDate,
+            joinDate: todayISO(),
             photo: photoUrl,
+            careerStats: { played:0, wins:0, points:0, out:0, fault:0, errors:0 },
             status: 'active',
             ready: false, // default "Belum Hadir" — banyak yang sering telat, jadi tandai hadir manual saat orangnya sudah datang
             deposit: 0,
@@ -2460,35 +2505,62 @@
         saveData();
     }
 
-    // Tandai pemain sudah datang / belum datang. Yang "Belum Hadir" tidak akan ikut
-    // diacak ke pertandingan (lihat generateMatches & renderQueue) sampai ditandai hadir.
-    async function toggleReady(id) {
-        const p = players.find(x => x.id === id);
+    // ================= PESERTA EVENT =================
+    // Member adalah database master. Peserta + hadir/tidak hadir hanya hidup di event ini.
+    function addEventParticipant() {
         const ev = activeEvent();
-        if(!p) return;
-        if (!ev || ev.mode !== 'match') return alert('Buka / pilih event Round Mix terlebih dahulu agar kehadiran tersimpan khusus untuk event ini.');
-        const nextValue = !isPlayerPresent(p);
-        ensureEventAttendance(ev, true)[id] = nextValue;
-        renderPlayers(); renderQueue(); renderEventAttendance();
+        if (!ev || ev.mode !== 'match') return alert('Buka event Round Mix terlebih dahulu.');
+        const attendance = ensureEventAttendance(ev, true);
+        const candidates = players.filter(p => attendance[p.id] === undefined).sort((a,b)=>a.name.localeCompare(b.name));
+        if (!candidates.length) return alert('Semua member sudah masuk ke event ini.');
+        openPlayerPicker(candidates, null, async (selectedId) => {
+            const ok = await safeRoundMixMutation(view => {
+                if (!view.event.attendance || typeof view.event.attendance !== 'object') view.event.attendance = {};
+                if (view.event.attendance[selectedId] !== undefined) return false;
+                view.event.attendance[selectedId] = true;
+                return true;
+            });
+            if (ok) {
+                const local = activeEvent();
+                if (local) local.attendance = local.attendance || {};
+                if (local) local.attendance[selectedId] = true;
+                renderEventAttendance(); renderQueue();
+            }
+        });
+    }
+
+    async function toggleEventAttendance(id) {
+        const ev = activeEvent();
+        if (!ev || ev.mode !== 'match') return;
+        const attendance = ensureEventAttendance(ev, true);
+        if (attendance[id] === undefined) return;
+        const nextValue = !attendance[id];
+        attendance[id] = nextValue;
+        renderEventAttendance(); renderQueue();
         const ok = await safeRoundMixMutation(view => {
-            const serverEv = view.event;
-            ensureEventAttendance(serverEv, true)[id] = nextValue;
+            if (view.event.attendance[id] === undefined) return false;
+            view.event.attendance[id] = nextValue;
             return true;
         });
         if (!ok) requestRefresh();
     }
 
-    async function setAllAttendance(value) {
+    async function removeEventParticipant(id) {
         const ev = activeEvent();
-        if (!ev || ev.mode !== 'match') return alert('Buka / pilih event Round Mix terlebih dahulu.');
-        ensureEventAttendance(ev, true);
-        players.forEach(p => { ev.attendance[p.id] = !!value; });
-        renderPlayers(); renderQueue(); renderEventAttendance();
+        if (!ev || ev.mode !== 'match') return;
+        if ((activeMatches||[]).some(m => [...(m.teamA||[]),...(m.teamB||[])].some(p=>p.id===id))) {
+            return alert('Pemain sedang ada di pertandingan aktif. Selesaikan match terlebih dahulu sebelum mengeluarkannya dari event.');
+        }
+        if (!confirm('Keluarkan pemain ini dari event? Data Member dan histori pertandingan tidak akan terhapus.')) return;
         const ok = await safeRoundMixMutation(view => {
-            players.forEach(p => { view.event.attendance[p.id] = !!value; });
+            if (!view.event.attendance) return false;
+            delete view.event.attendance[id];
             return true;
         });
-        if (!ok) requestRefresh();
+        if (ok) {
+            delete ev.attendance[id];
+            renderEventAttendance(); renderQueue();
+        } else requestRefresh();
     }
 
     function renderEventAttendance() {
@@ -2497,22 +2569,38 @@
         const ev = activeEvent();
         if (!ev || ev.mode !== 'match') { host.innerHTML = ''; return; }
         const attendance = ensureEventAttendance(ev, true);
-        const present = players.filter(p => p.status !== 'resting' && attendance[p.id]).length;
+        const participantIds = Object.keys(attendance);
+        const participants = participantIds.map(id => players.find(p=>p.id===id)).filter(Boolean);
+        const present = participants.filter(p => !!attendance[p.id]).length;
         host.innerHTML = `
             <div class="attendance-panel">
-                <div class="attendance-header">
+                <div class="event-participant-toolbar">
                     <div>
-                        <h2 style="margin-bottom:4px;">👥 Kehadiran Event</h2>
-                        <div style="color:var(--text-muted);font-size:.8rem;">${escapeHTML(ev.name)} · <b style="color:var(--primary);">${present}/${players.length} hadir</b></div>
+                        <h2 style="margin-bottom:4px;">👥 Peserta Event</h2>
+                        <div style="color:var(--text-muted);font-size:.8rem;">${escapeHTML(ev.name)} · <b style="color:var(--primary);">${present}/${participants.length} hadir</b></div>
                     </div>
-                    <div class="flex-row" style="margin:0;">
-                        <button class="btn-success" onclick="setAllAttendance(true)">✅ Hadir Semua</button>
-                        <button class="btn-warning" onclick="setAllAttendance(false)">↺ Reset</button>
-                    </div>
+                    <button class="btn-success" onclick="addEventParticipant()">＋ Tambah Member</button>
                 </div>
-                <div class="attendance-list">
-                    ${players.map(p => { const yes = !!attendance[p.id]; return `<div class="attendance-player ${yes?'present':''}" onclick="toggleReady('${p.id}')">${avatarHTML(p)}<span class="attendance-name">${escapeHTML(p.name)}</span>${getLevelBadge(p.level)}<span>${yes?'✅':'○'}</span></div>`; }).join('')}
-                </div>
+                <div class="event-participant-table-wrap">
+                <table class="event-participant-table">
+                    <thead><tr><th>#</th><th>Pemain</th><th>Level</th><th>Gender</th><th>Kehadiran</th><th>Main Event</th><th>Aksi</th></tr></thead>
+                    <tbody>
+                    ${participants.map((p,i)=>{
+                        const yes=!!attendance[p.id];
+                        const st=p.stats||{};
+                        return `<tr>
+                            <td>${i+1}</td>
+                            <td><span class="event-participant-avatar">${avatarHTML(p)}</span><b>${escapeHTML(p.name)}</b></td>
+                            <td>${getLevelBadge(p.level)}</td>
+                            <td>${p.gender==='L'?'♂ L':'♀ P'}</td>
+                            <td><button onclick="toggleEventAttendance('${p.id}')" class="${yes?'btn-success':'btn-warning'}" style="padding:6px 9px;">${yes?'✅ Hadir':'○ Tidak Hadir'}</button></td>
+                            <td>${Number(st.played||0)}x</td>
+                            <td><button onclick="removeEventParticipant('${p.id}')" class="btn-danger" style="padding:6px 9px;">Hapus</button></td>
+                        </tr>`;
+                    }).join('')}
+                    ${participants.length===0?'<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:18px;">Belum ada peserta. Klik ＋ Tambah Member.</td></tr>':''}
+                    </tbody>
+                </table></div>
             </div>`;
     }
 
@@ -2802,128 +2890,53 @@
         return '<span class="badge badge-beg">Beginner</span>';
     }
 
+   function getCareerStats(p) {
+        const s = p.careerStats || {};
+        return {
+            played:Number(s.played||0), wins:Number(s.wins||0),
+            points:Number(s.points||0), out:Number(s.out||0), fault:Number(s.fault||0),
+            errors:Number(s.errors ?? (Number(s.out||0)+Number(s.fault||0)))
+        };
+    }
+
    function renderPlayers() {
-    const tbody = document.getElementById('playersList');
-
-    tbody.innerHTML = players.map(p => `
-        <tr class="member-row">
-
-            <!-- FOTO -->
-            <td data-label="Foto">
-                <div class="avatar-cell member-avatar-cell">
-                    ${avatarHTML(p)}
-
-                    <button
-                        onclick="changePlayerPhoto('${p.id}')"
-                        class="btn-photo member-photo-btn">
-                        📷 Foto
-                    </button>
+    const host = document.getElementById('playersList');
+    if (!host) return;
+    host.innerHTML = players.map(p => {
+        const c = getCareerStats(p);
+        const wr = c.played ? ((c.wins/c.played)*100).toFixed(1) : '0.0';
+        const today = isBirthdayToday(p);
+        return `
+        <div class="member-card">
+            ${today ? '<div class="member-birthday-today">🎂 ULANG TAHUN HARI INI</div>' : ''}
+            <div class="member-card-head">
+                <div class="member-card-photo">${avatarHTML(p)}</div>
+                <div style="min-width:0;flex:1;">
+                    <div class="member-card-name">${escapeHTML(p.name)}</div>
+                    <div class="member-card-meta">${getLevelBadge(p.level)} <span class="badge">${p.gender==='L'?'♂ Laki-laki':'♀ Perempuan'}</span></div>
                 </div>
-            </td>
-
-            <!-- NAMA -->
-            <td data-label="Nama">
-                <div class="member-name-cell">
-
-                    <strong>${p.name}</strong>
-
-                    <button
-                        onclick="editPlayerName('${p.id}')"
-                        class="btn-photo member-edit-name"
-                        title="Ubah nama">
-                        ✏️
-                    </button>
-
-                </div>
-            </td>
-
-            <!-- GENDER -->
-            <td data-label="L/P">
-                <span class="member-gender">
-                    ${p.gender === 'L' ? '♂ Laki-laki' : '♀ Perempuan'}
-                </span>
-            </td>
-
-            <!-- LEVEL -->
-            <td data-label="Level">
-                ${getLevelBadge(p.level)}
-            </td>
-
-            <!-- HADIR -->
-            <td data-label="Kehadiran">
-
-                <button
-                    onclick="toggleReady('${p.id}')"
-                    class="${isPlayerPresent(p) ? 'btn-success' : 'btn-warning'} member-ready-btn">
-
-                    ${isPlayerPresent(p) ? '✅ Hadir Event' : '⏳ Belum Hadir'}
-
-                </button>
-
-            </td>
-
-            <!-- SALDO -->
-            <td data-label="Saldo">
-
-                <span
-                    class="member-balance"
-                    style="color:${p.deposit < 0 ? 'var(--danger)' : 'var(--success)'};">
-
-                    ${formatRupiah(p.deposit)}
-
-                </span>
-
-            </td>
-
-            <!-- STATUS -->
-            <td data-label="Status">
-
-                <button
-                    onclick="toggleStatus('${p.id}')"
-                    class="
-                        ${p.status === 'active'
-                            ? 'btn-success'
-                            : p.status === 'playing'
-                                ? 'btn-warning'
-                                : 'btn-danger'}
-                        member-status-btn
-                    "
-                    ${p.status === 'playing' ? 'disabled' : ''}>
-
-                    ${p.status === 'playing'
-                        ? '🎾 Playing'
-                        : p.status === 'active'
-                            ? '🟢 Active'
-                            : '🔴 Nonaktif'}
-
-                </button>
-
-            </td>
-
-            <!-- AKSI -->
-            <td data-label="Aksi">
-
-                <button
-                    onclick="editPlayerLevel('${p.id}')"
-                    class="btn-photo member-edit-name"
-                    title="Ubah level">
-
-                    🎯 Level
-
-                </button>
-
-                <button
-                    onclick="deletePlayer('${p.id}')"
-                    class="btn-danger member-delete-btn">
-
-                    🗑️ Hapus
-
-                </button>
-
-            </td>
-
-        </tr>
-    `).join('');
+            </div>
+            <div class="member-card-info">
+                <div class="member-info-box"><span class="member-info-label">Join</span><span class="member-info-value">${p.joinDate ? formatEventDate(p.joinDate) : '-'}</span></div>
+                <div class="member-info-box"><span class="member-info-label">Birthday</span><span class="member-info-value">${p.birthDate ? formatBirthDateShort(p.birthDate) : 'Belum diisi'}</span></div>
+            </div>
+            <div class="member-career-stats">
+                <div class="member-career-stat"><b>${c.played}</b><span>Main</span></div>
+                <div class="member-career-stat"><b>${c.wins}</b><span>Win</span></div>
+                <div class="member-career-stat"><b>${Math.max(0,c.played-c.wins)}</b><span>Lose</span></div>
+                <div class="member-career-stat"><b>${wr}%</b><span>Winrate</span></div>
+            </div>
+            <div style="font-size:.74rem;color:var(--text-muted);margin-top:8px;">Point ${c.points} · Error ${c.errors}</div>
+            <div class="member-card-actions">
+                <button onclick="editPlayerName('${p.id}')" class="btn-photo">✏️ Nama</button>
+                <button onclick="editPlayerLevel('${p.id}')" class="btn-photo">🎯 Level</button>
+                <button onclick="editBirthDate('${p.id}')" class="btn-photo">🎂 Lahir</button>
+                <button onclick="changePlayerPhoto('${p.id}')" class="btn-photo">📷 Foto</button>
+                ${p.birthDate && today ? `<button onclick="generateBirthdayStoryCard(players.find(x=>x.id==='${p.id}'))" class="btn-success">📸 Post</button>` : ''}
+                <button onclick="deletePlayer('${p.id}')" class="btn-danger">🗑️</button>
+            </div>
+        </div>`;
+    }).join('') || '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:30px;">Belum ada member.</div>';
 }
     function renderQueue() {
         const tbody = document.getElementById('queueList');
@@ -3521,6 +3534,15 @@
                     ref.stats.fault = Number(ref.stats.fault||0) + Number(mp.matchFaults||0);
                     ref.stats.errors = Number(ref.stats.out||0) + Number(ref.stats.fault||0);
                     if (winner === team) ref.stats.wins = Number(ref.stats.wins||0) + 1;
+
+                    // Statistik karier/member bersifat GLOBAL dan tidak pernah di-reset saat event berganti.
+                    if (!ref.careerStats) ref.careerStats = {played:0,wins:0,points:0,out:0,fault:0,errors:0};
+                    ref.careerStats.played = Number(ref.careerStats.played||0) + 1;
+                    ref.careerStats.points = Number(ref.careerStats.points||0) + Number(mp.matchPoints||0);
+                    ref.careerStats.out = Number(ref.careerStats.out||0) + Number(mp.matchOuts||0);
+                    ref.careerStats.fault = Number(ref.careerStats.fault||0) + Number(mp.matchFaults||0);
+                    ref.careerStats.errors = Number(ref.careerStats.out||0) + Number(ref.careerStats.fault||0);
+                    if (winner === team) ref.careerStats.wins = Number(ref.careerStats.wins||0) + 1;
                     ref.status = 'active';
                     if (fee > 0) {
                         ref.deposit = Number(ref.deposit||0) - fee;
