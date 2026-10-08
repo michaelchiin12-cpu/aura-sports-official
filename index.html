@@ -1988,6 +1988,7 @@
             let q = supabaseClient.from('sport_manager_state').update(patch).eq('id', STATE_ROW_ID);
             q = (fresh.updated_at === null || fresh.updated_at === undefined) ? q.is('updated_at', null) : q.eq('updated_at', fresh.updated_at);
             const { data: updData, error: updErr } = await q.select();
+            if (updErr) lastError = updErr;
 
             if (!updErr && updData && updData.length) {
                 // Berhasil. Kolom yang TIDAK kita ubah diambil nilai terbarunya dari server,
@@ -2108,12 +2109,22 @@
     }
 
     async function safeApplyToServer(mutateFn) {
-        const MAX_ATTEMPT = 16;
+        // Jangan cepat menganggap gagal. Pada multi-device, updated_at bisa berubah
+        // beberapa kali dalam waktu singkat karena device lain / realtime / save lain.
+        // Sebelumnya hanya 16 percobaan dan error fetch langsung dianggap gagal,
+        // sehingga alert "Skor mungkin belum tersimpan" terlalu sering muncul.
+        const MAX_ATTEMPT = 40;
         let notFoundStreak = 0;
+        let lastError = null;
         for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
             const { data: fresh, error: fetchErr } = await supabaseClient
                 .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
-            if (fetchErr || !fresh) { console.error('Gagal ambil data terbaru:', fetchErr); return false; }
+            if (fetchErr || !fresh) {
+                lastError = fetchErr || new Error('Data server kosong');
+                // Error koneksi sementara juga di-retry. Jangan langsung memunculkan alert.
+                await _sleep(Math.min(250 + attempt * 40, 900));
+                continue;
+            }
 
             const settings = cloneJSON(fresh.rr_settings || {});
             const reg = getEventRegistryFromSettings(settings);
@@ -2182,19 +2193,21 @@
                 }
                 return true;
             }
-            await _sleep(25 + Math.random() * 90 + attempt * 15);
+            // Backoff bertahap agar tidak terus menabrak write dari device lain.
+            await _sleep(Math.min(60 + attempt * 25 + Math.random() * 120, 700));
         }
-        console.error('safeApplyToServer: gagal setelah beberapa kali percobaan.');
+        console.error('safeApplyToServer: gagal setelah retry. Error terakhir:', lastError);
         return false;
     }
 
-    // Jika penyimpanan skor benar-benar gagal: cukup beri tahu & jadwalkan penyegaran AMAN
-    // (lewat SELECT utuh). Tidak ada penimpaan data lokal secara paksa.
+    // Jangan pakai alert blocking untuk kegagalan sinkronisasi sementara.
+    // Alert sebelumnya membuat user mengira error terjadi saat sedang di Member,
+    // padahal sering kali itu adalah antrean skor dari aksi beberapa detik sebelumnya.
     async function handleScoreSaveFailure(reRender) {
-        console.error('Skor gagal disinkronkan ke server setelah beberapa kali percobaan.');
-        alert('Skor mungkin belum tersimpan ke server (koneksi lambat / banyak perubahan bersamaan). Data di layar tidak dihapus. Layar akan disegarkan otomatis.');
+        console.error('Skor gagal disinkronkan ke server setelah retry. Menunggu refresh aman.');
         if (typeof reRender === 'function') reRender();
-        requestRefresh();
+        // Beri waktu koneksi/realtime menyelesaikan write lain sebelum mengambil ulang data.
+        setTimeout(() => requestRefresh(), 1200);
     }
 
     // Antrean khusus skor: setiap klik diproses SATU PER SATU dan berurutan.
