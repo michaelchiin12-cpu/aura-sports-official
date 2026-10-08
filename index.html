@@ -363,20 +363,17 @@
             justify-content:center;
             margin:16px 0 10px;
         }
-        .score-dashboard-finish {
+        .outer-match-actions {
             display:grid;
-            grid-template-columns:1fr 1.6fr;
+            grid-template-columns:1fr 1fr;
             gap:10px;
-            margin-top:14px;
-            padding:14px 0 4px;
-            position:sticky;
-            bottom:0;
-            z-index:20;
-            background:linear-gradient(to bottom, rgba(0,0,0,0), #000 18%);
+            margin-top:12px;
         }
-        .score-dashboard-finish button {
+        .outer-match-actions button {
+            width:100%;
             min-height:48px;
-            font-size:.9rem;
+            padding:12px;
+            font-size:1rem;
         }
         @media (max-width:640px) {
             #scoreDashboard { padding:10px; }
@@ -384,22 +381,8 @@
             .score-side-name { font-size:.9rem; }
             .score-number { font-size:2.8rem; }
             .score-player-grid { grid-template-columns:1fr; }
-            .score-dashboard-finish {
+            .outer-match-actions {
                 grid-template-columns:1fr;
-                position:fixed;
-                left:10px;
-                right:10px;
-                bottom:10px;
-                z-index:20010;
-                padding:10px 0 max(8px, env(safe-area-inset-bottom));
-                background:#000;
-                border-radius:12px;
-            }
-            #scoreDashboardContent {
-                padding-bottom:150px;
-            }
-            #scoreDashboard .score-dashboard-finish button {
-                width:100%;
             }
             .score-dashboard-header { align-items:flex-start; }
             .score-dashboard-back { padding:8px 10px; font-size:.78rem; }
@@ -3362,18 +3345,6 @@ function emptyPlayerStatsSnapshot() {
                 <button onclick="manualScore('${match.id}')">✏️ Edit Skor</button>
             </div>
 
-            <div class="score-dashboard-finish">
-                <button
-                    onclick="closeScoreDashboard()"
-                    style="background:var(--border);color:#fff;">
-                    ← Kembali ke Beranda
-                </button>
-                <button
-                    onclick="finishMatch('${match.id}', false)"
-                    class="btn-success">
-                    ✓ SELESAIKAN MATCH
-                </button>
-            </div>
         `;
 
         if (match.isRunning) {
@@ -3433,12 +3404,19 @@ function emptyPlayerStatsSnapshot() {
                     </div>
                 </div>
 
-                <button
-                    onclick="openScoreDashboard('${match.id}')"
-                    class="btn-success"
-                    style="width:100%;margin-top:12px;padding:12px;font-size:1rem;">
-                    🎯 UPDATE SKOR
-                </button>
+                <div class="outer-match-actions">
+                    <button
+                        onclick="openScoreDashboard('${match.id}')"
+                        class="btn-success"
+                        style="width:100%;padding:12px;font-size:1rem;">
+                        🎯 UPDATE SKOR
+                    </button>
+                    <button
+                        onclick="finishMatch('${match.id}', false)"
+                        style="width:100%;padding:12px;font-size:1rem;background:#b42318;color:#fff;border:1px solid #d92d20;border-radius:8px;font-weight:800;">
+                        ✓ SELESAIKAN MATCH
+                    </button>
+                </div>
             </div>
         `;
     }).join('');
