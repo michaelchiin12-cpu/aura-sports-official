@@ -367,8 +367,12 @@
             display:grid;
             grid-template-columns:1fr 1.6fr;
             gap:10px;
-            margin-top:auto;
-            padding-top:14px;
+            margin-top:14px;
+            padding:14px 0 4px;
+            position:sticky;
+            bottom:0;
+            z-index:20;
+            background:linear-gradient(to bottom, rgba(0,0,0,0), #000 18%);
         }
         .score-dashboard-finish button {
             min-height:48px;
@@ -380,7 +384,13 @@
             .score-side-name { font-size:.9rem; }
             .score-number { font-size:2.8rem; }
             .score-player-grid { grid-template-columns:1fr; }
-            .score-dashboard-finish { grid-template-columns:1fr; }
+            .score-dashboard-finish {
+                grid-template-columns:1fr;
+                position:sticky;
+                bottom:0;
+                padding:14px 0 max(8px, env(safe-area-inset-bottom));
+                background:#000;
+            }
             .score-dashboard-header { align-items:flex-start; }
             .score-dashboard-back { padding:8px 10px; font-size:.78rem; }
         }
@@ -2884,6 +2894,17 @@ function emptyPlayerStatsSnapshot() {
                 return true;
             }
 
+            if(type === 'error') {
+                const current = Number(p.matchOuts || 0) + Number(p.matchFaults || 0);
+                if(delta < 0 && current <= 0) return false;
+                if(delta > 0) p.matchOuts = Number(p.matchOuts || 0) + 1;
+                else if(Number(p.matchOuts || 0) > 0) p.matchOuts = Number(p.matchOuts || 0) - 1;
+                else p.matchFaults = Math.max(0, Number(p.matchFaults || 0) - 1);
+                if(team === 'teamA') m.scoreB = Math.max(0, Number(m.scoreB || 0) + delta);
+                else m.scoreA = Math.max(0, Number(m.scoreA || 0) + delta);
+                return true;
+            }
+
             return false;
         };
 
@@ -3260,7 +3281,7 @@ function emptyPlayerStatsSnapshot() {
                 <div class="score-player-main">
                     <div class="score-player-name">${escapeHTML(p.name)}</div>
                     <div class="score-player-stats">
-                        P ${p.matchPoints || 0} · O ${p.matchOuts || 0} · F ${p.matchFaults || 0}
+                        P ${p.matchPoints || 0} · Out/Fault ${(Number(p.matchOuts || 0) + Number(p.matchFaults || 0))}
                     </div>
                 </div>
                 <div class="score-player-actions">
@@ -3277,10 +3298,8 @@ function emptyPlayerStatsSnapshot() {
                 </div>
                 <div class="score-extra-actions">
                     <button onclick="updateScore('${match.id}', '${team}', ${idx}, 'point', true)">− Point</button>
-                    <button class="btn-warning" onclick="updateScore('${match.id}', '${team}', ${idx}, 'out', false)">+ Out</button>
-                    <button onclick="updateScore('${match.id}', '${team}', ${idx}, 'out', true)">− Out</button>
-                    <button class="btn-danger" onclick="updateScore('${match.id}', '${team}', ${idx}, 'fault', false)">+ Fault</button>
-                    <button onclick="updateScore('${match.id}', '${team}', ${idx}, 'fault', true)">− Fault</button>
+                    <button class="btn-danger" onclick="updateScore('${match.id}', '${team}', ${idx}, 'error', false)">+ OUT / FAULT</button>
+                    <button onclick="updateScore('${match.id}', '${team}', ${idx}, 'error', true)">− OUT / FAULT</button>
                     <button onclick="editMatchPlayerName('${match.id}', '${team}', ${idx})">✏️ Ganti</button>
                 </div>
             </div>
