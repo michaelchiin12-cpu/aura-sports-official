@@ -1835,7 +1835,7 @@
         refreshRunning = true;
         try {
             const { data, error } = await supabaseClient
-                .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
+                .from('sport_manager_state').select('id,updated_at,rr_settings,active_matches,rr_matches,rr_bracket').eq('id', STATE_ROW_ID).single();
             if (error || !data) { console.error('Gagal menyegarkan data:', error); return; }
             // Selama menunggu jawaban server, mungkin ada perubahan lokal baru -> jangan timpa
             if (pendingScoreOps > 0 || saveInFlight || savePending) { requestRefresh(); return; }
@@ -2100,10 +2100,10 @@
             const patch = { ...changedCols, updated_at: nowIso };
             let q = supabaseClient.from('sport_manager_state').update(patch).eq('id', STATE_ROW_ID);
             q = (fresh.updated_at === null || fresh.updated_at === undefined) ? q.is('updated_at', null) : q.eq('updated_at', fresh.updated_at);
-            const { data: updData, error: updErr } = await q.select();
+            const { error: updErr } = await q;
             if (updErr) lastError = updErr;
 
-            if (!updErr && updData && updData.length) {
+            if (!updErr) {
                 // Berhasil. Kolom yang TIDAK kita ubah diambil nilai terbarunya dari server,
                 // supaya layar HP ini juga ikut tahu perubahan HP lain di kolom tsb.
                 STATE_COLUMNS.forEach(col => { if (!(col in changedCols)) current[col] = fresh[col]; });
@@ -2175,10 +2175,10 @@
             return false;
         }
         markSyncSaving();
-        const MAX_ATTEMPT=8;
+        const MAX_ATTEMPT=4;
         for(let attempt=0;attempt<MAX_ATTEMPT;attempt++){
-            const {data:fresh,error}=await supabaseClient.from('sport_manager_state').select('*').eq('id',STATE_ROW_ID).single();
-            if(error||!fresh){await _sleep(100+attempt*50);continue;}
+            const {data:fresh,error}=await supabaseClient.from('sport_manager_state').select('id,updated_at,players,finance_transactions,finance_settings,rr_settings,active_matches,rr_matches,rr_teams,rr_phase,rr_bracket').eq('id',STATE_ROW_ID).single();
+            if(error||!fresh){await _sleep(150+attempt*100);continue;}
             const settings=cloneJSON(fresh.rr_settings||{});
             const reg=getEventRegistryFromSettings(settings);
             const targetId=eventRegistry?.activeEventId;
@@ -2214,14 +2214,14 @@
             settings.__eventRegistry=cloneJSON(reg);
             let q=supabaseClient.from('sport_manager_state').update(patch).eq('id',STATE_ROW_ID);
             q=(fresh.updated_at==null)?q.is('updated_at',null):q.eq('updated_at',fresh.updated_at);
-            const {data:upd,error:updErr}=await q.select();
+            const {error:updErr}=await q;
             if(!updErr&&upd?.length){
                 players=cloneJSON(view.players);matchesHistory=cloneJSON(view.matchesHistory);activeMatches=cloneJSON(view.activeMatches);financeTransactions=cloneJSON(view.financeTransactions);financeSettings=cloneJSON(view.financeSettings);rrTeams=cloneJSON(view.rrTeams);rrMatches=cloneJSON(view.rrMatches);rrSettings=cloneJSON(view.rrSettings);rrPhase=view.rrPhase;rrBracket=cloneJSON(view.rrBracket);eventRegistry=reg;eventRegistry.activeEventId=ev.id;
                 lastSyncedRow={...fresh,...patch};
                 markSyncSuccess();
                 return true;
             }
-            await _sleep(50+Math.random()*100+attempt*30);
+            await _sleep(120+attempt*100);
         }
         markSyncError('Perubahan belum tersimpan setelah beberapa kali percobaan. Periksa koneksi lalu ulangi aksi.');
         return false;
@@ -2247,7 +2247,7 @@
         // beberapa kali dalam waktu singkat karena device lain / realtime / save lain.
         // Sebelumnya hanya 16 percobaan dan error fetch langsung dianggap gagal,
         // sehingga alert "Skor mungkin belum tersimpan" terlalu sering muncul.
-        const MAX_ATTEMPT = 6;
+        const MAX_ATTEMPT = 3;
         let notFoundStreak = 0;
         let lastError = null;
         for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
@@ -2256,7 +2256,7 @@
             if (fetchErr || !fresh) {
                 lastError = fetchErr || new Error('Data server kosong');
                 // Error koneksi sementara juga di-retry. Jangan langsung memunculkan alert.
-                await _sleep(Math.min(80 + attempt * 45, 300));
+                await _sleep(120 + attempt * 120);
                 continue;
             }
 
@@ -2329,7 +2329,7 @@
                 return true;
             }
             // Backoff bertahap agar tidak terus menabrak write dari device lain.
-            await _sleep(Math.min(50 + attempt * 25 + Math.random() * 60, 250));
+            await _sleep(100 + attempt * 100);
         }
         console.error('safeApplyToServer: gagal setelah retry. Error terakhir:', lastError);
         markSyncError('Perubahan belum tersimpan ke server. Periksa koneksi, lalu ulangi aksi.');
@@ -2353,44 +2353,54 @@
     let scoreOpQueue = Promise.resolve();
     let scoreBatch = [];
     let scoreBatchTimer = null;
+
+    function flushScoreBatch() {
+        if (scoreBatchTimer) {
+            clearTimeout(scoreBatchTimer);
+            scoreBatchTimer = null;
+        }
+        if (!scoreBatch.length) return scoreOpQueue;
+
+        const batch = scoreBatch.splice(0);
+        scoreOpQueue = scoreOpQueue
+            .then(async () => {
+                const ok = await safeApplyToServer(row => {
+                    for (const op of batch) {
+                        const result = op(row);
+                        if (result === false) return false;
+                    }
+                    return true;
+                });
+                if (!ok) {
+                    markSyncError('Perubahan skor belum tersimpan ke server.');
+                } else {
+                    renderCourts();
+                    if (window.scoreDashboardOpen) {
+                        const openId = window.scoreDashboardMatchId;
+                        if (openId) renderScoreDashboard(openId);
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Gagal proses batch skor:', err);
+                markSyncError('Terjadi error saat menyimpan perubahan skor.');
+            })
+            .then(() => {
+                pendingScoreOps = Math.max(0, pendingScoreOps - batch.length);
+                if (pendingScoreOps === 0) requestRefresh();
+            });
+        return scoreOpQueue;
+    }
+
     function queueScoreOp(fn) {
         pendingScoreOps++;
         scoreBatch.push(fn);
         if (!scoreBatchTimer) {
-            scoreBatchTimer = setTimeout(() => {
-                scoreBatchTimer = null;
-                const batch = scoreBatch.splice(0);
-                scoreOpQueue = scoreOpQueue
-                    .then(async () => {
-                        const ok = await safeApplyToServer(row => {
-                            for (const op of batch) {
-                                const result = op(row);
-                                if (result === false) return false;
-                            }
-                            return true;
-                        });
-                        if (!ok) {
-                            markSyncError('Perubahan skor belum tersimpan ke server.');
-                        } else {
-                            renderCourts();
-                            if (window.scoreDashboardOpen) {
-                                const openId = window.scoreDashboardMatchId;
-                                if (openId) renderScoreDashboard(openId);
-                            }
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Gagal proses batch skor:', err);
-                        markSyncError('Terjadi error saat menyimpan perubahan skor.');
-                    })
-                    .then(() => {
-                        pendingScoreOps = Math.max(0, pendingScoreOps - batch.length);
-                        if (pendingScoreOps === 0) requestRefresh();
-                    });
-            }, 120);
+            scoreBatchTimer = setTimeout(() => flushScoreBatch(), 120);
         }
         return scoreOpQueue;
     }
+
 
     // --- Navigasi Tab ---
     function switchTab(evt, tabName) {
@@ -3506,6 +3516,10 @@
     }
 
     async function finishMatch(matchId, isSkip = false) {
+        // Pastikan klik skor terakhir benar-benar masuk server sebelum match ditutup.
+        // Tanpa ini, finish bisa bentrok dengan batch skor yang masih berjalan.
+        await flushScoreBatch();
+        await scoreOpQueue;
         const localMatch = activeMatches.find(m => m.id === matchId);
         if (!localMatch) return;
         clearInterval(timers[matchId]);
