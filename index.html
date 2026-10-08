@@ -1850,11 +1850,20 @@ function emptyPlayerStatsSnapshot() {
     async function saveData() {
         snapshotCurrentEvent();
         init();
-        if(saveInFlight) { savePending = true; return; }
+        if(saveInFlight) { savePending = true; return true; }
         saveInFlight = true;
-        await performSaveToSupabase();
+        const result = await performSaveToSupabase();
         saveInFlight = false;
         if(savePending) { savePending = false; saveData(); }
+        return result;
+    }
+
+    async function waitForSaveIdle() {
+        // Menunggu seluruh antrean save umum selesai. Dipakai sebelum aksi yang
+        // bergantung pada state terbaru, misalnya auto-generate ronde berikutnya.
+        while(saveInFlight || savePending) {
+            await _sleep(50);
+        }
     }
 
     async function performSaveToSupabase() {
@@ -2689,15 +2698,15 @@ function emptyPlayerStatsSnapshot() {
         return best;
     }
 
-    function generateMatches() {
+    function generateMatches(options = {}) {
         const teamSize = parseInt(document.getElementById('playersPerTeam').value);
         const maxCourts = parseInt(document.getElementById('totalCourts').value);
         const requiredPlayersPerMatch = teamSize * 2;
 
         let courtsToFill = maxCourts - activeMatches.length;
         if(courtsToFill <= 0) {
-            alert('Semua lapangan sedang digunakan!');
-            return;
+            if(!options.auto) alert('Semua lapangan sedang digunakan!');
+            return false;
         }
 
         // Pool pemain aktif yang sudah hadir.
@@ -2705,12 +2714,14 @@ function emptyPlayerStatsSnapshot() {
             .sort((a, b) => a.stats.played - b.stats.played);
 
         if(eligible.length < requiredPlayersPerMatch) {
-            const notReady = players.filter(p => p.status === 'active' && !p.ready).length;
-            alert(`Pemain yang sudah hadir & aktif tidak cukup. Butuh ${requiredPlayersPerMatch}, tersedia ${eligible.length}.` +
-                (notReady > 0
-                    ? `\n\n(${notReady} pemain masih ditandai "Belum Hadir" — tandai hadir dulu di tab Member 👑 kalau mereka sudah datang)`
-                    : ''));
-            return;
+            if(!options.auto) {
+                const notReady = players.filter(p => p.status === 'active' && !p.ready).length;
+                alert(`Pemain yang sudah hadir & aktif tidak cukup. Butuh ${requiredPlayersPerMatch}, tersedia ${eligible.length}.` +
+                    (notReady > 0
+                        ? `\n\n(${notReady} pemain masih ditandai "Belum Hadir" — tandai hadir dulu di tab Member 👑 kalau mereka sudah datang)`
+                        : ''));
+            }
+            return false;
         }
 
         const generatedMatches = [];
@@ -2821,48 +2832,151 @@ function emptyPlayerStatsSnapshot() {
         }
 
         if(generatedMatches.length === 0) {
-            alert(
-                'Belum bisa membuat pertandingan yang levelnya seimbang.\n\n' +
-                'Sistem 4 level mensyaratkan total level Tim A dan Tim B ' +
-                'memiliki selisih maksimal 1.\n\n' +
-                'Contoh valid: 1+3 vs 2+2 atau 4+1 vs 3+2.\n' +
-                'Coba tambah pemain dari level yang lebih seimbang.'
-            );
-            return;
+            if(!options.auto) {
+                alert(
+                    'Belum bisa membuat pertandingan yang levelnya seimbang.\n\n' +
+                    'Sistem 4 level mensyaratkan total level Tim A dan Tim B ' +
+                    'memiliki selisih maksimal 1.\n\n' +
+                    'Contoh valid: 1+3 vs 2+2 atau 4+1 vs 3+2.\n' +
+                    'Coba tambah pemain dari level yang lebih seimbang.'
+                );
+            }
+            return false;
         }
 
         activeMatches.push(...generatedMatches);
         saveData();
+        return true;
     }
 
 
     // --- Kontrol Pertandingan ---
     function updateScore(matchId, team, playerIdx, type, isMinus) {
-        const val = isMinus ? -1 : 1;
-        // 1) Update tampilan lokal dulu supaya terasa instan saat diklik
+        const delta = isMinus ? -1 : 1;
+
+        const applyScoreChange = (m, p) => {
+            if(!m || !p) return false;
+
+            if(type === 'point') {
+                const current = Number(p.matchPoints || 0);
+                if(delta < 0 && current <= 0) return false;
+                p.matchPoints = Math.max(0, current + delta);
+                if(team === 'teamA') m.scoreA = Math.max(0, Number(m.scoreA || 0) + delta);
+                else m.scoreB = Math.max(0, Number(m.scoreB || 0) + delta);
+                return true;
+            }
+
+            if(type === 'out') {
+                const current = Number(p.matchOuts || 0);
+                if(delta < 0 && current <= 0) return false;
+                p.matchOuts = Math.max(0, current + delta);
+                if(team === 'teamA') m.scoreB = Math.max(0, Number(m.scoreB || 0) + delta);
+                else m.scoreA = Math.max(0, Number(m.scoreA || 0) + delta);
+                return true;
+            }
+
+            if(type === 'fault') {
+                const current = Number(p.matchFaults || 0);
+                if(delta < 0 && current <= 0) return false;
+                p.matchFaults = Math.max(0, current + delta);
+                if(team === 'teamA') m.scoreB = Math.max(0, Number(m.scoreB || 0) + delta);
+                else m.scoreA = Math.max(0, Number(m.scoreA || 0) + delta);
+                return true;
+            }
+
+            return false;
+        };
+
+        // Update lokal dulu supaya tombol terasa instan.
         const localMatch = activeMatches.find(m => m.id === matchId);
-        if (localMatch) {
-            const p = localMatch[team][playerIdx];
-            if(type === 'point') { p.matchPoints += val; if(team==='teamA') localMatch.scoreA += val; else localMatch.scoreB += val; }
-            else if(type === 'out') { p.matchOuts += val; if(team==='teamA') localMatch.scoreB += val; else localMatch.scoreA += val; }
-            else if(type === 'fault') { p.matchFaults += val; if(team==='teamA') localMatch.scoreB += val; else localMatch.scoreA += val; }
-            renderCourts(); if (window.scoreDashboardOpen) renderScoreDashboard(matchId);
+        if(localMatch) {
+            const p = localMatch[team] && localMatch[team][playerIdx];
+            if(applyScoreChange(localMatch, p)) {
+                renderCourts();
+                if(window.scoreDashboardOpen) renderScoreDashboard(matchId);
+            } else if(delta < 0) {
+                return;
+            }
         }
-        // 2) Kirim SATU PERUBAHAN INI ke server berdasarkan data paling baru di server
-        //    (bukan salinan lokal), dengan retry aman kalau ada HP lain nulis bersamaan.
+
+        // Simpan perubahan yang sama di atas data TERBARU server.
         queueScoreOp(async () => {
             const ok = await safeApplyToServer(row => {
                 const m = (row.active_matches || []).find(x => x.id === matchId);
-                if (!m) return false;
-                const p = m[team][playerIdx];
-                if (!p) return false;
-                if(type === 'point') { p.matchPoints += val; if(team==='teamA') m.scoreA += val; else m.scoreB += val; }
-                else if(type === 'out') { p.matchOuts += val; if(team==='teamA') m.scoreB += val; else m.scoreA += val; }
-                else if(type === 'fault') { p.matchFaults += val; if(team==='teamA') m.scoreB += val; else m.scoreA += val; }
-                return true;
+                if(!m) return false;
+                const p = m[team] && m[team][playerIdx];
+                return applyScoreChange(m, p);
             });
-            if (ok) renderCourts(); if (window.scoreDashboardOpen) renderScoreDashboard(matchId); else await handleScoreSaveFailure(renderCourts); // selaraskan tampilan dengan hasil final dari server
+
+            if(ok) {
+                renderCourts();
+                if(window.scoreDashboardOpen) renderScoreDashboard(matchId);
+            } else {
+                await handleScoreSaveFailure(renderCourts);
+            }
         });
+    }
+
+    // Karena matchmaking sudah mencatat partner/lawan saat match dibuat, swap manual
+    // harus membatalkan catatan untuk pemain lama lalu mencatat pemain pengganti.
+    // Dengan begitu ronde berikutnya tidak menganggap kombinasi yang sebenarnya tidak
+    // pernah bermain sebagai "sudah pernah main bersama/lawan".
+    function removeOneRecentRelation(list, id) {
+        if(!Array.isArray(list)) return;
+        const idx = list.indexOf(id);
+        if(idx >= 0) list.splice(idx, 1);
+    }
+
+    function syncRotationAfterPlayerSwap(match, team, playerIdx, oldPlayer, newPlayer) {
+        const oldTeam = match[team] || [];
+        const otherTeam = team === 'teamA' ? (match.teamB || []) : (match.teamA || []);
+        const oldTeamMates = oldTeam.filter((p, i) => i !== playerIdx && p.id !== oldPlayer.id);
+
+        // Hapus 1 catatan partner yang berasal dari match ini.
+        oldTeamMates.forEach(p => {
+            const oldRef = players.find(x => x.id === oldPlayer.id);
+            const mateRef = players.find(x => x.id === p.id);
+            if(oldRef) removeOneRecentRelation(oldRef.lastPartners, p.id);
+            if(mateRef) removeOneRecentRelation(mateRef.lastPartners, oldPlayer.id);
+        });
+
+        // Hapus 1 catatan lawan yang berasal dari match ini.
+        otherTeam.forEach(p => {
+            const oldRef = players.find(x => x.id === oldPlayer.id);
+            const oppRef = players.find(x => x.id === p.id);
+            if(oldRef) removeOneRecentRelation(oldRef.lastOpponents, p.id);
+            if(oppRef) removeOneRecentRelation(oppRef.lastOpponents, oldPlayer.id);
+        });
+
+        // Catat relasi aktual pemain pengganti.
+        if(newPlayer) {
+            const newRef = players.find(x => x.id === newPlayer.id);
+            if(newRef) {
+                if(!Array.isArray(newRef.lastPartners)) newRef.lastPartners = [];
+                const mates = oldTeamMates.map(p => p.id);
+                newRef.lastPartners = [...mates, ...newRef.lastPartners].slice(0, 3);
+
+                if(!Array.isArray(newRef.lastOpponents)) newRef.lastOpponents = [];
+                const opponents = otherTeam.map(p => p.id);
+                newRef.lastOpponents = [...opponents, ...newRef.lastOpponents].slice(0, 4);
+            }
+
+            oldTeamMates.forEach(p => {
+                const mateRef = players.find(x => x.id === p.id);
+                if(mateRef) {
+                    if(!Array.isArray(mateRef.lastPartners)) mateRef.lastPartners = [];
+                    mateRef.lastPartners = [newPlayer.id, ...mateRef.lastPartners].slice(0, 3);
+                }
+            });
+
+            otherTeam.forEach(p => {
+                const oppRef = players.find(x => x.id === p.id);
+                if(oppRef) {
+                    if(!Array.isArray(oppRef.lastOpponents)) oppRef.lastOpponents = [];
+                    oppRef.lastOpponents = [newPlayer.id, ...oppRef.lastOpponents].slice(0, 4);
+                }
+            });
+        }
     }
 
     // Ganti pemain di slot lapangan yang sedang berjalan dengan MEMILIH dari daftar pemain
@@ -2892,6 +3006,10 @@ function emptyPlayerStatsSnapshot() {
 
             // Kunci status pemain baru sebagai sedang bertanding
             selected.status = 'playing';
+
+            // Sinkronkan histori rotasi: pemain lama tidak dianggap benar-benar bermain
+            // di kombinasi ini, sedangkan pemain pengganti dianggap benar-benar bermain.
+            syncRotationAfterPlayerSwap(match, team, playerIdx, currentPlayer, selected);
 
             // Ganti isi slot, TAPI poin/out/fault yang sudah tercatat di slot ini tetap lanjut
             // (bukan direset ke 0), supaya skor tim tidak berubah tiba-tiba di tengah match.
@@ -3012,10 +3130,11 @@ function emptyPlayerStatsSnapshot() {
         return `${m}:${s}`;
     }
 
-    function finishMatch(matchId, isSkip = false) {
+    async function finishMatch(matchId, isSkip = false) {
         clearInterval(timers[matchId]);
         const match = activeMatches.find(m => m.id === matchId);
-        
+        if(!match) return;
+
         if(!isSkip) {
             const winner = match.scoreA > match.scoreB ? 'A' : (match.scoreB > match.scoreA ? 'B' : 'Draw');
             const fee = parseInt(financeSettings.payPerPlay) || 0;
@@ -3023,14 +3142,16 @@ function emptyPlayerStatsSnapshot() {
             const updatePlayerStats = (p, team) => {
                 const ref = players.find(x => x.id === p.id);
                 if(ref) {
+                    // Statistik final selalu masuk ke ID pemain yang BENAR-BENAR berada
+                    // di slot match. Jadi kalau ada swap/manual override, pemain pengganti
+                    // yang mendapat +1 played; pemain lama tidak ikut dihitung.
                     ref.stats.played += 1;
-                    ref.stats.points += p.matchPoints;
-                    ref.stats.out += p.matchOuts;
-                    ref.stats.fault += p.matchFaults;
+                    ref.stats.points += Number(p.matchPoints || 0);
+                    ref.stats.out += Number(p.matchOuts || 0);
+                    ref.stats.fault += Number(p.matchFaults || 0);
                     if(winner === team) ref.stats.wins += 1;
                     ref.status = 'active';
 
-                    // Otomatis Potong Deposit jika Tarif Pay-Per-Play Aktif
                     if(fee > 0) {
                         ref.deposit -= fee;
                         financeTransactions.push({
@@ -3048,8 +3169,7 @@ function emptyPlayerStatsSnapshot() {
 
             match.teamA.forEach(p => updatePlayerStats(p, 'A'));
             match.teamB.forEach(p => updatePlayerStats(p, 'B'));
-            
-            matchesHistory.push({ date: new Date().toLocaleString(), ...match });
+            matchesHistory.push({ date: new Date().toLocaleString(), ...cloneJSON(match) });
         } else {
             [...match.teamA, ...match.teamB].forEach(p => {
                 const ref = players.find(x => x.id === p.id);
@@ -3059,8 +3179,20 @@ function emptyPlayerStatsSnapshot() {
 
         activeMatches = activeMatches.filter(m => m.id !== matchId);
         activeMatches.forEach((m, idx) => m.courtName = `Lapangan ${idx + 1}`);
-        saveData();
-        if (window.scoreDashboardOpen && window.scoreDashboardMatchId === matchId) closeScoreDashboard();
+
+        // Pastikan hasil match + statistik pemain sudah landing dulu sebelum ronde berikutnya
+        // dibuat. Ini penting supaya generator membaca played terbaru, termasuk hasil swap.
+        const saved = await saveData();
+        await waitForSaveIdle();
+
+        if(window.scoreDashboardOpen && window.scoreDashboardMatchId === matchId) closeScoreDashboard();
+
+        if(saved !== false) {
+            // Otomatis cari ronde berikutnya. Tidak perlu klik "Acak Pertandingan Baru" lagi.
+            // Generator tetap menghormati status active/playing, played, level balance,
+            // partner repeat dan opponent repeat.
+            setTimeout(() => generateMatches({ auto: true }), 0);
+        }
     }
 
 
@@ -3146,7 +3278,9 @@ function emptyPlayerStatsSnapshot() {
                 <div class="score-extra-actions">
                     <button onclick="updateScore('${match.id}', '${team}', ${idx}, 'point', true)">− Point</button>
                     <button class="btn-warning" onclick="updateScore('${match.id}', '${team}', ${idx}, 'out', false)">+ Out</button>
+                    <button onclick="updateScore('${match.id}', '${team}', ${idx}, 'out', true)">− Out</button>
                     <button class="btn-danger" onclick="updateScore('${match.id}', '${team}', ${idx}, 'fault', false)">+ Fault</button>
+                    <button onclick="updateScore('${match.id}', '${team}', ${idx}, 'fault', true)">− Fault</button>
                     <button onclick="editMatchPlayerName('${match.id}', '${team}', ${idx})">✏️ Ganti</button>
                 </div>
             </div>
@@ -3242,12 +3376,26 @@ function emptyPlayerStatsSnapshot() {
 
                 <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:14px;">
                     <div style="text-align:center;min-width:0;">
-                        <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${teamA || 'Tim A'}</div>
+                        <div style="font-size:.72rem;color:var(--text-muted);font-weight:800;margin-bottom:7px;">TIM A</div>
+                        <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;">
+                            ${(match.teamA || []).map((p, idx) => `
+                                <div style="display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;">
+                                    <span style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(p.name)}</span>
+                                    <button onclick="editMatchPlayerName('${match.id}','teamA',${idx})" title="Ganti pemain" style="border:0;background:transparent;color:var(--primary);padding:2px 4px;cursor:pointer;">✏️</button>
+                                </div>`).join('')}
+                        </div>
                         <div style="font-size:2rem;font-weight:900;color:var(--primary);margin-top:5px;">${match.scoreA}</div>
                     </div>
                     <div style="color:var(--text-muted);font-weight:800;">VS</div>
                     <div style="text-align:center;min-width:0;">
-                        <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${teamB || 'Tim B'}</div>
+                        <div style="font-size:.72rem;color:var(--text-muted);font-weight:800;margin-bottom:7px;">TIM B</div>
+                        <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;">
+                            ${(match.teamB || []).map((p, idx) => `
+                                <div style="display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;">
+                                    <span style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(p.name)}</span>
+                                    <button onclick="editMatchPlayerName('${match.id}','teamB',${idx})" title="Ganti pemain" style="border:0;background:transparent;color:var(--primary);padding:2px 4px;cursor:pointer;">✏️</button>
+                                </div>`).join('')}
+                        </div>
                         <div style="font-size:2rem;font-weight:900;color:var(--primary);margin-top:5px;">${match.scoreB}</div>
                     </div>
                 </div>
