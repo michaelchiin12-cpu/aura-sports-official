@@ -534,6 +534,9 @@
     padding: 10px 12px; font-size: .88rem;
 }
 
+        /* ================= PIC ================= */
+        .pic-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:16px}.pic-card{background:var(--bg-main);border:1px solid var(--border);border-radius:12px;padding:16px}.pic-card-head{display:flex;align-items:center;gap:12px}.pic-icon{width:42px;height:42px;border-radius:10px;background:rgba(200,159,76,.1);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0}.pic-role{font-weight:800;color:var(--primary);font-size:.95rem}.pic-person{font-weight:700;margin-top:3px}.pic-desc{color:var(--text-muted);font-size:.82rem;line-height:1.5;margin:12px 0}.pic-assign-btn{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);font-weight:700;cursor:pointer}.pic-assign-btn:hover{border-color:var(--primary);color:var(--primary)}.pic-note{margin-top:16px;padding:12px;border:1px dashed var(--border);border-radius:10px;color:var(--text-muted);font-size:.82rem;line-height:1.5}@media(max-width:600px){.pic-grid{grid-template-columns:1fr}}
+.pic-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:10001;padding:18px}.pic-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:100%;max-width:430px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.55)}.pic-modal h3{margin:0 0 6px;color:var(--primary)}.pic-modal p{font-size:.82rem;color:var(--text-muted);margin:0 0 14px}.pic-modal select{width:100%;margin:0 0 14px}.pic-modal-actions{display:flex;gap:8px}.pic-modal-actions button{flex:1}
 </style>
 </head>
 <body>
@@ -603,6 +606,9 @@
     <button class="tab-btn" onclick="switchTab(event, 'member')">
         👑 Member
     </button>
+    <button class="tab-btn" onclick="switchTab(event, 'pic')">
+        👤 PIC
+    </button>
 </div>
     </div>
 
@@ -629,6 +635,17 @@
             </form>
 
             <div id="playersList" class="member-card-grid"></div>
+        </div>
+    </div>
+
+    <!-- ================= TAB PIC ================= -->
+    <div id="tab-pic" class="tab-content">
+        <div class="card">
+            <div class="history-title-row">
+                <div><h2>👤 PIC Team</h2><div class="history-subtitle">Penanggung jawab dan pembagian tugas team</div></div>
+                <div class="history-icon">👥</div>
+            </div>
+            <div id="picContent"></div>
         </div>
     </div>
 
@@ -1256,6 +1273,22 @@
     </div>
 
 <script>
+function getPicDefinitions(){return [
+{id:'ketua',icon:'👑',title:'Ketua Team',desc:'Mengkoordinasikan seluruh team dan mengambil keputusan utama.'},
+{id:'keuangan',icon:'💰',title:'Keuangan',desc:'Nagih uang + payment dan memastikan pembayaran tercatat.'},
+{id:'operasional',icon:'🏸',title:'Operasional + Perlengkapan',desc:'Cari jadwal, cari lapangan, dan siapin perlengkapan main.'},
+{id:'p3k',icon:'🩹',title:'PIC P3K',desc:'Menyiapkan dan memastikan perlengkapan P3K tersedia saat kegiatan.'},
+{id:'lapangan',icon:'📋',title:'PIC Lapangan',desc:'Mengatur point di samping lapangan dan membantu koordinasi pergantian pemain.'},
+{id:'dokumentasi',icon:'📸',title:'PIC Dokumentasi',desc:'Dokumentasi gameplay, foto keluarga internal maupun mabar.'},
+{id:'hospitality',icon:'🤝',title:'PIC Hospitality',desc:'Menyambut dan menemani orang baru yang datang sendiri saat mabar agar tidak merasa sendirian.'},
+{id:'medsos',icon:'📱',title:'PIC Medsos',desc:'Publikasi hasil dokumentasi ke media sosial.'}];}
+function ensurePicRegistry(){if(!eventRegistry||typeof eventRegistry!=='object')eventRegistry={activeEventId:null,events:[]};if(!eventRegistry.picAssignments||typeof eventRegistry.picAssignments!=='object')eventRegistry.picAssignments={};}
+function renderPicTab(){ensurePicRegistry();const el=document.getElementById('picContent');if(!el)return;const defs=getPicDefinitions();const assigned={};defs.forEach(d=>{const id=eventRegistry.picAssignments[d.id];if(id)assigned[id]=(assigned[id]||0)+1;});el.innerHTML=`<div class="pic-grid">${defs.map(d=>{const id=eventRegistry.picAssignments[d.id];const p=(players||[]).find(x=>x.id===id);return `<div class="pic-card"><div class="pic-card-head"><div class="pic-icon">${d.icon}</div><div><div class="pic-role">${d.title}</div><div class="pic-person">${p?p.name:'Belum ada PIC'}</div></div></div><div class="pic-desc">${d.desc}</div><button class="pic-assign-btn" type="button" onclick="openPicAssign('${d.id}')">${p?'✏️ Ubah PIC':'＋ Assign PIC'}</button></div>`;}).join('')}</div><div class="pic-note"><strong>Catatan:</strong> Satu orang boleh memegang lebih dari satu PIC. PIC mengambil nama dari data Member, sehingga tidak membuat data member baru.</div>`;}
+function openPicAssign(roleId){ensurePicRegistry();const d=getPicDefinitions().find(x=>x.id===roleId);if(!d)return;const current=eventRegistry.picAssignments[roleId]||'';const opts=(players||[]).filter(p=>p&&p.name).sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');const ov=document.createElement('div');ov.className='pic-modal-overlay';ov.id='picAssignOverlay';ov.innerHTML=`<div class="pic-modal"><h3>${d.icon} ${d.title}</h3><p>Pilih penanggung jawab dari Data Member. Satu member boleh memegang lebih dari satu PIC.</p><select id="picAssignSelect"><option value="">Belum ada PIC</option>${opts}</select><div class="pic-modal-actions"><button type="button" onclick="closePicAssign()">Batal</button><button type="button" onclick="savePicAssignment('${roleId}')">Simpan</button></div></div>`;document.body.appendChild(ov);const sel=document.getElementById('picAssignSelect');if(sel)sel.value=current;}
+function closePicAssign(){document.getElementById('picAssignOverlay')?.remove();}
+async function savePicAssignment(roleId){ensurePicRegistry();const sel=document.getElementById('picAssignSelect');if(!sel)return;eventRegistry.picAssignments[roleId]=sel.value||null;closePicAssign();renderPicTab();const ok=await saveData();if(!ok)markSyncError();}
+
+
     // ================= KONEKSI SUPABASE (Data Bersama + Realtime) =================
     // GANTI dua nilai di bawah ini dengan Project URL dan anon public key
     // dari Supabase project kamu (Settings -> API di dashboard Supabase).
@@ -1710,6 +1743,7 @@
         rrPhase = data.rr_phase || 'setup';
         rrBracket = data.rr_bracket || [];
         eventRegistry = getEventRegistryFromSettings(data.rr_settings || {});
+        ensurePicRegistry();
         stateLoaded = true; // data awal berhasil ditarik -> baru boleh menyimpan
 
         // Catat persis isi 10 kolom + updated_at yang baru saja kita tarik, sebagai baseline
@@ -2006,6 +2040,7 @@
         reconcilePlayerStatuses();
         
         renderEventManager('match');
+        renderPicTab();
         renderEventManager('roundrobin');
         renderEventManager('roundgroup');
 
