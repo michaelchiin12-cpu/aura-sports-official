@@ -386,10 +386,20 @@
             .score-player-grid { grid-template-columns:1fr; }
             .score-dashboard-finish {
                 grid-template-columns:1fr;
-                position:sticky;
-                bottom:0;
-                padding:14px 0 max(8px, env(safe-area-inset-bottom));
+                position:fixed;
+                left:10px;
+                right:10px;
+                bottom:10px;
+                z-index:20010;
+                padding:10px 0 max(8px, env(safe-area-inset-bottom));
                 background:#000;
+                border-radius:12px;
+            }
+            #scoreDashboardContent {
+                padding-bottom:150px;
+            }
+            #scoreDashboard .score-dashboard-finish button {
+                width:100%;
             }
             .score-dashboard-header { align-items:flex-start; }
             .score-dashboard-back { padding:8px 10px; font-size:.78rem; }
@@ -3233,6 +3243,8 @@ function emptyPlayerStatsSnapshot() {
 
         dashboard.classList.add('show');
         dashboard.setAttribute('aria-hidden', 'false');
+        const mainNav = document.querySelector('.main-nav-tabs');
+        if (mainNav) mainNav.style.display = 'none';
         document.body.style.overflow = 'hidden';
 
         renderScoreDashboard(matchId);
@@ -3247,6 +3259,8 @@ function emptyPlayerStatsSnapshot() {
             dashboard.classList.remove('show');
             dashboard.setAttribute('aria-hidden', 'true');
         }
+        const mainNav = document.querySelector('.main-nav-tabs');
+        if (mainNav) mainNav.style.display = '';
         document.body.style.overflow = '';
     }
 
