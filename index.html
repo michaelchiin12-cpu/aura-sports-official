@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AURA WEEKEND PLAY M-3</title>
+    <title>AURA MANAGER</title>
     <link rel="icon" type="image/png" href="logo-favicon.png">
     <link rel="stylesheet" href="mobile-responsive.css">
     <script src="mobile-responsive.js" defer></script>
@@ -3355,14 +3355,17 @@ async function deletePicRole(roleId){
         const ev = activeEvent();
         if (!ev || ev.mode !== 'match') { if(!options.auto) alert('Pilih event Round Mix terlebih dahulu.'); return false; }
         if (ev.status === 'finished') { if(!options.auto) alert('Event sudah selesai. Buka kembali event terlebih dahulu.'); return false; }
-        if (activeMatches.length > 0) {
-            if(!options.auto) alert('Masih ada match di ronde berjalan. Selesaikan semua match dulu agar ronde berikutnya tidak tercampur.');
+        // Generate manual boleh dipakai saat lapangan lain masih bermain.
+        // Kapasitas dibatasi ke jumlah lapangan yang sedang kosong.
+        const availableCourts = Math.max(0, maxCourts - activeMatches.length);
+        if (availableCourts <= 0) {
+            if(!options.auto) alert('Semua lapangan sedang digunakan. Selesaikan satu pertandingan untuk mengisi lapangan tersebut kembali.');
             return false;
         }
 
         ensureEventAttendance(ev, true);
         const ok = await safeRoundMixMutation(view => {
-            const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
+            const result = buildGeneratedMatchesForView(view, teamSize, availableCourts);
             if (!result.matches.length) return false;
             view.activeMatches.push(...result.matches);
             rebuildRotationForView(view);
@@ -3755,9 +3758,22 @@ async function deletePicRole(roleId){
             view.activeMatches = view.activeMatches.filter(m => m.id !== matchId);
             view.activeMatches.forEach((m,i) => m.courtName = `Lapangan ${i+1}`);
 
-            // Kalau ini match terakhir pada ronde, langsung bentuk ronde berikutnya
-            // dari data yang BARU saja dihitung. Tidak perlu request kedua.
-            if (view.activeMatches.length === 0) {
+            // Isi kembali lapangan yang baru selesai tanpa menunggu lapangan lain.
+            // Pertandingan yang masih berjalan tetap dipertahankan dan pemainnya
+            // tetap berstatus playing, sehingga tidak dapat terpilih dua kali.
+            if (view.activeMatches.length > 0) {
+                rebuildRotationForView(view);
+                const replacement = buildGeneratedMatchesForView(view, teamSize, 1);
+                if (replacement.matches.length) {
+                    const nextMatch = replacement.matches[0];
+                    nextMatch.round = Number(match.round || 1);
+                    nextMatch.courtName = match.courtName || 'Lapangan';
+                    view.activeMatches.push(nextMatch);
+                    generatedNextRound = 1;
+                    rebuildRotationForView(view);
+                }
+            } else {
+                // Jika semua lapangan kosong, buat ronde berikutnya di seluruh lapangan.
                 rebuildRotationForView(view);
                 const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
                 if (result.matches.length) {
@@ -3765,8 +3781,6 @@ async function deletePicRole(roleId){
                     generatedNextRound = result.matches.length;
                     rebuildRotationForView(view);
                 }
-            } else {
-                rebuildRotationForView(view);
             }
             return true;
         });
@@ -5239,7 +5253,7 @@ function togglePlayerActions(button) {
         ctx.beginPath(); ctx.moveTo(W/2-90, footerY-35); ctx.lineTo(W/2+90, footerY-35); ctx.stroke();
         ctx.fillStyle = GOLD;
         ctx.font = '700 28px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('AURA WEEKEND PLAY M-3', W/2, footerY);
+        ctx.fillText('AURA MANAGER', W/2, footerY);
         ctx.fillStyle = MUTED;
         ctx.font = '500 20px Oswald, Segoe UI, sans-serif';
         const todayStr = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
