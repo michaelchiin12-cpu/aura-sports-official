@@ -4063,3 +4063,39 @@ html.is-mobile body {
     }
 
 }
+
+/* AURA MANAGER: compact one-row glass navigation on mobile */
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 2px !important;
+    left: 6px !important;
+    right: 6px !important;
+    bottom: max(5px, env(safe-area-inset-bottom)) !important;
+    padding: 5px 4px !important;
+    background: rgba(18, 18, 18, 0.48) !important;
+    border: 1px solid rgba(200, 159, 76, 0.35) !important;
+    box-shadow: 0 4px 22px rgba(0,0,0,.22) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(140%) !important;
+    backdrop-filter: blur(22px) saturate(140%) !important;
+    border-radius: 15px !important;
+  }
+  .mobile-tab-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: column !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    min-width: 0 !important;
+    padding: 3px 1px !important;
+    margin: 0 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.05 !important;
+    font-size: clamp(7px, 1.85vw, 10px) !important;
+    border-radius: 9px !important;
+  }
+  body { padding-bottom: 82px !important; }
+}
