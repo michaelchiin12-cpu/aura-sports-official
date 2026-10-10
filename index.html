@@ -182,6 +182,42 @@
 
         /* ================= TAMPILAN MOBILE (Android/iOS) ================= */
         @media (max-width: 640px) {
+            body { padding: 10px 10px 88px; }
+            .main-nav-tabs {
+                position: fixed !important;
+                left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+                z-index: 11000;
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                justify-content: space-between;
+                align-items: stretch;
+                gap: 3px !important;
+                margin: 0 !important;
+                padding: 6px !important;
+                border: 1px solid rgba(200,159,76,.42);
+                border-radius: 18px;
+                background: rgba(15,15,15,.66) !important;
+                -webkit-backdrop-filter: blur(18px) saturate(145%);
+                backdrop-filter: blur(18px) saturate(145%);
+                box-shadow: 0 8px 28px rgba(0,0,0,.42);
+            }
+            .main-nav-tabs .tab-btn {
+                flex: 1 1 0 !important;
+                min-width: 0;
+                padding: 8px 2px !important;
+                margin: 0 !important;
+                border-radius: 11px !important;
+                font-size: clamp(8px, 2.25vw, 10px) !important;
+                line-height: 1.15;
+                white-space: normal;
+                overflow-wrap: anywhere;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+            }
+            .main-nav-tabs .tab-btn.active { background: rgba(200,159,76,.92) !important; }
+
             body { padding: 10px; }
             .header img { width: 80px; }
             .header h1 { font-size: 1.3rem; }
@@ -3256,14 +3292,14 @@ async function deletePicRole(roleId){
         return best;
     }
 
-    function buildGeneratedMatchesForView(view, teamSize, maxCourts) {
+    function buildGeneratedMatchesForView(view, teamSize, maxCourts, generationOptions = {}) {
         const requiredPlayersPerMatch = teamSize * 2;
         const attendance = (view.event && view.event.attendance) || {};
         const eligible = (view.players || []).filter(p =>
             p.status === 'active' && attendance[p.id]
         ).sort((a,b) => (Number(a.stats?.played || 0) - Number(b.stats?.played || 0)));
 
-        const needed = Math.min(maxCourts, Math.floor(eligible.length / requiredPlayersPerMatch));
+        const needed = Math.min(Number.isInteger(generationOptions.matchCount) ? generationOptions.matchCount : maxCourts, Math.floor(eligible.length / requiredPlayersPerMatch));
         if (needed <= 0) return { matches: [], reason: `Pemain hadir & aktif tidak cukup. Butuh minimal ${requiredPlayersPerMatch} pemain, tersedia ${eligible.length}.` };
 
         const localPartnerRepeats = (team) => {
@@ -3302,7 +3338,7 @@ async function deletePicRole(roleId){
         const work = [...eligible];
         const generatedMatches = [];
         const rounds = [...(view.activeMatches || []), ...(view.matchesHistory || [])].map(m => Number(m.round || 0));
-        const round = rounds.length ? Math.max(...rounds) + 1 : 1;
+        const round = Number.isFinite(generationOptions.round) ? generationOptions.round : (rounds.length ? Math.max(...rounds) + 1 : 1);
 
         for (let c = 0; c < needed; c++) {
             if (work.length < requiredPlayersPerMatch) break;
@@ -3698,6 +3734,7 @@ async function deletePicRole(roleId){
 
         const teamSize = parseInt(document.getElementById('playersPerTeam')?.value) || 2;
         const maxCourts = parseInt(document.getElementById('totalCourts')?.value) || 1;
+        const freedCourtName = localMatch.courtName || 'Lapangan 1';
         let generatedNextRound = 0;
 
         // Selesaikan match + (jika ini match terakhir di ronde) generate ronde berikutnya
@@ -3753,20 +3790,26 @@ async function deletePicRole(roleId){
                 if (ref) ref.status = 'active';
             });
             view.activeMatches = view.activeMatches.filter(m => m.id !== matchId);
-            view.activeMatches.forEach((m,i) => m.courtName = `Lapangan ${i+1}`);
 
-            // Kalau ini match terakhir pada ronde, langsung bentuk ronde berikutnya
-            // dari data yang BARU saja dihitung. Tidak perlu request kedua.
-            if (view.activeMatches.length === 0) {
-                rebuildRotationForView(view);
+            // Tiap lapangan berjalan independen: begitu satu match selesai,
+            // isi kembali lapangan itu tanpa menunggu lapangan lain selesai.
+            rebuildRotationForView(view);
+            if (view.activeMatches.length > 0) {
+                const currentRound = Number(view.activeMatches[0].round || match.round || 1);
+                const result = buildGeneratedMatchesForView(view, teamSize, 1, { matchCount: 1, round: currentRound });
+                if (result.matches.length) {
+                    result.matches[0].courtName = freedCourtName;
+                    view.activeMatches.push(...result.matches);
+                    generatedNextRound = result.matches.length;
+                    rebuildRotationForView(view);
+                }
+            } else {
                 const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
                 if (result.matches.length) {
                     view.activeMatches.push(...result.matches);
                     generatedNextRound = result.matches.length;
                     rebuildRotationForView(view);
                 }
-            } else {
-                rebuildRotationForView(view);
             }
             return true;
         });
@@ -3779,7 +3822,7 @@ async function deletePicRole(roleId){
         if (window.scoreDashboardOpen && window.scoreDashboardMatchId === matchId) closeScoreDashboard();
         renderCourts(); renderQueue(); renderStandings(); renderHistory();
         if (generatedNextRound > 0) {
-            markSyncSuccess(isSkip ? `Pertandingan di-skip. Ronde berikutnya otomatis dibuat (${generatedNextRound} match).` : `Ronde berikutnya otomatis dibuat (${generatedNextRound} match).`);
+            markSyncSuccess(isSkip ? `Pertandingan di-skip. Match pengganti otomatis dibuat (${generatedNextRound} match).` : `Match berikutnya otomatis dibuat (${generatedNextRound} match).`);
         } else {
             markSyncSuccess(isSkip ? 'Pertandingan di-skip dan tidak masuk histori. Belum ada ronde berikutnya karena pemain belum cukup / kombinasi level belum memenuhi.' : 'Match selesai dan data tersimpan. Belum ada ronde berikutnya karena pemain belum cukup / kombinasi level belum memenuhi.');
         }
