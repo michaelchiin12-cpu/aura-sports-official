@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AURA MANAGER</title>
+    <title>AURA WEEKEND PLAY M-3</title>
     <link rel="icon" type="image/png" href="logo-favicon.png">
     <link rel="stylesheet" href="mobile-responsive.css">
     <script src="mobile-responsive.js" defer></script>
@@ -1727,6 +1727,8 @@ async function deletePicRole(roleId){
         if (!confirm(`Hapus riwayat "${ev.name}"? Data pertandingan ini akan ikut terhapus.`)) return;
 
         const isActive = eventRegistry.activeEventId === id;
+        // Pastikan pertandingan terbaru dari event aktif sudah masuk snapshot sebelum event dihapus.
+        if (isActive) snapshotCurrentEvent();
         // Lepas pemain yang masih terkunci PLAYING oleh match aktif event ini
         releasePlayersFromMatches(isActive ? activeMatches : (ev.snapshot || {}).activeMatches);
 
@@ -1738,7 +1740,11 @@ async function deletePicRole(roleId){
             Object.values(koTimers).forEach(clearInterval); koTimers = {};
             activeMatches = []; matchesHistory = [];
             rrTeams = []; rrMatches = []; rrBracket = []; rrPhase = 'setup';
+            players.forEach(p => { p.stats = {played:0,wins:0,points:0,out:0,fault:0,errors:0}; });
         }
+        // Rebuild statistik karier dari histori event yang masih ada agar event yang dihapus
+        // tidak meninggalkan hitungan main/menang/kalah pada kartu Member.
+        ensureCareerStatsFromHistory();
         persistStateOnly().then(()=>init());
     }
 
@@ -2092,25 +2098,64 @@ async function deletePicRole(roleId){
     }
 
     function ensureCareerStatsFromHistory() {
-        players.forEach(p => {
-            if (p.careerStats) return;
-            p.careerStats = {played:0,wins:0,points:0,out:0,fault:0,errors:0};
-        });
-        // Legacy data: hitung dari seluruh history event yang sudah selesai.
-        const byId = new Map(players.map(p=>[p.id,p]));
-        let found = 0;
-        (eventRegistry.events||[]).forEach(ev => {
-            const history = ev?.snapshot?.matchesHistory || [];
-            history.forEach(m => {
-                const winner = Number(m.scoreA||0)>Number(m.scoreB||0)?'A':(Number(m.scoreB||0)>Number(m.scoreA||0)?'B':'Draw');
-                [['A',m.teamA||[]],['B',m.teamB||[]]].forEach(([team,list])=>list.forEach(mp=>{
-                    const p=byId.get(mp.id); if(!p) return; found++;
-                    const c=p.careerStats; c.played++; c.points+=Number(mp.matchPoints||0); c.out+=Number(mp.matchOuts||0); c.fault+=Number(mp.matchFaults||0); if(winner===team)c.wins++; c.errors=c.out+c.fault;
-                }));
+        // Statistik karier dihitung dari MATCH SELESAI yang unik, bukan dari poin.
+        // Snapshot event dapat tersimpan berkali-kali; dedupe dengan ID match agar tidak double-count.
+        const byId = new Map(players.map(p => [String(p.id), p]));
+        const totals = new Map(players.map(p => [String(p.id), {played:0,wins:0,points:0,out:0,fault:0,errors:0}]));
+        const seenMatches = new Set();
+        const allEvents = Array.isArray(eventRegistry?.events) ? eventRegistry.events : [];
+
+        allEvents.forEach(ev => {
+            const history = Array.isArray(ev?.snapshot?.matchesHistory) ? ev.snapshot.matchesHistory : [];
+            history.forEach((m, index) => {
+                // Abaikan entry tanpa susunan pemain yang valid.
+                if (!m || !Array.isArray(m.teamA) || !Array.isArray(m.teamB)) return;
+                const key = m.id != null && String(m.id) !== ''
+                    ? String(m.id)
+                    : `${ev.id || 'event'}:${m.finishedAt || m.date || ''}:${index}:${(m.teamA||[]).map(x=>x.id).join(',')}:${(m.teamB||[]).map(x=>x.id).join(',')}`;
+                if (seenMatches.has(key)) return;
+                seenMatches.add(key);
+                const scoreA = Number(m.scoreA || 0), scoreB = Number(m.scoreB || 0);
+                const winner = scoreA > scoreB ? 'A' : (scoreB > scoreA ? 'B' : 'Draw');
+                [['A',m.teamA],['B',m.teamB]].forEach(([team, list]) => {
+                    list.forEach(mp => {
+                        const id = String(mp?.id ?? '');
+                        const p = byId.get(id), c = totals.get(id);
+                        if (!p || !c) return;
+                        c.played += 1;
+                        c.points += Number(mp.matchPoints || 0);
+                        c.out += Number(mp.matchOuts || 0);
+                        c.fault += Number(mp.matchFaults || 0);
+                        if (winner === team) c.wins += 1;
+                    });
+                });
             });
         });
-        // Jika tidak ada history yang bisa dihitung, pertahankan statistik lama sebagai fallback.
-        if(found===0) players.forEach(p=>{ if(Number(p.stats?.played||0)>0 && Number(p.careerStats.played||0)===0) p.careerStats=cloneJSON(p.stats); });
+
+        totals.forEach((c, id) => {
+            c.errors = c.out + c.fault;
+            const p = byId.get(id);
+            if (p) p.careerStats = c;
+        });
+
+        // Statistik event aktif hanya berasal dari riwayat event aktif, bukan semua event.
+        const ev = activeEvent();
+        if (ev) {
+            const eventTotals = new Map(players.map(p => [String(p.id), {played:0,wins:0,points:0,out:0,fault:0,errors:0}]));
+            const history = Array.isArray(ev.snapshot?.matchesHistory) ? ev.snapshot.matchesHistory : [];
+            const seen = new Set();
+            history.forEach((m, index) => {
+                if (!m || !Array.isArray(m.teamA) || !Array.isArray(m.teamB)) return;
+                const key = String(m.id ?? `${index}:${m.finishedAt || ''}`);
+                if (seen.has(key)) return; seen.add(key);
+                const winner = Number(m.scoreA||0)>Number(m.scoreB||0)?'A':(Number(m.scoreB||0)>Number(m.scoreA||0)?'B':'Draw');
+                [['A',m.teamA],['B',m.teamB]].forEach(([team,list])=>list.forEach(mp=>{
+                    const c=eventTotals.get(String(mp?.id ?? '')); if(!c)return;
+                    c.played++; c.points+=Number(mp.matchPoints||0); c.out+=Number(mp.matchOuts||0); c.fault+=Number(mp.matchFaults||0); if(winner===team)c.wins++;
+                }));
+            });
+            eventTotals.forEach((c,id)=>{ c.errors=c.out+c.fault; const p=byId.get(id); if(p)p.stats=c; });
+        }
     }
 
     // --- Inisialisasi ---
@@ -3355,17 +3400,14 @@ async function deletePicRole(roleId){
         const ev = activeEvent();
         if (!ev || ev.mode !== 'match') { if(!options.auto) alert('Pilih event Round Mix terlebih dahulu.'); return false; }
         if (ev.status === 'finished') { if(!options.auto) alert('Event sudah selesai. Buka kembali event terlebih dahulu.'); return false; }
-        // Generate manual boleh dipakai saat lapangan lain masih bermain.
-        // Kapasitas dibatasi ke jumlah lapangan yang sedang kosong.
-        const availableCourts = Math.max(0, maxCourts - activeMatches.length);
-        if (availableCourts <= 0) {
-            if(!options.auto) alert('Semua lapangan sedang digunakan. Selesaikan satu pertandingan untuk mengisi lapangan tersebut kembali.');
+        if (activeMatches.length > 0) {
+            if(!options.auto) alert('Masih ada match di ronde berjalan. Selesaikan semua match dulu agar ronde berikutnya tidak tercampur.');
             return false;
         }
 
         ensureEventAttendance(ev, true);
         const ok = await safeRoundMixMutation(view => {
-            const result = buildGeneratedMatchesForView(view, teamSize, availableCourts);
+            const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
             if (!result.matches.length) return false;
             view.activeMatches.push(...result.matches);
             rebuildRotationForView(view);
@@ -3758,22 +3800,9 @@ async function deletePicRole(roleId){
             view.activeMatches = view.activeMatches.filter(m => m.id !== matchId);
             view.activeMatches.forEach((m,i) => m.courtName = `Lapangan ${i+1}`);
 
-            // Isi kembali lapangan yang baru selesai tanpa menunggu lapangan lain.
-            // Pertandingan yang masih berjalan tetap dipertahankan dan pemainnya
-            // tetap berstatus playing, sehingga tidak dapat terpilih dua kali.
-            if (view.activeMatches.length > 0) {
-                rebuildRotationForView(view);
-                const replacement = buildGeneratedMatchesForView(view, teamSize, 1);
-                if (replacement.matches.length) {
-                    const nextMatch = replacement.matches[0];
-                    nextMatch.round = Number(match.round || 1);
-                    nextMatch.courtName = match.courtName || 'Lapangan';
-                    view.activeMatches.push(nextMatch);
-                    generatedNextRound = 1;
-                    rebuildRotationForView(view);
-                }
-            } else {
-                // Jika semua lapangan kosong, buat ronde berikutnya di seluruh lapangan.
+            // Kalau ini match terakhir pada ronde, langsung bentuk ronde berikutnya
+            // dari data yang BARU saja dihitung. Tidak perlu request kedua.
+            if (view.activeMatches.length === 0) {
                 rebuildRotationForView(view);
                 const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
                 if (result.matches.length) {
@@ -3781,6 +3810,8 @@ async function deletePicRole(roleId){
                     generatedNextRound = result.matches.length;
                     rebuildRotationForView(view);
                 }
+            } else {
+                rebuildRotationForView(view);
             }
             return true;
         });
@@ -5253,7 +5284,7 @@ function togglePlayerActions(button) {
         ctx.beginPath(); ctx.moveTo(W/2-90, footerY-35); ctx.lineTo(W/2+90, footerY-35); ctx.stroke();
         ctx.fillStyle = GOLD;
         ctx.font = '700 28px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('AURA MANAGER', W/2, footerY);
+        ctx.fillText('AURA WEEKEND PLAY M-3', W/2, footerY);
         ctx.fillStyle = MUTED;
         ctx.font = '500 20px Oswald, Segoe UI, sans-serif';
         const todayStr = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
