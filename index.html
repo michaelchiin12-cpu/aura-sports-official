@@ -477,6 +477,9 @@
         #syncStatusToast.success { border-color: rgba(16,185,129,.55); color: #6ee7b7; }
         #syncStatusToast.error { border-color: rgba(239,68,68,.7); color: #fca5a5; pointer-events: auto; }
         #syncStatusToast .sync-status-sub { display:block; margin-top:3px; font-size:.72rem; font-weight:500; color:var(--text-muted); }
+        #syncStatusToast .sync-progress-track { width:100%; height:6px; margin-top:10px; border-radius:99px; overflow:hidden; background:rgba(255,255,255,.13); }
+        #syncStatusToast .sync-progress-fill { display:block; width:0%; height:100%; border-radius:99px; background:linear-gradient(90deg,#c99d45,#f5d782); transition:width .25s ease; }
+        #syncStatusToast .sync-progress-label { display:flex; justify-content:space-between; gap:12px; margin-top:5px; font-size:.72rem; font-weight:700; color:#fcd34d; }
         @media (max-width: 600px) {
             #syncStatusToast { top: 10px; min-width: 200px; padding: 10px 14px; font-size: .82rem; }
         }
@@ -1814,7 +1817,11 @@ async function deletePicRole(roleId){
     // buat/pilih/selesaikan/buka-kembali/hapus pertandingan — lewat mesin simpan
     // level-kolom yang sama dan aman dipakai banyak HP sekaligus.
     async function persistStateOnly() {
-        return performSaveToSupabase();
+        markSyncSaving('Menyimpan perubahan event...', 8);
+        const result = await performSaveToSupabase();
+        if (result) markSyncSuccess('Perubahan event tersimpan di server.');
+        else markSyncError('Perubahan event belum berhasil disimpan.');
+        return result;
     }
 
 
@@ -2223,37 +2230,46 @@ async function deletePicRole(roleId){
     // - Data belum tersimpan = retry sudah habis / perubahan belum aman di server
     let syncStatusTimer = null;
     let syncStatusError = false;
-    function showSyncStatus(type, message, detail = '') {
+    let syncProgress = 0;
+    function showSyncStatus(type, message, detail = '', progress = null) {
         const el = document.getElementById('syncStatusToast');
         if (!el) return;
         clearTimeout(syncStatusTimer);
         syncStatusError = type === 'error';
         el.className = 'show ' + type;
-        el.innerHTML = message + (detail ? '<span class="sync-status-sub">' + detail + '</span>' : '');
+        const safeDetail = detail ? '<span class="sync-status-sub">' + detail + '</span>' : '';
+        const progressUI = type === 'saving' && progress !== null
+            ? '<div class="sync-progress-track"><span class="sync-progress-fill" style="width:' + progress + '%"></span></div><div class="sync-progress-label"><span>Progres simpan</span><span>' + progress + '%</span></div>'
+            : '';
+        el.innerHTML = message + safeDetail + progressUI;
         if (type === 'success') {
             syncStatusTimer = setTimeout(() => {
                 if (!syncStatusError) el.className = '';
-            }, 1800);
-        } else if (type === 'saving') {
-            // Tetap tampil selama request berlangsung.
+            }, 2200);
         }
     }
 
-    function markSyncSaving(detail = 'Perubahan sedang dikirim ke server...') {
-        showSyncStatus('saving', '🟡 Menyimpan...', detail);
+    function markSyncSaving(detail = 'Menyiapkan perubahan...', progress = 8) {
+        syncProgress = progress;
+        showSyncStatus('saving', '🟡 Menyimpan data...', detail, progress);
     }
-    function markSyncSuccess(detail = 'Perubahan sudah tersimpan di server.') {
-        showSyncStatus('success', '🟢 Data tersimpan', detail);
+    function markSyncProgress(progress, detail) {
+        syncProgress = Math.max(syncProgress, Math.min(95, progress));
+        showSyncStatus('saving', '🟡 Menyimpan data...', detail, syncProgress);
     }
-    function markSyncError(detail = 'Jangan refresh atau menutup halaman dulu. Coba ulangi aksi setelah koneksi stabil.') {
+    function markSyncSuccess(detail = 'Server mengonfirmasi data sudah tersimpan.') {
+        syncProgress = 100;
+        showSyncStatus('success', '🟢 Data tersimpan · 100%', detail);
+    }
+    function markSyncError(detail = 'Data belum terkonfirmasi tersimpan. Periksa koneksi sebelum mencoba lagi.') {
         showSyncStatus('error', '🔴 Data belum tersimpan', detail);
     }
 
     async function saveData() {
         snapshotCurrentEvent();
         init();
-        markSyncSaving();
-        if(saveInFlight) { savePending = true; return true; }
+        markSyncSaving('Menyiapkan perubahan untuk disimpan...', 8);
+        if(saveInFlight) { savePending = true; markSyncProgress(18, 'Perubahan masuk antrean penyimpanan...'); return true; }
         saveInFlight = true;
         const result = await performSaveToSupabase();
         saveInFlight = false;
@@ -2281,6 +2297,7 @@ async function deletePicRole(roleId){
         const MAX_ATTEMPT = 8;
         for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
             const current = currentColumnsSnapshot();
+            markSyncProgress(15 + Math.min(10, attempt * 2), attempt ? `Mencoba simpan ulang (${attempt + 1}/${MAX_ATTEMPT})...` : 'Membandingkan perubahan dengan data terakhir...');
 
             // Kolom mana saja yang BENAR-BENAR berubah di HP ini sejak sinkron terakhir?
             const changedCols = {};
@@ -2291,8 +2308,10 @@ async function deletePicRole(roleId){
             });
 
             if (Object.keys(changedCols).length === 0) {
+                markSyncProgress(95, 'Tidak ada perubahan baru; data sudah sinkron.');
                 return true; // tidak ada perubahan nyata, tidak perlu menulis apa pun
             }
+            markSyncProgress(35, `Mengirim ${Object.keys(changedCols).length} bagian data untuk disimpan...`);
 
             // Ambil baris TERBARU dari server: untuk tahu updated_at saat ini (kunci CAS)
             // dan untuk mengambil nilai kolom yang TIDAK kita ubah (supaya tidak ketinggalan
@@ -2300,11 +2319,13 @@ async function deletePicRole(roleId){
             const { data: fresh, error: fetchErr } = await supabaseClient
                 .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
             if (fetchErr || !fresh) {
+                markSyncProgress(25, `Server lambat merespons; mencoba ulang (${attempt + 1}/${MAX_ATTEMPT})...`);
                 console.error('Gagal ambil data server sebelum menyimpan:', fetchErr);
                 await _sleep(150 + attempt * 100);
                 continue;
             }
 
+            markSyncProgress(65, 'Data terbaru diterima; menyimpan perubahan ke database...');
             const nowIso = new Date().toISOString();
             const patch = { ...changedCols, updated_at: nowIso };
             let q = supabaseClient.from('sport_manager_state').update(patch).eq('id', STATE_ROW_ID);
@@ -2313,6 +2334,7 @@ async function deletePicRole(roleId){
             if (updErr) lastError = updErr;
 
             if (!updErr) {
+                markSyncProgress(92, 'Database menerima perubahan; menyelesaikan sinkronisasi...');
                 // Berhasil. Kolom yang TIDAK kita ubah diambil nilai terbarunya dari server,
                 // supaya layar HP ini juga ikut tahu perubahan HP lain di kolom tsb.
                 STATE_COLUMNS.forEach(col => { if (!(col in changedCols)) current[col] = fresh[col]; });
