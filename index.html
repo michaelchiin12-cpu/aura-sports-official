@@ -152,7 +152,9 @@
         #queueList tr { height:auto; }
         #queueList td { padding:6px 8px; line-height:1.25; }
         #queueList td:first-child { width:34px; color:var(--text-muted); }
-        #queueList td:nth-child(2) { min-width:0; white-space:normal; }
+        #queueList td:nth-child(2) { min-width:0; white-space:nowrap; font-size:.8rem; padding-left:6px; padding-right:6px; }
+        #queueList td:nth-child(2) .rotation-priority { font-size:.62rem; }
+        #queueList td:nth-child(2) { width:1%; }
         #queueList td:nth-child(3) { width:58px; padding-left:5px; padding-right:5px; }
         #queueList td:nth-child(4) { width:66px; padding-left:4px; padding-right:4px; white-space:nowrap; }
         #queueList td:nth-child(4) .rotation-priority { margin-left:2px; }
@@ -167,7 +169,8 @@
         @media (max-width:640px) {
             .rotation-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
             #queueList { font-size:.76rem; }
-            #queueList td { padding:6px 5px; }
+            #queueList td { padding:5px 4px; }
+            #queueList td:nth-child(2) { font-size:.74rem; padding-left:4px; padding-right:4px; }
             #queueList td:nth-child(3) { width:50px; padding-left:4px; padding-right:4px; }
             #queueList td:nth-child(4) { width:58px; padding-left:3px; padding-right:3px; white-space:nowrap; }
             #queueList td:nth-child(4) .rotation-priority { display:block; width:max-content; max-width:100%; margin:3px auto 0; }
