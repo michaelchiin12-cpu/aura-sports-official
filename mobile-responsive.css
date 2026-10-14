@@ -4496,3 +4496,311 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @media (prefers-reduced-motion: reduce) {
   .mobile-bottom-nav .mobile-tab-btn { transition: none !important; }
 }
+
+
+/* =========================================================
+   AURA PREMIUM MOBILE REDESIGN — LAYOUT PASS 2
+   Fokus: header, navigasi, hierarki informasi, kontrol sentuh.
+   CSS only: tidak mengubah alur fitur, JavaScript, atau Supabase.
+   ========================================================= */
+
+@media (max-width: 768px) {
+  :root {
+    --aura-gold: #d6b15f;
+    --aura-gold-soft: rgba(214,177,95,.14);
+    --aura-surface: #111214;
+    --aura-surface-raised: #191a1d;
+    --aura-stroke: rgba(255,255,255,.09);
+  }
+
+  html, body {
+    background: #08090b !important;
+    color: #f4f4f5 !important;
+  }
+
+  body {
+    padding: 10px 12px calc(104px + env(safe-area-inset-bottom)) !important;
+    background:
+      radial-gradient(ellipse at 50% -150px, rgba(214,177,95,.12), transparent 65%),
+      #08090b !important;
+  }
+
+  /* Header becomes a compact brand bar instead of a large centered block */
+  .header {
+    min-height: 76px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 12px !important;
+    text-align: left !important;
+    padding: 10px 54px 13px 2px !important;
+    margin: 0 0 16px !important;
+    border-bottom: 1px solid rgba(214,177,95,.25) !important;
+    position: relative !important;
+  }
+
+  .header > img {
+    width: 52px !important;
+    height: 52px !important;
+    object-fit: contain !important;
+    margin: 0 !important;
+    flex: 0 0 52px !important;
+    padding: 4px !important;
+    border: 1px solid rgba(214,177,95,.3) !important;
+    border-radius: 15px !important;
+    background: linear-gradient(145deg, #202024, #0c0c0e) !important;
+  }
+
+  .header h1 {
+    max-width: 220px !important;
+    margin: 0 !important;
+    font-size: .92rem !important;
+    font-weight: 900 !important;
+    line-height: 1.25 !important;
+    letter-spacing: .075em !important;
+    text-align: left !important;
+    color: #e0c17b !important;
+  }
+
+  .header-menu-wrap {
+    top: 50% !important;
+    right: 0 !important;
+    transform: translateY(-50%) !important;
+  }
+
+  .header-menu-btn {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 13px !important;
+    background: #17181b !important;
+    border: 1px solid rgba(214,177,95,.28) !important;
+    color: #e0c17b !important;
+    box-shadow: none !important;
+  }
+
+  .header-menu-dropdown {
+    top: 48px !important;
+    right: 0 !important;
+    max-width: calc(100vw - 24px) !important;
+    background: #17181b !important;
+    border-color: rgba(214,177,95,.28) !important;
+    z-index: 100000 !important;
+  }
+
+  /* Content spacing and clearer section hierarchy */
+  .tab-content.active {
+    animation: auraMobileEnter .18s ease-out both;
+  }
+
+  .tab-content > .card:first-child,
+  .tab-content > div:first-child > .card:first-child {
+    margin-top: 0 !important;
+  }
+
+  .card {
+    position: relative !important;
+    background: linear-gradient(155deg, #17181b 0%, #101113 70%) !important;
+    border: 1px solid var(--aura-stroke) !important;
+    border-radius: 17px !important;
+    padding: 16px !important;
+    margin-bottom: 13px !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18) !important;
+  }
+
+  .card h2 {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    color: #e0c17b !important;
+    font-size: 1rem !important;
+    font-weight: 850 !important;
+    letter-spacing: -.015em !important;
+    margin: 0 0 13px !important;
+    padding-bottom: 10px !important;
+    border-bottom: 1px solid rgba(255,255,255,.07) !important;
+  }
+
+  p {
+    line-height: 1.55;
+  }
+
+  /* Scoreboard / court panels are visually distinct from general cards */
+  .court {
+    background:
+      linear-gradient(135deg, rgba(214,177,95,.09), transparent 48%),
+      #101113 !important;
+    border: 1px solid rgba(214,177,95,.35) !important;
+    border-radius: 17px !important;
+    box-shadow: 0 8px 20px rgba(0,0,0,.2) !important;
+  }
+
+  .team-box {
+    align-items: center !important;
+    gap: 8px !important;
+    background: #090a0c !important;
+    border: 1px solid rgba(255,255,255,.065) !important;
+    border-radius: 12px !important;
+    padding: 11px !important;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+    gap: 9px !important;
+  }
+
+  .stat-card {
+    text-align: left !important;
+    background: linear-gradient(145deg, #1a1b1e, #101113) !important;
+    border: 1px solid rgba(214,177,95,.17) !important;
+    border-radius: 14px !important;
+    padding: 12px !important;
+  }
+
+  .stat-card .val {
+    color: #e0c17b !important;
+    font-size: 1.18rem !important;
+    font-weight: 900 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  /* Form controls: consistent, readable, and easy to tap */
+  input, select, textarea {
+    color: #f5f5f5 !important;
+    background: #090a0c !important;
+    border: 1px solid #343538 !important;
+    border-radius: 11px !important;
+    outline: none !important;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: #d6b15f !important;
+    box-shadow: 0 0 0 3px rgba(214,177,95,.12) !important;
+  }
+
+  button {
+    border-radius: 11px !important;
+    font-weight: 750 !important;
+    transition: transform .12s ease, filter .12s ease !important;
+  }
+
+  button:active {
+    transform: scale(.98);
+  }
+
+  /* A more intentional floating navigation, with room for six real tabs */
+  .mobile-bottom-nav {
+    left: 9px !important;
+    right: 9px !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 5px !important;
+    overflow-x: auto !important;
+    overscroll-behavior-x: contain !important;
+    scrollbar-width: none !important;
+    padding: 6px !important;
+    border-radius: 17px !important;
+    background: rgba(15,16,18,.96) !important;
+    border: 1px solid rgba(214,177,95,.32) !important;
+    box-shadow: 0 12px 34px rgba(0,0,0,.55) !important;
+  }
+
+  .mobile-bottom-nav::-webkit-scrollbar { display: none !important; }
+
+  .mobile-tab-btn {
+    flex: 0 0 66px !important;
+    width: 66px !important;
+    min-width: 66px !important;
+    height: 53px !important;
+    min-height: 53px !important;
+    padding: 6px 4px !important;
+    border: 1px solid transparent !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+    color: #a7a7aa !important;
+    font-size: .58rem !important;
+    font-weight: 750 !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .mobile-tab-btn.active {
+    color: #090909 !important;
+    background: linear-gradient(135deg, #e6c97e, #c89f4c) !important;
+    border-color: #e6c97e !important;
+    box-shadow: 0 4px 14px rgba(200,159,76,.2) !important;
+  }
+
+  .event-card, .pic-card, .attendance-panel, .ko-match-card {
+    background: #111214 !important;
+    border-color: rgba(255,255,255,.09) !important;
+    border-radius: 15px !important;
+  }
+
+  .event-toolbar {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr) !important;
+    gap: 8px !important;
+  }
+
+  .event-toolbar > * { width: 100% !important; }
+
+  .member-card, .member-profile-card {
+    border-radius: 15px !important;
+  }
+
+  #auraAccountBar {
+    top: 7px !important;
+    right: 7px !important;
+    max-width: calc(100vw - 14px) !important;
+    background: rgba(20,20,22,.96) !important;
+    border-color: rgba(214,177,95,.25) !important;
+    backdrop-filter: blur(12px);
+  }
+
+  @keyframes auraMobileEnter {
+    from { opacity: .65; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@media (max-width: 420px) {
+  body {
+    padding-left: 9px !important;
+    padding-right: 9px !important;
+  }
+
+  .header {
+    gap: 9px !important;
+    padding-right: 48px !important;
+  }
+
+  .header > img {
+    width: 46px !important;
+    height: 46px !important;
+    flex-basis: 46px !important;
+    border-radius: 13px !important;
+  }
+
+  .header h1 {
+    font-size: .78rem !important;
+    letter-spacing: .055em !important;
+  }
+
+  .card {
+    padding: 13px !important;
+    border-radius: 15px !important;
+  }
+
+  .mobile-tab-btn {
+    flex-basis: 61px !important;
+    width: 61px !important;
+    min-width: 61px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-content.active, button { animation: none !important; transition: none !important; }
+}
