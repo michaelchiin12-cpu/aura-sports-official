@@ -2894,18 +2894,36 @@ async function deletePicRole(roleId){
         } else requestRefresh();
     }
 
-    const auraCollapsedEventPanels = new Set();
+    // Simpan status panel agar preferensi sembunyi/tampil tidak reset setelah refresh.
+    const AURA_COLLAPSED_PANELS_KEY = "auraCollapsedEventPanels";
+    const auraCollapsedEventPanels = (() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem(AURA_COLLAPSED_PANELS_KEY) || '["rotation","participants"]');
+            return new Set(Array.isArray(saved) ? saved : ["rotation", "participants"]);
+        } catch (_) {
+            return new Set(["rotation", "participants"]);
+        }
+    })();
     function isEventPanelCollapsed(panel) { return auraCollapsedEventPanels.has(panel); }
+    function saveCollapsedEventPanels() {
+        try { localStorage.setItem(AURA_COLLAPSED_PANELS_KEY, JSON.stringify([...auraCollapsedEventPanels])); } catch (_) {}
+    }
     function toggleEventPanel(panel) {
         if (auraCollapsedEventPanels.has(panel)) auraCollapsedEventPanels.delete(panel);
         else auraCollapsedEventPanels.add(panel);
+        saveCollapsedEventPanels();
         renderEventAttendance();
         const heading = document.querySelector(".rotation-queue-heading");
         if (heading) {
             const collapsed = isEventPanelCollapsed("rotation");
             const button = heading.querySelector("button");
             const content = document.querySelector(".rotation-queue-content");
-            if (button) { button.textContent = collapsed ? "⌄" : "⌃"; button.setAttribute("aria-expanded", String(!collapsed)); button.setAttribute("aria-label", collapsed ? "Tampilkan Rotasi & Waiting List" : "Sembunyikan Rotasi & Waiting List"); button.title = collapsed ? "Tampilkan" : "Sembunyikan"; }
+            if (button) {
+                button.textContent = collapsed ? "⌄" : "⌃";
+                button.setAttribute("aria-expanded", String(!collapsed));
+                button.setAttribute("aria-label", collapsed ? "Tampilkan Rotasi & Waiting List" : "Sembunyikan Rotasi & Waiting List");
+                button.title = collapsed ? "Tampilkan" : "Sembunyikan";
+            }
             if (content) content.hidden = collapsed;
         }
     }
