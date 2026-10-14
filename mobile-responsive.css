@@ -4201,3 +4201,80 @@ a { text-underline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+
+/* =========================================================
+   AURA PREMIUM MOBILE REFINEMENT — 2026-10
+   Additive layout fixes; preserves existing application logic.
+   ========================================================= */
+:root {
+  --aura-gold: #d7b15a;
+  --aura-gold-soft: #f0d48a;
+  --aura-bg: #080808;
+  --aura-panel: #121318;
+  --aura-line: rgba(215,177,90,.28);
+}
+html { background: var(--aura-bg) !important; }
+body { background: var(--aura-bg) !important; color: #f5f5f5; }
+button, input, select, textarea { font: inherit; }
+button, [role="button"], .tab-btn { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible,
+.tab-btn:focus-visible { outline: 2px solid var(--aura-gold-soft) !important; outline-offset: 2px; }
+@media (max-width: 768px) {
+  html, body { max-width: 100%; overflow-x: clip !important; }
+  body { box-sizing: border-box !important; padding: 8px 12px calc(108px + env(safe-area-inset-bottom)) !important; }
+  *, *::before, *::after { box-sizing: border-box; }
+  img, video, canvas, svg { max-width: 100%; }
+  .header { display:flex !important; flex-direction:column !important; align-items:center !important; gap:8px !important; padding:8px 0 14px !important; margin:0 0 14px !important; border-bottom:1px solid var(--aura-line) !important; }
+  .header img { width:54px !important; max-width:54px !important; height:auto !important; }
+  .header h1, .header h2, h1 { font-size:clamp(20px, 5.6vw, 28px) !important; line-height:1.2 !important; text-align:center; overflow-wrap:anywhere; }
+  /* Account badge must remain within the viewport. */
+  body > div, main, section, .container, .content, .tab-content { min-width:0; max-width:100%; }
+  .header button, button { max-width:100%; overflow-wrap:anywhere; }
+  /* Compact form controls without making them hard to tap. */
+  input, select, textarea { width:100%; min-width:0; max-width:100%; min-height:48px; border-radius:14px !important; }
+  label { overflow-wrap:anywhere; }
+  /* Cards use consistent spacing and AURA black/gold surfaces. */
+  .card, .panel, .section-card, .form-section, .settings-card, .event-card {
+    min-width:0; max-width:100%; border-color:var(--aura-line) !important; border-radius:20px !important;
+  }
+  /* Buttons: comfortable touch target and consistent hierarchy. */
+  button, .btn, .button { min-height:44px; border-radius:13px; }
+  /* Never let wide data tables cut off silently; preserve table semantics. */
+  .table-wrapper, .table-responsive, .table-container, .overflow-x-auto, .participants-table-wrap {
+    display:block !important; width:100% !important; max-width:100% !important;
+    overflow-x:auto !important; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch;
+  }
+  table { max-width:100%; }
+  th, td { padding:10px 12px !important; }
+  /* Action groups wrap instead of pushing the page wider. */
+  .actions, .button-group, .toolbar, .event-actions, .header-actions {
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+  }
+  /* Bottom tabs: smaller, equal-width tiles with safe-area support. */
+  .mobile-bottom-nav {
+    left:8px !important; right:8px !important; bottom:calc(8px + env(safe-area-inset-bottom)) !important;
+    width:auto !important; max-width:none !important; padding:6px !important; gap:5px !important;
+    border:1px solid rgba(215,177,90,.55) !important; border-radius:22px !important;
+    background:rgba(12,12,13,.96) !important; backdrop-filter:blur(16px);
+    box-shadow:0 8px 28px rgba(0,0,0,.5) !important;
+  }
+  .mobile-bottom-nav .mobile-tab-btn {
+    flex:1 1 0 !important; min-width:0 !important; min-height:58px !important;
+    padding:7px 3px !important; border-radius:14px !important; line-height:1.15 !important;
+    font-size:clamp(9px, 2.5vw, 11px) !important; white-space:normal !important;
+    overflow-wrap:anywhere; text-align:center;
+  }
+  .mobile-bottom-nav .mobile-tab-btn.active {
+    background:rgba(215,177,90,.18) !important; border-color:var(--aura-gold) !important; color:var(--aura-gold-soft) !important;
+  }
+}
+@media (max-width: 420px) {
+  body { padding-left:9px !important; padding-right:9px !important; }
+  .mobile-bottom-nav { left:5px !important; right:5px !important; gap:3px !important; padding:4px !important; }
+  .mobile-bottom-nav .mobile-tab-btn { min-height:54px !important; padding:5px 2px !important; font-size:9px !important; }
+  th, td { padding:8px 9px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; transition-duration:.01ms !important; }
+}
