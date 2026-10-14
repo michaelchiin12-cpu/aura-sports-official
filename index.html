@@ -148,8 +148,11 @@
         .event-participant-avatar .avatar-img,.event-participant-avatar .avatar-placeholder { width:27px; height:27px; min-width:27px; font-size:.72rem; }
         .event-participant-toolbar > div { min-width:0; }
         .event-participant-toolbar-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-        .event-collapse-btn { background:var(--bg-main); color:var(--text-muted); border:1px solid var(--border); padding:8px 10px; border-radius:8px; font-size:.78rem; font-weight:700; margin:0; white-space:nowrap; }
+        .event-collapse-btn { display:inline-flex; align-items:center; justify-content:center; flex:0 0 28px; width:28px; height:28px; min-width:28px; padding:0; margin:0; border-radius:7px; border:1px solid var(--border); background:var(--bg-main); color:var(--text-muted); font-size:1rem; line-height:1; font-weight:700; }
         .event-collapse-btn:hover { color:var(--primary); border-color:var(--primary); }
+        .event-participant-toolbar-actions .event-collapse-btn { width:28px !important; min-width:28px; height:28px; }
+        .rotation-queue-heading { padding-right:34px; }
+        .rotation-queue-heading .event-collapse-btn { right:0; top:50%; transform:translateY(-50%); }
         .event-participant-content[hidden], .rotation-queue-content[hidden] { display:none !important; }
         .event-participant-content { margin-top:4px; }
         /* Rotasi & waiting list: judul dan kolom dirapikan, alignment konsisten */
@@ -743,7 +746,7 @@
                 <div class="card rotation-queue-card">
                     <div class="rotation-queue-heading">
                         <h2>🔄 Rotasi & Waiting List</h2>
-                        <button class="event-collapse-btn" onclick="toggleEventPanel('rotation')" aria-expanded="${!isEventPanelCollapsed('rotation')}">${isEventPanelCollapsed('rotation')?'＋ Tampilkan':'－ Sembunyikan'}</button>
+                        <button class="event-collapse-btn" onclick="toggleEventPanel('rotation')" aria-expanded="${!isEventPanelCollapsed('rotation')}">${isEventPanelCollapsed('rotation')?'⌄':'⌃'}</button>
                     </div>
                     <div class="rotation-queue-content" ${isEventPanelCollapsed('rotation')?'hidden':''}>
                         <div id="rotationSummary"></div>
@@ -2891,7 +2894,7 @@ async function deletePicRole(roleId){
             const collapsed = isEventPanelCollapsed("rotation");
             const button = heading.querySelector("button");
             const content = document.querySelector(".rotation-queue-content");
-            if (button) { button.textContent = collapsed ? "＋ Tampilkan" : "－ Sembunyikan"; button.setAttribute("aria-expanded", String(!collapsed)); }
+            if (button) { button.textContent = collapsed ? "⌄" : "⌃"; button.setAttribute("aria-expanded", String(!collapsed)); button.setAttribute("aria-label", collapsed ? "Tampilkan Rotasi & Waiting List" : "Sembunyikan Rotasi & Waiting List"); button.title = collapsed ? "Tampilkan" : "Sembunyikan"; }
             if (content) content.hidden = collapsed;
         }
     }
@@ -2913,7 +2916,7 @@ async function deletePicRole(roleId){
                         <div style="color:var(--text-muted);font-size:.8rem;">${escapeHTML(ev.name)} · <b style="color:var(--primary);">${present}/${participants.length} hadir</b></div>
                     </div>
                     <div class="event-participant-toolbar-actions">
-                        <button class="event-collapse-btn" onclick="toggleEventPanel('participants')" aria-expanded="${!isEventPanelCollapsed('participants')}">${isEventPanelCollapsed('participants')?'＋ Tampilkan':'－ Sembunyikan'}</button>
+                        <button class="event-collapse-btn" onclick="toggleEventPanel('participants')" aria-expanded="${!isEventPanelCollapsed('participants')}" aria-label="${isEventPanelCollapsed('participants')?'Tampilkan Peserta Event':'Sembunyikan Peserta Event'}" title="${isEventPanelCollapsed('participants')?'Tampilkan':'Sembunyikan'}">${isEventPanelCollapsed('participants')?'⌄':'⌃'}</button>
                         <button class="btn-success" onclick="addEventParticipant()">＋ Tambah Member</button>
                     </div>
                 </div>
