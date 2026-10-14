@@ -35,7 +35,18 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--bg-main); color: var(--text-main); padding: 20px; }
-        .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+        .header { position:relative; text-align:center; margin-bottom:20px; padding:8px 70px 10px; border-bottom:2px solid var(--border); }
+        .header > img { width:96px !important; margin-bottom:6px !important; }
+        .header > h1 { font-size:clamp(1.05rem,3vw,1.65rem); line-height:1.2; }
+        .header-menu-wrap { position:absolute; top:12px; right:8px; }
+        #auraAccountBar { position:absolute; top:12px; left:8px; right:auto; z-index:5; }
+        @media(max-width:600px) {
+            .header { padding:8px 52px 10px; }
+            .header > img { width:72px !important; margin-bottom:5px !important; }
+            .header > h1 { font-size:1.05rem; }
+            .header-menu-wrap { top:8px; right:4px; }
+            #auraAccountBar { top:8px; left:4px; right:auto; padding:4px 6px; font-size:8px; }
+        }
         .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
         
@@ -603,7 +614,7 @@
 .pic-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:10001;padding:18px}.pic-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:100%;max-width:430px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.55)}.pic-modal h3{margin:0 0 6px;color:var(--primary)}.pic-modal p{font-size:.82rem;color:var(--text-muted);margin:0 0 14px}.pic-modal select{width:100%;margin:0 0 14px}.pic-modal-actions{display:flex;gap:8px}.pic-modal-actions button{flex:1}
 
 /* AURA AUTH GATE */
-#auraAuthGate{position:fixed;inset:0;z-index:1000000;display:none;align-items:center;justify-content:center;padding:22px;background:radial-gradient(ellipse at top,rgba(200,159,76,.13),transparent 55%),#050505}#auraAuthGate .auth-card{width:100%;max-width:430px;padding:28px;border:1px solid rgba(200,159,76,.38);border-radius:20px;background:#111;box-shadow:0 25px 90px #000b}#auraAuthGate .auth-brand{color:#c89f4c;font-size:12px;font-weight:900;letter-spacing:3px}#auraAuthGate h2{color:#fff;font-size:27px;margin:10px 0 7px}#auraAuthGate p{color:#aaa;font-size:13px;line-height:1.6}#auraAuthGate label{display:block;color:#ddd;font-size:12px;margin:15px 0 6px}#auraAuthGate input,#auraAuthGate select{width:100%;padding:13px;border:1px solid #393939;border-radius:9px;background:#080808;color:#fff}#auraAuthGate .auth-submit{width:100%;padding:13px;margin-top:18px;border-radius:9px;background:#c89f4c;color:#000;font-weight:900}#auraAuthGate .auth-error{color:#ff8585;font-size:12px;margin-top:12px;min-height:18px}#auraAuthGate .auth-note{font-size:11px;color:#777;margin-top:16px}body.aura-member #tab-finance,body.aura-member [data-admin-only="true"],body.aura-member .admin-only,body.aura-member .aura-write-control{display:none!important}#auraAccountBar{position:fixed;z-index:99990;top:15px;right:62px;display:none;align-items:center;padding:4px 7px;background:#151515;border:1px solid #393024;border-radius:8px;font-size:9px;line-height:1.2;color:#eee;white-space:nowrap;pointer-events:none}@media(max-width:600px){#auraAuthGate .auth-card{padding:22px}#auraAccountBar{top:13px;right:52px;padding:4px 6px;font-size:8px}}
+#auraAuthGate{position:fixed;inset:0;z-index:1000000;display:none;align-items:center;justify-content:center;padding:22px;background:radial-gradient(ellipse at top,rgba(200,159,76,.13),transparent 55%),#050505}#auraAuthGate .auth-card{width:100%;max-width:430px;padding:28px;border:1px solid rgba(200,159,76,.38);border-radius:20px;background:#111;box-shadow:0 25px 90px #000b}#auraAuthGate .auth-brand{color:#c89f4c;font-size:12px;font-weight:900;letter-spacing:3px}#auraAuthGate h2{color:#fff;font-size:27px;margin:10px 0 7px}#auraAuthGate p{color:#aaa;font-size:13px;line-height:1.6}#auraAuthGate label{display:block;color:#ddd;font-size:12px;margin:15px 0 6px}#auraAuthGate input,#auraAuthGate select{width:100%;padding:13px;border:1px solid #393939;border-radius:9px;background:#080808;color:#fff}#auraAuthGate .auth-submit{width:100%;padding:13px;margin-top:18px;border-radius:9px;background:#c89f4c;color:#000;font-weight:900}#auraAuthGate .auth-error{color:#ff8585;font-size:12px;margin-top:12px;min-height:18px}#auraAuthGate .auth-note{font-size:11px;color:#777;margin-top:16px}body.aura-member #tab-finance,body.aura-member [data-admin-only="true"],body.aura-member .admin-only,body.aura-member .aura-write-control{display:none!important}#auraAccountBar{position:absolute;z-index:99990;top:12px;left:8px;right:auto;display:none;align-items:center;padding:4px 7px;background:#151515;border:1px solid #393024;border-radius:8px;font-size:9px;line-height:1.2;color:#eee;white-space:nowrap;pointer-events:none}@media(max-width:600px){#auraAuthGate .auth-card{padding:22px}#auraAccountBar{top:8px;left:4px;right:auto;padding:4px 6px;font-size:8px}}
 </style>
 </head>
 <body>
