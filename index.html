@@ -147,7 +147,15 @@
         .event-participant-avatar { display:inline-flex; vertical-align:middle; margin-right:7px; }
         .event-participant-avatar .avatar-img,.event-participant-avatar .avatar-placeholder { width:27px; height:27px; min-width:27px; font-size:.72rem; }
         .event-participant-toolbar > div { min-width:0; }
+        .event-participant-toolbar-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .event-collapse-btn { background:var(--bg-main); color:var(--text-muted); border:1px solid var(--border); padding:8px 10px; border-radius:8px; font-size:.78rem; font-weight:700; margin:0; white-space:nowrap; }
+        .event-collapse-btn:hover { color:var(--primary); border-color:var(--primary); }
+        .event-participant-content[hidden], .rotation-queue-content[hidden] { display:none !important; }
+        .event-participant-content { margin-top:4px; }
         /* Rotasi & waiting list: judul dan kolom dirapikan, alignment konsisten */
+        .rotation-queue-heading { display:flex; align-items:center; justify-content:center; position:relative; gap:10px; margin-bottom:14px; }
+        .rotation-queue-heading h2 { text-align:center; margin:0; }
+        .rotation-queue-heading .event-collapse-btn { position:absolute; right:0; }
         .rotation-queue-card > h2 { text-align:center; margin-bottom:14px; }
         .rotation-queue-description { color:var(--text-muted); font-size:.84rem; line-height:1.45; text-align:center; margin:0 auto 12px; max-width:680px; }
         .rotation-queue-table-wrap { width:100%; overflow-x:auto; }
@@ -733,21 +741,19 @@
                 <div id="eventAttendancePanel"></div>
 
                 <div class="card rotation-queue-card">
-                    <h2>🔄 Rotasi & Waiting List</h2>
-                    <div id="rotationSummary"></div>
-                    <p class="rotation-queue-description">Prioritas otomatis berdasarkan jumlah main paling sedikit, level, partner/lawan terakhir, dan pemain yang sedang bermain.</p>
-                    <div class="rotation-queue-table-wrap">
-                        <table class="rotation-queue-table">
-                            <thead>
-                                <tr>
-                                    <th>No</th>
-                                    <th>Nama</th>
-                                    <th>Level</th>
-                                    <th>Sudah Main</th>
-                                </tr>
-                            </thead>
-                            <tbody id="queueList"></tbody>
-                        </table>
+                    <div class="rotation-queue-heading">
+                        <h2>🔄 Rotasi & Waiting List</h2>
+                        <button class="event-collapse-btn" onclick="toggleEventPanel('rotation')" aria-expanded="${!isEventPanelCollapsed('rotation')}">${isEventPanelCollapsed('rotation')?'＋ Tampilkan':'－ Sembunyikan'}</button>
+                    </div>
+                    <div class="rotation-queue-content" ${isEventPanelCollapsed('rotation')?'hidden':''}>
+                        <div id="rotationSummary"></div>
+                        <p class="rotation-queue-description">Prioritas otomatis berdasarkan jumlah main paling sedikit, level, partner/lawan terakhir, dan pemain yang sedang bermain.</p>
+                        <div class="rotation-queue-table-wrap">
+                            <table class="rotation-queue-table">
+                                <thead><tr><th>No</th><th>Nama</th><th>Level</th><th>Sudah Main</th></tr></thead>
+                                <tbody id="queueList"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
                 </div>
@@ -2874,6 +2880,22 @@ async function deletePicRole(roleId){
         } else requestRefresh();
     }
 
+    const auraCollapsedEventPanels = new Set();
+    function isEventPanelCollapsed(panel) { return auraCollapsedEventPanels.has(panel); }
+    function toggleEventPanel(panel) {
+        if (auraCollapsedEventPanels.has(panel)) auraCollapsedEventPanels.delete(panel);
+        else auraCollapsedEventPanels.add(panel);
+        renderEventAttendance();
+        const heading = document.querySelector(".rotation-queue-heading");
+        if (heading) {
+            const collapsed = isEventPanelCollapsed("rotation");
+            const button = heading.querySelector("button");
+            const content = document.querySelector(".rotation-queue-content");
+            if (button) { button.textContent = collapsed ? "＋ Tampilkan" : "－ Sembunyikan"; button.setAttribute("aria-expanded", String(!collapsed)); }
+            if (content) content.hidden = collapsed;
+        }
+    }
+
     function renderEventAttendance() {
         const host = document.getElementById('eventAttendancePanel');
         if (!host) return;
@@ -2884,14 +2906,18 @@ async function deletePicRole(roleId){
         const participants = participantIds.map(id => players.find(p=>p.id===id)).filter(Boolean);
         const present = participants.filter(p => !!attendance[p.id]).length;
         host.innerHTML = `
-            <div class="attendance-panel">
+            <div class="attendance-panel event-participant-panel">
                 <div class="event-participant-toolbar">
                     <div>
                         <h2 style="margin-bottom:4px;">👥 Peserta Event</h2>
                         <div style="color:var(--text-muted);font-size:.8rem;">${escapeHTML(ev.name)} · <b style="color:var(--primary);">${present}/${participants.length} hadir</b></div>
                     </div>
-                    <button class="btn-success" onclick="addEventParticipant()">＋ Tambah Member</button>
+                    <div class="event-participant-toolbar-actions">
+                        <button class="event-collapse-btn" onclick="toggleEventPanel('participants')" aria-expanded="${!isEventPanelCollapsed('participants')}">${isEventPanelCollapsed('participants')?'＋ Tampilkan':'－ Sembunyikan'}</button>
+                        <button class="btn-success" onclick="addEventParticipant()">＋ Tambah Member</button>
+                    </div>
                 </div>
+                <div class="event-participant-content" ${isEventPanelCollapsed('participants')?'hidden':''}>
                 <div class="event-participant-table-wrap">
                 <table class="event-participant-table">
                     <thead><tr><th>#</th><th>Pemain</th><th>Level</th><th>Gender</th><th>Kehadiran</th><th>Main Event</th><th>Aksi</th></tr></thead>
@@ -2912,6 +2938,7 @@ async function deletePicRole(roleId){
                     ${participants.length===0?'<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:18px;">Belum ada peserta. Klik ＋ Tambah Member.</td></tr>':''}
                     </tbody>
                 </table></div>
+                </div>
             </div>`;
     }
 
