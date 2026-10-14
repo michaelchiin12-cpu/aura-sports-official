@@ -147,6 +147,16 @@
         .event-participant-avatar { display:inline-flex; vertical-align:middle; margin-right:7px; }
         .event-participant-avatar .avatar-img,.event-participant-avatar .avatar-placeholder { width:27px; height:27px; min-width:27px; font-size:.72rem; }
         .event-participant-toolbar > div { min-width:0; }
+        /* Tabel rotasi dibuat ringkas agar tidak menyisakan banyak ruang kosong */
+        #queueList { font-size:.82rem; }
+        #queueList tr { height:auto; }
+        #queueList td { padding:6px 8px; line-height:1.25; }
+        #queueList td:first-child { width:34px; color:var(--text-muted); }
+        #queueList td:nth-child(2) { min-width:0; white-space:normal; }
+        #queueList td:nth-child(3) { width:72px; }
+        #queueList td:nth-child(4) { width:112px; }
+        #queueList .rotation-priority { display:inline-block; margin-left:4px; font-size:.65rem; padding:2px 6px; }
+        #queueList td[colspan] { padding:10px 8px; }
         .rotation-priority { font-size:.7rem; padding:2px 7px; border-radius:10px; background:rgba(200,159,76,.12); color:var(--primary); }
         .rotation-priority.high { background:rgba(16,185,129,.12); color:#6ee7b7; }
         .rotation-priority.busy { background:rgba(245,158,11,.12); color:#fcd34d; }
@@ -155,6 +165,11 @@
         .history-round { color:var(--primary); font-weight:800; font-size:.75rem; }
         @media (max-width:640px) {
             .rotation-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            #queueList { font-size:.76rem; }
+            #queueList td { padding:6px 5px; }
+            #queueList td:nth-child(3) { width:60px; }
+            #queueList td:nth-child(4) { width:auto; }
+            #queueList .rotation-priority { margin-left:2px; font-size:.61rem; padding:2px 5px; }
             .attendance-panel { padding:10px; margin-bottom:14px; border-radius:10px; }
             .event-participant-toolbar { align-items:stretch; flex-direction:column; gap:9px; }
             .event-participant-toolbar h2 { font-size:1rem; margin-bottom:3px !important; }
