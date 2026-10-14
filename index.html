@@ -542,9 +542,25 @@
         .pic-toolbar{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin-top:16px}.pic-summary{min-width:130px;background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column}.pic-summary strong{font-size:1.15rem;color:var(--primary)}.pic-summary span{font-size:.75rem;color:var(--text-muted)}.pic-add-btn{margin-left:auto;padding:10px 14px;border:1px solid var(--primary);border-radius:9px;background:var(--primary);color:#111;font-weight:800;cursor:pointer}.pic-card-actions{display:grid;grid-template-columns:1fr auto auto;gap:6px}.pic-edit-btn,.pic-delete-btn{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);font-weight:700;cursor:pointer}.pic-delete-btn{color:#ff6b6b}.pic-editor-modal label{display:block;font-size:.78rem;color:var(--text-muted);margin:9px 0 5px}.pic-editor-modal input,.pic-editor-modal textarea,.pic-editor-modal select{width:100%;margin:0}.pic-editor-modal textarea{resize:vertical}
 .pic-card{background:var(--bg-main);border:1px solid var(--border);border-radius:12px;padding:16px}.pic-card-head{display:flex;align-items:center;gap:12px}.pic-icon{width:42px;height:42px;border-radius:10px;background:rgba(200,159,76,.1);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0}.pic-role{font-weight:800;color:var(--primary);font-size:.95rem}.pic-person{font-weight:700;margin-top:3px}.pic-desc{color:var(--text-muted);font-size:.82rem;line-height:1.5;margin:12px 0}.pic-assign-btn{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);font-weight:700;cursor:pointer}.pic-assign-btn:hover{border-color:var(--primary);color:var(--primary)}.pic-note{margin-top:16px;padding:12px;border:1px dashed var(--border);border-radius:10px;color:var(--text-muted);font-size:.82rem;line-height:1.5}@media(max-width:600px){.pic-grid{grid-template-columns:1fr}}
 .pic-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:10001;padding:18px}.pic-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:100%;max-width:430px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.55)}.pic-modal h3{margin:0 0 6px;color:var(--primary)}.pic-modal p{font-size:.82rem;color:var(--text-muted);margin:0 0 14px}.pic-modal select{width:100%;margin:0 0 14px}.pic-modal-actions{display:flex;gap:8px}.pic-modal-actions button{flex:1}
+
+/* --- Admin access panel (security migration preview) --- */
+#auraAuthPanel{position:fixed;inset:0;z-index:20000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.94)}
+#auraAuthPanel.open{display:flex}
+#auraAuthCard{width:min(100%,420px);padding:26px;background:#111;border:1px solid #c89f4c;border-radius:16px;box-shadow:0 20px 80px #000}
+#auraAuthCard h2{color:#c89f4c;margin-bottom:8px}
+#auraAuthCard p{color:#aaa;font-size:.9rem;line-height:1.5;margin-bottom:14px}
+#auraAuthCard label{display:block;font-size:.85rem;color:#ddd;margin:12px 0 5px}
+#auraAuthCard input{width:100%;padding:12px}
+#auraAuthMessage{min-height:1.3em;color:#fbbf24;font-size:.85rem;margin:10px 0}
+#auraAuthActions{display:flex;gap:8px;flex-wrap:wrap}
+#auraAuthActions button{flex:1;padding:11px}
+#auraAuthSession{display:none;align-items:center;justify-content:center;gap:8px;color:#c89f4c;font-size:.8rem;margin:0 auto 10px}
+
 </style>
 </head>
 <body>
+<div id="auraAuthPanel" role="dialog" aria-modal="true" aria-labelledby="auraAuthTitle"><div id="auraAuthCard"><h2 id="auraAuthTitle">AURA SPORT MANAGER</h2><p>Panel akses admin sedang disiapkan. Login Supabase Auth akan diaktifkan bersama pengamanan database setelah data publik dan privat dipisahkan.</p><div id="auraAuthMessage" role="status">Mode preview — belum mengubah akses produksi.</div><button type="button" onclick="document.getElementById('auraAuthPanel').classList.remove('open')">Tutup panel</button></div></div>
+<div id="auraAuthSession" aria-live="polite"></div>
 
     <div id="syncStatusToast" role="status" aria-live="polite"></div>
 
