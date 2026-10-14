@@ -669,7 +669,7 @@
         <div class="container">
             <!-- Panel Kiri: Pengaturan, Pemain, Antrean -->
             <div>
-                <div class="card">
+                <div class="card sport-settings-card" style="display:none;" aria-hidden="true">
                     <h2>Pengaturan Olahraga</h2>
                     <div class="flex-row">
                         <select id="sportType" onchange="toggleCustomSport()">
@@ -1542,9 +1542,11 @@ async function deletePicRole(roleId){
         activeMatches = cloneJSON(s.activeMatches || []);
         rrTeams = cloneJSON(s.rrTeams || []);
         rrMatches = cloneJSON(s.rrMatches || []);
-        rrSettings = cloneJSON(s.rrSettings || {qualifyCount:4,totalCourts:2});
+        rrSettings = cloneJSON(s.rrSettings || {qualifyCount:4,totalCourts:2,teamSize:2});
         const eventCourtInput = document.getElementById('totalCourts');
+        const eventTeamInput = document.getElementById('playersPerTeam');
         if (eventCourtInput) eventCourtInput.value = Math.max(1, Math.min(10, parseInt(rrSettings.totalCourts) || 2));
+        if (eventTeamInput) eventTeamInput.value = Math.max(1, Math.min(11, parseInt(rrSettings.teamSize) || 2));
         rrPhase = s.rrPhase || 'setup';
         rrBracket = cloneJSON(s.rrBracket || []);
         currentEventMode = ev.mode;
@@ -1568,9 +1570,17 @@ async function deletePicRole(roleId){
                 <input id="eventNameInput" type="text" placeholder="Contoh: Latihan Rutin Selasa" maxlength="100">
                 <label>Tanggal *</label>
                 <input id="eventDateInput" type="date" value="${todayISO()}">
-                <label>Jumlah Lapangan *</label>
-                <input id="eventCourtsInput" type="number" value="2" min="1" max="10" placeholder="Contoh: 2">
-                <div style="font-size:.78rem;color:var(--text-muted);margin-top:-4px;margin-bottom:10px;">Jumlah ini akan menjadi jumlah lapangan saat event dibuka dan saat Generate Ronde.</div>
+                <div class="event-setup-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <label for="eventCourtsInput">Jumlah Lapangan *</label>
+                        <input id="eventCourtsInput" type="number" value="2" min="1" max="10" placeholder="Contoh: 2" required>
+                    </div>
+                    <div>
+                        <label for="eventTeamSizeInput">Pemain per Tim *</label>
+                        <input id="eventTeamSizeInput" type="number" value="2" min="1" max="11" placeholder="Contoh: 2" required>
+                    </div>
+                </div>
+                <div style="font-size:.78rem;color:var(--text-muted);margin-top:-4px;margin-bottom:10px;">Pengaturan ini dipakai untuk seluruh ronde event. Contoh: 2 lapangan akan menyiapkan hingga 2 pertandingan sekaligus per ronde.</div>
                 <div class="event-modal-actions">
                     <button type="button" id="eventCancelBtn" style="background:var(--border); color:#fff;">Batal</button>
                     <button type="button" id="eventCreateBtn" class="btn-success">Buat Pertandingan</button>
@@ -1599,9 +1609,13 @@ async function deletePicRole(roleId){
         const nameEl = document.getElementById('eventNameInput');
         const dateEl = document.getElementById('eventDateInput');
         const courtsEl = document.getElementById('eventCourtsInput');
+        const teamSizeEl = document.getElementById('eventTeamSizeInput');
         const name = nameEl ? nameEl.value.trim() : '';
         const date = (dateEl && dateEl.value) ? dateEl.value : todayISO();
-        const totalCourts = Math.max(1, Math.min(10, parseInt(courtsEl?.value) || 2));
+        const rawCourts = parseInt(courtsEl?.value);
+        const rawTeamSize = parseInt(teamSizeEl?.value);
+        const totalCourts = Math.max(1, Math.min(10, Number.isFinite(rawCourts) ? rawCourts : 2));
+        const teamSize = Math.max(1, Math.min(11, Number.isFinite(rawTeamSize) ? rawTeamSize : 2));
 
         if (!name) {
             if (nameEl) nameEl.focus();
@@ -1635,7 +1649,8 @@ async function deletePicRole(roleId){
         rrMatches: [],
         rrSettings: {
             qualifyCount: 4,
-            totalCourts: totalCourts
+            totalCourts: totalCourts,
+            teamSize: teamSize
         },
         rrPhase: 'setup',
         rrBracket: []
