@@ -1621,52 +1621,84 @@ async function deletePicRole(roleId){
 
     function activeEvent() { return eventRegistry.events.find(e => e.id === eventRegistry.activeEventId) || null; }
 
-    function openEventModal(mode) {
+    function openEventModal(mode, eventId = null) {
         const existing = document.getElementById('eventModal');
         if (existing) existing.remove();
-
+        const editingEvent = eventId ? eventRegistry.events.find(e => e.id === eventId && e.mode === mode) : null;
+        if (eventId && !editingEvent) return alert('Pertandingan tidak ditemukan.');
+        const settings = editingEvent?.snapshot?.rrSettings || {};
         const overlay = document.createElement('div');
         overlay.id = 'eventModal';
         overlay.className = 'event-modal';
         overlay.innerHTML = `
             <div class="event-modal-box">
-                <h3>🆕 Tambah Pertandingan</h3>
+                <h3>${editingEvent ? '✏️ Edit Pertandingan' : '🆕 Tambah Pertandingan'}</h3>
                 <div style="color:var(--text-muted); font-size:.82rem; margin-bottom:10px;">${eventModeLabel(mode)}</div>
                 <label>Nama Acara / Pertandingan *</label>
-                <input id="eventNameInput" type="text" placeholder="Contoh: Latihan Rutin Selasa" maxlength="100">
+                <input id="eventNameInput" type="text" placeholder="Contoh: Latihan Rutin Selasa" maxlength="100" value="${escapeHTML(editingEvent?.name || '')}">
                 <label>Tanggal *</label>
-                <input id="eventDateInput" type="date" value="${todayISO()}">
+                <input id="eventDateInput" type="date" value="${editingEvent?.date || todayISO()}">
                 <div class="event-setup-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                     <div>
                         <label for="eventCourtsInput">Jumlah Lapangan *</label>
-                        <input id="eventCourtsInput" type="number" value="2" min="1" max="10" placeholder="Contoh: 2" required>
+                        <input id="eventCourtsInput" type="number" value="${Math.max(1, Math.min(10, parseInt(settings.totalCourts) || 2))}" min="1" max="10" placeholder="Contoh: 2" required>
                     </div>
                     <div>
                         <label for="eventTeamSizeInput">Pemain per Tim *</label>
-                        <input id="eventTeamSizeInput" type="number" value="2" min="1" max="11" placeholder="Contoh: 2" required>
+                        <input id="eventTeamSizeInput" type="number" value="${Math.max(1, Math.min(11, parseInt(settings.teamSize) || 2))}" min="1" max="11" placeholder="Contoh: 2" required>
                     </div>
                 </div>
-                <div style="font-size:.78rem;color:var(--text-muted);margin-top:-4px;margin-bottom:10px;">Pengaturan ini dipakai untuk seluruh ronde event. Contoh: 2 lapangan akan menyiapkan hingga 2 pertandingan sekaligus per ronde.</div>
+                <div style="font-size:.78rem;color:var(--text-muted);margin-top:-4px;margin-bottom:10px;">Pengaturan ini dipakai untuk ronde berikutnya. Mengubah jumlah lapangan tidak mengubah pertandingan yang sudah dibuat atau sedang berjalan.</div>
                 <div class="event-modal-actions">
                     <button type="button" id="eventCancelBtn" style="background:var(--border); color:#fff;">Batal</button>
-                    <button type="button" id="eventCreateBtn" class="btn-success">Buat Pertandingan</button>
+                    <button type="button" id="eventCreateBtn" class="btn-success">${editingEvent ? 'Simpan Perubahan' : 'Buat Pertandingan'}</button>
                 </div>
             </div>`;
-
         document.body.appendChild(overlay);
-
-        // Pakai addEventListener, bukan inline onclick. Ini lebih aman di GitHub Pages
-        // dan memastikan tombol modal tetap bekerja walaupun HTML di-render ulang.
         document.getElementById('eventCancelBtn').addEventListener('click', closeEventModal);
         document.getElementById('eventCreateBtn').addEventListener('click', () => {
-            createEvent(mode);
+            if (editingEvent) editEventDetails(editingEvent.id, mode);
+            else createEvent(mode);
         });
-
-        overlay.addEventListener('click', e => {
-            if (e.target === overlay) closeEventModal();
-        });
-
+        overlay.addEventListener('click', e => { if (e.target === overlay) closeEventModal(); });
         setTimeout(() => document.getElementById('eventNameInput')?.focus(), 50);
+    }
+
+    async function editEventDetails(eventId, mode) {
+        const ev = eventRegistry.events.find(e => e.id === eventId && e.mode === mode);
+        if (!ev) return alert('Pertandingan tidak ditemukan.');
+        const nameEl = document.getElementById('eventNameInput');
+        const dateEl = document.getElementById('eventDateInput');
+        const courtsEl = document.getElementById('eventCourtsInput');
+        const teamSizeEl = document.getElementById('eventTeamSizeInput');
+        const name = nameEl?.value.trim() || '';
+        const date = dateEl?.value || '';
+        const courts = Number.parseInt(courtsEl?.value, 10);
+        const teamSize = Number.parseInt(teamSizeEl?.value, 10);
+        if (!name) { nameEl?.focus(); return alert('Nama acara / pertandingan wajib diisi.'); }
+        if (!date) { dateEl?.focus(); return alert('Tanggal pertandingan wajib diisi.'); }
+        if (!Number.isFinite(courts) || courts < 1 || courts > 10) { courtsEl?.focus(); return alert('Jumlah lapangan harus antara 1 sampai 10.'); }
+        if (!Number.isFinite(teamSize) || teamSize < 1 || teamSize > 11) { teamSizeEl?.focus(); return alert('Pemain per tim harus antara 1 sampai 11.'); }
+        ev.name = name;
+        ev.date = date;
+        ev.snapshot = ev.snapshot || {};
+        ev.snapshot.rrSettings = { ...(ev.snapshot.rrSettings || {}), totalCourts: courts, teamSize };
+        ev.updatedAt = new Date().toISOString();
+        if (eventRegistry.activeEventId === ev.id) {
+            rrSettings = { ...rrSettings, totalCourts: courts, teamSize };
+            const courtInput = document.getElementById('totalCourts');
+            const teamInput = document.getElementById('playersPerTeam');
+            if (courtInput) courtInput.value = courts;
+            if (teamInput) teamInput.value = teamSize;
+        }
+        closeEventModal();
+        try {
+            await persistStateOnly();
+            init();
+        } catch (err) {
+            console.error('Gagal menyimpan perubahan pertandingan:', err);
+            alert('Perubahan sudah diterapkan di layar, tetapi gagal disimpan: ' + (err?.message || err));
+        }
     }
 
     function closeEventModal() { document.getElementById('eventModal')?.remove(); }
@@ -1894,7 +1926,7 @@ async function deletePicRole(roleId){
             const courts=new Set((snap.activeMatches||[]).map(m=>m.courtName)).size || ((snap.rrSettings||{}).totalCourts||0);
             const statusText=ev.status==='ongoing'?'🟡 Sedang Berlangsung':ev.status==='finished'?'🟢 Selesai':'⚪ Belum Dimulai';
             const stats=ev.mode==='match' ? `${snap.matchesHistory?.length||0} match selesai` : `${snap.rrMatches?.length||0} fixture`;
-            return `<div class="event-card" onclick="selectEvent('${mode}','${ev.id}')"><div class="event-card-title">${escapeHTML(ev.name)}</div><div class="event-card-meta">${formatEventDate(ev.date)} · ${eventModeLabel(mode)}</div><div style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px;">${playersCount?playersCount+' pemain · ':''}${courts?courts+' lapangan · ':''}${stats}</div><div class="event-card-footer"><span class="event-status ${ev.status}">${statusText}</span><div class="flex-row" style="margin:0;" onclick="event.stopPropagation()">${ev.status==='finished'?`<button onclick="reopenEvent('${ev.id}')" class="btn-warning" style="padding:5px 9px;">🔓 Buka Kembali</button>`:''}<button onclick="deleteEvent('${ev.id}')" class="btn-danger" style="padding:5px 9px;">Hapus</button></div></div></div>`;
+            return `<div class="event-card" onclick="selectEvent('${mode}','${ev.id}')"><div class="event-card-title">${escapeHTML(ev.name)}</div><div class="event-card-meta">${formatEventDate(ev.date)} · ${eventModeLabel(mode)}</div><div style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px;">${playersCount?playersCount+' pemain · ':''}${courts?courts+' lapangan · ':''}${stats}</div><div class="event-card-footer"><span class="event-status ${ev.status}">${statusText}</span><div class="flex-row" style="margin:0;" onclick="event.stopPropagation()"><button onclick="openEventModal('${mode}','${ev.id}')" class="btn-secondary" style="padding:5px 9px;">✏️ Edit</button>${ev.status==='finished'?`<button onclick="reopenEvent('${ev.id}')" class="btn-warning" style="padding:5px 9px;">🔓 Buka Kembali</button>`:''}<button onclick="deleteEvent('${ev.id}')" class="btn-danger" style="padding:5px 9px;">Hapus</button></div></div></div>`;
         }).join('')+'</div>';
     }
 
