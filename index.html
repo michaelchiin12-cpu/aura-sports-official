@@ -147,6 +147,17 @@
         .event-participant-avatar { display:inline-flex; vertical-align:middle; margin-right:7px; }
         .event-participant-avatar .avatar-img,.event-participant-avatar .avatar-placeholder { width:27px; height:27px; min-width:27px; font-size:.72rem; }
         .event-participant-toolbar > div { min-width:0; }
+        /* Rotasi & waiting list: judul dan kolom dirapikan, alignment konsisten */
+        .rotation-queue-card > h2 { text-align:center; margin-bottom:14px; }
+        .rotation-queue-description { color:var(--text-muted); font-size:.84rem; line-height:1.45; text-align:center; margin:0 auto 12px; max-width:680px; }
+        .rotation-queue-table-wrap { width:100%; overflow-x:auto; }
+        .rotation-queue-table { width:100%; table-layout:auto; }
+        .rotation-queue-table thead th { text-align:center; vertical-align:middle; padding:8px 5px; }
+        .rotation-queue-table thead th:nth-child(2) { text-align:left; }
+        .rotation-queue-table tbody td:first-child,
+        .rotation-queue-table tbody td:nth-child(3),
+        .rotation-queue-table tbody td:nth-child(4) { text-align:center; }
+        .rotation-queue-table tbody td:nth-child(2) { text-align:left; }
         /* Tabel rotasi dibuat ringkas agar tidak menyisakan banyak ruang kosong */
         #queueList { font-size:.82rem; }
         #queueList tr { height:auto; }
@@ -721,12 +732,12 @@
 
                 <div id="eventAttendancePanel"></div>
 
-                <div class="card">
+                <div class="card rotation-queue-card">
                     <h2>🔄 Rotasi & Waiting List</h2>
                     <div id="rotationSummary"></div>
-                    <p style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted);">Prioritas otomatis berdasarkan jumlah main paling sedikit, level, partner/lawan terakhir, dan pemain yang sedang bermain.</p>
-                    <div style="overflow-x: auto;">
-                        <table>
+                    <p class="rotation-queue-description">Prioritas otomatis berdasarkan jumlah main paling sedikit, level, partner/lawan terakhir, dan pemain yang sedang bermain.</p>
+                    <div class="rotation-queue-table-wrap">
+                        <table class="rotation-queue-table">
                             <thead>
                                 <tr>
                                     <th>No</th>
@@ -738,6 +749,7 @@
                             <tbody id="queueList"></tbody>
                         </table>
                     </div>
+                </div>
                 </div>
             </div>
 
