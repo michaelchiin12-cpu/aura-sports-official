@@ -746,7 +746,7 @@
                 <div class="card rotation-queue-card">
                     <div class="rotation-queue-heading">
                         <h2>🔄 Rotasi & Waiting List</h2>
-                        <button class="event-collapse-btn" onclick="toggleEventPanel('rotation')" aria-expanded="${!isEventPanelCollapsed('rotation')}">${isEventPanelCollapsed('rotation')?'⌄':'⌃'}</button>
+                        <button class="event-collapse-btn" onclick="toggleEventPanel('rotation')" aria-expanded="${!isEventPanelCollapsed('rotation')}" aria-label="${isEventPanelCollapsed('rotation')?'Tampilkan Rotasi & Waiting List':'Sembunyikan Rotasi & Waiting List'}" title="${isEventPanelCollapsed('rotation')?'Tampilkan':'Sembunyikan'}">${isEventPanelCollapsed('rotation')?'⌄':'⌃'}</button>
                     </div>
                     <div class="rotation-queue-content" ${isEventPanelCollapsed('rotation')?'hidden':''}>
                         <div id="rotationSummary"></div>
