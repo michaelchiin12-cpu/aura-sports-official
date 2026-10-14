@@ -4278,3 +4278,69 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; transition-duration:.01ms !important; }
 }
+
+
+/* Targeted fixes based on actual mobile DOM (event toolbar, settings and participant table). */
+@media (max-width: 768px) {
+  #eventWorkspace-match { min-width:0 !important; width:100% !important; }
+  #eventWorkspace-match .container {
+    display:flex !important; flex-direction:column !important; gap:14px !important;
+    width:100% !important; max-width:100% !important; min-width:0 !important;
+  }
+  #eventWorkspace-match .container > div,
+  #eventWorkspace-match .container .card,
+  #eventWorkspace-match .container .attendance-panel {
+    width:100% !important; max-width:100% !important; min-width:0 !important;
+  }
+  #eventWorkspace-match .container .card { padding:16px !important; margin:0 0 14px !important; }
+  #eventWorkspace-match .container .card h2 { font-size:clamp(18px, 4.8vw, 23px) !important; line-height:1.25 !important; }
+  #eventWorkspace-match .container .flex-row {
+    display:grid !important; grid-template-columns:minmax(0,1fr) !important; gap:10px !important;
+    width:100% !important;
+  }
+  #eventWorkspace-match #sportType,
+  #eventWorkspace-match #customSportName,
+  #eventWorkspace-match #playersPerTeam,
+  #eventWorkspace-match #totalCourts {
+    width:100% !important; min-width:0 !important; margin:0 !important;
+  }
+  #eventWorkspace-match .event-participant-toolbar {
+    display:grid !important; grid-template-columns:minmax(0,1fr) !important;
+    gap:12px !important; align-items:stretch !important;
+  }
+  #eventWorkspace-match .event-participant-toolbar h2 { margin:0 0 5px !important; font-size:clamp(22px, 6vw, 30px) !important; }
+  #eventWorkspace-match .event-participant-toolbar .btn-success {
+    width:100% !important; max-width:100% !important; justify-content:center !important;
+    min-height:48px !important; margin:0 !important; font-size:16px !important;
+  }
+  #eventWorkspace-match .event-participant-table-wrap {
+    display:block !important; width:100% !important; max-width:100% !important;
+    overflow-x:auto !important; overflow-y:hidden !important;
+    -webkit-overflow-scrolling:touch !important; overscroll-behavior-x:contain !important;
+    border-radius:12px; scrollbar-width:thin;
+  }
+  #eventWorkspace-match table.event-participant-table {
+    width:max-content !important; min-width:680px !important; max-width:none !important;
+    table-layout:auto !important; border-collapse:separate !important; border-spacing:0 !important;
+  }
+  #eventWorkspace-match .event-participant-table th,
+  #eventWorkspace-match .event-participant-table td {
+    white-space:nowrap !important; padding:10px 12px !important; vertical-align:middle !important;
+  }
+  #eventWorkspace-match .event-participant-table th {
+    position:sticky; top:0; z-index:1; background:#1a1d26 !important; color:#d7b15a !important;
+  }
+  /* Compact the top match controls; do not shrink touch targets too far. */
+  #eventWorkspace-match button { min-height:44px; }
+  #eventWorkspace-match .attendance-panel { padding:15px !important; margin:0 0 14px !important; }
+  /* Give the fixed nav a smaller footprint and reserve its space below content. */
+  .mobile-bottom-nav { min-height:0 !important; }
+  .mobile-bottom-nav .mobile-tab-btn { min-height:50px !important; }
+}
+@media (max-width: 420px) {
+  #eventWorkspace-match .container .card { padding:13px !important; border-radius:16px !important; }
+  #eventWorkspace-match .event-participant-table { min-width:650px !important; }
+  #eventWorkspace-match .event-participant-table th,
+  #eventWorkspace-match .event-participant-table td { padding:9px 10px !important; }
+  .mobile-bottom-nav .mobile-tab-btn { min-height:47px !important; }
+}
