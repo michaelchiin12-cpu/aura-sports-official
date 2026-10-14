@@ -4804,3 +4804,46 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @media (prefers-reduced-motion: reduce) {
   .tab-content.active, button { animation: none !important; transition: none !important; }
 }
+
+
+/* HEADER MOBILE: logo dan judul benar-benar di tengah layar */
+@media (max-width: 768px) {
+  .header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    width: 100% !important;
+    text-align: center !important;
+    padding: 12px 48px 15px !important;
+  }
+  .header > img {
+    display: block !important;
+    width: 64px !important;
+    height: 64px !important;
+    flex: 0 0 64px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    object-fit: contain !important;
+  }
+  .header > h1 {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 auto !important;
+    text-align: center !important;
+    font-size: clamp(.9rem, 4.5vw, 1.1rem) !important;
+    letter-spacing: .045em !important;
+    line-height: 1.25 !important;
+  }
+  .header-menu-wrap {
+    top: 12px !important;
+    right: 0 !important;
+    transform: none !important;
+  }
+}
+@media (max-width: 420px) {
+  .header { padding: 10px 44px 13px !important; }
+  .header > img { width: 58px !important; height: 58px !important; flex-basis: 58px !important; }
+  .header > h1 { font-size: .88rem !important; }
+}
