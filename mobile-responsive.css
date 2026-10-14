@@ -4099,3 +4099,105 @@ html.is-mobile body {
   }
   body { padding-bottom: 82px !important; }
 }
+
+
+
+/* =========================================================
+   AURA PREMIUM UI REFRESH — additive visual layer
+   Keeps existing app logic, IDs, and data flow unchanged.
+   Brand direction: black / charcoal / AURA gold / white.
+   ========================================================= */
+:root {
+  --bg-main: #08090c;
+  --bg-card: #111318;
+  --primary: #d6ad55;
+  --primary-hover: #edc875;
+  --text-main: #f7f7f8;
+  --text-muted: #a4a8b3;
+  --border: #292c34;
+  --aura-surface: #151820;
+  --aura-gold-soft: rgba(214, 173, 85, .14);
+  --aura-gold-line: rgba(214, 173, 85, .38);
+}
+html { background: var(--bg-main) !important; color-scheme: dark; }
+body {
+  background:
+    radial-gradient(ellipse at 50% -15%, rgba(214,173,85,.075), transparent 42%),
+    var(--bg-main) !important;
+  color: var(--text-main);
+}
+.header {
+  border-bottom: 1px solid var(--aura-gold-line) !important;
+}
+.card, .standings-card, .score-dashboard-shell,
+.event-workspace, [class*="event-manager"] {
+  background: linear-gradient(145deg, rgba(22,25,33,.98), rgba(13,15,20,.98)) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 26px rgba(0,0,0,.18) !important;
+}
+.card h2, .standings-kicker, .standings-header h2 {
+  color: var(--primary) !important;
+}
+button, .btn, [role="button"] {
+  transition: background-color .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+button:not(.btn-danger):not(.btn-success):not(.btn-warning) {
+  border-radius: 10px;
+}
+button:hover {
+  filter: brightness(1.06);
+}
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--primary) !important;
+  outline-offset: 2px;
+}
+input, select, textarea {
+  background: #0c0f15 !important;
+  color: var(--text-main) !important;
+  border: 1px solid #303541 !important;
+  border-radius: 10px !important;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(214,173,85,.12) !important;
+}
+table { border-collapse: separate !important; border-spacing: 0; }
+th {
+  background: #191c24 !important;
+  color: var(--primary) !important;
+}
+td, th { border-bottom-color: #292d36 !important; }
+tr:hover td { background: rgba(255,255,255,.018); }
+.badge { border: 1px solid rgba(255,255,255,.07); }
+.tab-btn.active, .main-nav-tabs .active {
+  background: var(--aura-gold-soft) !important;
+  border-color: var(--aura-gold-line) !important;
+  color: var(--primary) !important;
+}
+a { text-underline-offset: 3px; }
+@media (min-width: 769px) {
+  body { padding: 24px clamp(18px, 3vw, 42px) !important; }
+  .header { padding-bottom: 18px !important; margin-bottom: 24px !important; }
+  .card { padding: 22px !important; }
+}
+@media (max-width: 768px) {
+  body {
+    padding: 10px 12px 92px !important;
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(214,173,85,.07), transparent 38%),
+      var(--bg-main) !important;
+  }
+  .header { padding: 8px 0 14px !important; margin-bottom: 14px !important; }
+  .card, .standings-card, .score-dashboard-shell {
+    border-radius: 14px !important;
+    padding: 14px !important;
+    margin-bottom: 14px !important;
+  }
+  input, select, textarea, button { min-height: 40px; }
+  table { font-size: .82rem !important; }
+  th, td { padding: 9px 8px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
