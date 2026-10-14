@@ -3226,28 +3226,42 @@ async function deletePicRole(roleId){
         const ev = activeEvent();
         const attendance = ev && ev.mode === 'match' ? ensureEventAttendance(ev, true) : {};
         const activeCount = players.filter(p => p.status === 'playing').length;
-        const presentPlayers = players.filter(p => p.status === 'active' && (ev && ev.mode === 'match' ? !!attendance[p.id] : p.ready !== false));
+        // Pemain yang sedang main tetap ditampilkan di daftar rotasi.
+        // Jumlah main hanya berubah saat finishMatch sukses menyimpan hasil pertandingan.
+        const presentPlayers = players.filter(p =>
+            ['active', 'playing'].includes(p.status) &&
+            (ev && ev.mode === 'match' ? !!attendance[p.id] : p.ready !== false)
+        );
         const minPlayed = presentPlayers.length ? Math.min(...presentPlayers.map(p => Number(p.stats?.played || 0))) : 0;
-        const queue = presentPlayers.sort((a,b) => {
-            const d = (a.stats.played||0) - (b.stats.played||0);
+        const queue = [...presentPlayers].sort((a,b) => {
+            const d = Number(a.stats?.played || 0) - Number(b.stats?.played || 0);
             if (d) return d;
+            if ((a.status === 'playing') !== (b.status === 'playing')) return a.status === 'playing' ? 1 : -1;
             return (a.name||'').localeCompare(b.name||'');
         });
+        const waitingCount = queue.filter(p => p.status !== 'playing').length;
         const notReadyCount = players.filter(p => p.status === 'active' && !(ev && ev.mode === 'match' ? !!attendance[p.id] : p.ready !== false)).length;
 
         if (summary) summary.innerHTML = `
             <div class="rotation-summary">
                 <div class="rotation-stat"><span class="v">${currentRoundNumber() || 0}</span><span class="l">Ronde berjalan</span></div>
-                <div class="rotation-stat"><span class="v">${presentPlayers.length}</span><span class="l">Hadir & siap</span></div>
+                <div class="rotation-stat"><span class="v">${presentPlayers.length}</span><span class="l">Total hadir</span></div>
                 <div class="rotation-stat"><span class="v">${activeCount}</span><span class="l">Sedang main</span></div>
                 <div class="rotation-stat"><span class="v">${minPlayed}x</span><span class="l">Main minimum</span></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:.78rem;color:var(--text-muted);">
+                <span>🏸 Sedang main: ${activeCount}</span><span>·</span><span>⏳ Menunggu: ${waitingCount}</span>
             </div>`;
         if (roundBadge) roundBadge.innerHTML = `<span class="round-label">🏸 Ronde ${currentRoundNumber() || 1}</span>`;
 
         tbody.innerHTML = queue.map((p, idx) => {
             const played = Number(p.stats?.played || 0);
+            const isPlaying = p.status === 'playing';
             const priority = played === minPlayed ? '<span class="rotation-priority high">Prioritas</span>' : '<span class="rotation-priority">Normal</span>';
-            return `<tr><td>${idx + 1}</td><td>${escapeHTML(p.name)}</td><td>${getLevelBadge(p.level)}</td><td style="text-align:center;font-weight:bold;color:var(--primary);">${played}x ${priority}</td></tr>`;
+            const playerName = `${isPlaying ? '🏸 ' : ''}${escapeHTML(p.name)}`;
+            const playingStyle = isPlaying ? 'background:rgba(16,185,129,.08);' : '';
+            const statusLabel = isPlaying ? '<span class="rotation-priority busy">Sedang main</span>' : priority;
+            return `<tr style="${playingStyle}"><td>${idx + 1}</td><td>${playerName}</td><td>${getLevelBadge(p.level)}</td><td style="text-align:center;font-weight:bold;color:var(--primary);">${played}x ${statusLabel}</td></tr>`;
         }).join('') + (notReadyCount > 0 ? `<tr><td colspan="4" style="text-align:center;color:var(--warning);font-size:.85rem;padding-top:10px;">⏳ ${notReadyCount} pemain aktif belum hadir di event ini</td></tr>` : '') + (queue.length === 0 ? `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px;">Belum ada pemain siap.</td></tr>` : '');
     }
 
