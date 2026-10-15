@@ -2033,14 +2033,6 @@ async function deletePicRole(roleId){
         rrTeams = data.rr_teams || [];
         rrMatches = data.rr_matches || [];
         rrSettings = data.rr_settings || { qualifyCount: 4, totalCourts: 2 };
-        let migratedFiveLevelScale = false;
-        if (Number(rrSettings.__auraLevelSchemaVersion || 0) < 2) {
-            // Data lama: 1=Beginner, 2=Intermediate, 3=Advanced, 4=Expert.
-            // Geser satu tingkat agar arti level pemain lama tetap terjaga.
-            players = (players || []).map(p => ({...p, level: Math.max(2, Math.min(5, (parseInt(p.level)||1)+1))}));
-            rrSettings.__auraLevelSchemaVersion = 2;
-            migratedFiveLevelScale = true;
-        }
         rrPhase = data.rr_phase || 'setup';
         rrBracket = data.rr_bracket || [];
         eventRegistry = getEventRegistryFromSettings(data.rr_settings || {});
@@ -2071,10 +2063,6 @@ async function deletePicRole(roleId){
             const clean=cloneJSON(rrSettings); delete clean.__eventRegistry; rrSettings=clean;
             // Data lama dipertahankan di event snapshot; state aktif dikosongkan agar tidak tampil di luar event.
             matchesHistory=[]; activeMatches=[]; rrTeams=[]; rrMatches=[]; rrBracket=[]; rrPhase='setup';
-        }
-        if (migratedFiveLevelScale) {
-            // Simpan migrasi satu kali agar tidak berulang pada reload berikutnya.
-            await performSaveToSupabase();
         }
     }
 
@@ -3364,11 +3352,10 @@ async function deletePicRole(roleId){
         const current = parseInt(p.level) || 1;
         const input = prompt(
             'Pilih level pemain:\n\n' +
-            '1 = Newbie\n' +
-            '2 = Beginner\n' +
-            '3 = Intermediate\n' +
-            '4 = Advanced\n' +
-            '5 = Expert\n\n' +
+            '1 = Beginner\n' +
+            '2 = Intermediate\n' +
+            '3 = Advance\n' +
+            '4 = Expert\n\n' +
             `Level saat ini: ${current}`,
             current
         );
@@ -3376,8 +3363,8 @@ async function deletePicRole(roleId){
         if(input === null) return;
 
         const newLevel = parseInt(input);
-        if(![1,2,3,4,5].includes(newLevel)) {
-            alert('Level harus 1, 2, 3, 4, atau 5.');
+        if(![1,2,3,4].includes(newLevel)) {
+            alert('Level harus 1, 2, 3, atau 4.');
             return;
         }
 
@@ -3403,9 +3390,9 @@ async function deletePicRole(roleId){
 
     // --- Tampilan UI ---
     function getLevelBadge(level) {
-        level = Math.max(1, Math.min(5, parseInt(level) || 1));
-        const labels = {1:'Newbie', 2:'Beginner', 3:'Intermediate', 4:'Advanced', 5:'Expert'};
-        const classes = {1:'badge-beg', 2:'badge-beg', 3:'badge-int', 4:'badge-adv', 5:'badge-exp'};
+        level = Math.max(1, Math.min(4, parseInt(level) || 1));
+        const labels = {1:'Beginner', 2:'Intermediate', 3:'Advance', 4:'Expert'};
+        const classes = {1:'badge-beg', 2:'badge-int', 3:'badge-adv', 4:'badge-exp'};
         return `<span class="badge ${classes[level]}">${labels[level]}</span>`;
     }
 
@@ -3574,9 +3561,9 @@ async function deletePicRole(roleId){
         });
     }
 
-    // Skor level Aura Match: Newbie=1, Beginner=2, Intermediate=3, Advanced=4, Expert=5.
+    // Skor level Aura Match mengikuti skala member yang ada: Beginner=1, Intermediate=2, Advance=3, Expert=4.
     function levelScore(player) {
-        return Math.max(1, Math.min(5, parseInt(player?.level) || 1));
+        return Math.max(1, Math.min(4, parseInt(player?.level) || 1));
     }
 
     function evaluateMatchBalance(group, teamSize) {
@@ -4452,7 +4439,7 @@ async function deletePicRole(roleId){
         if(!preview||!['teamA','teamB'].includes(teamKey))return;
         const current=preview[teamKey][playerIndex],ev=activeEvent(),attendance=(ev&&ev.attendance)||{};
         const candidates=players.filter(p=>attendance[p.id]&&['active','playing'].includes(p.status));
-        const chosen=prompt(`Pilih nomor pemain pengganti untuk ${current?.name||'slot'}:\n\n${candidates.map((p,i)=>`${i+1}. ${p.name} - ${({1:'Newbie',2:'Beginner',3:'Intermediate',4:'Advanced',5:'Expert'})[levelScore(p)]}`).join('\n')}`,String(Math.max(1,candidates.findIndex(p=>p.id===current?.id)+1)));
+        const chosen=prompt(`Pilih nomor pemain pengganti untuk ${current?.name||'slot'}:\n\n${candidates.map((p,i)=>`${i+1}. ${p.name} - ${({1:'Beginner',2:'Intermediate',3:'Advance',4:'Expert'})[levelScore(p)]}`).join('\n')}`,String(Math.max(1,candidates.findIndex(p=>p.id===current?.id)+1)));
         if(chosen===null)return;
         const idx=parseInt(chosen,10)-1;
         if(!Number.isInteger(idx)||idx<0||idx>=candidates.length){alert('Pilihan pemain tidak valid.');return;}
