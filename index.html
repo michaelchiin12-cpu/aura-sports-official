@@ -1494,6 +1494,7 @@ async function deletePicRole(roleId){
     let players = [];
     let matchesHistory = [];
     let activeMatches = [];
+    let roundMixPreview = [];
     let financeTransactions = [];
     let financeSettings = { payPerPlay: 0 };
     let timers = {};
@@ -1643,6 +1644,7 @@ async function deletePicRole(roleId){
             attendance: cloneJSON(ev.attendance || {}),
             matchesHistory: cloneJSON(matchesHistory),
             activeMatches: cloneJSON(activeMatches),
+            roundMixPreview: cloneJSON(roundMixPreview || []),
             rrTeams: cloneJSON(rrTeams),
             rrMatches: cloneJSON(rrMatches),
             rrSettings: cloneJSON(rrSettings),
@@ -1668,6 +1670,7 @@ async function deletePicRole(roleId){
         if (s.attendance && typeof s.attendance === 'object') ev.attendance = cloneJSON(s.attendance);
         matchesHistory = cloneJSON(s.matchesHistory || []);
         activeMatches = cloneJSON(s.activeMatches || []);
+        roundMixPreview = cloneJSON(s.roundMixPreview || []);
         rrTeams = cloneJSON(s.rrTeams || []);
         rrMatches = cloneJSON(s.rrMatches || []);
         rrSettings = cloneJSON(s.rrSettings || {qualifyCount:4,totalCourts:2,teamSize:2});
@@ -2616,6 +2619,7 @@ async function deletePicRole(roleId){
                 players:cloneJSON(fresh.players||[]),
                 matchesHistory:cloneJSON(s.matchesHistory||[]),
                 activeMatches:cloneJSON(s.activeMatches||[]),
+                roundMixPreview:cloneJSON(s.roundMixPreview||[]),
                 financeTransactions:cloneJSON(fresh.finance_transactions||[]),
                 financeSettings:cloneJSON(fresh.finance_settings||{payPerPlay:0}),
                 rrTeams:cloneJSON(s.rrTeams||[]), rrMatches:cloneJSON(s.rrMatches||[]), rrSettings:cloneJSON(s.rrSettings||{qualifyCount:4,totalCourts:2}), rrPhase:s.rrPhase||'setup', rrBracket:cloneJSON(s.rrBracket||[])
@@ -2629,7 +2633,7 @@ async function deletePicRole(roleId){
             // Jangan menambahkan seluruh Member ke event secara otomatis. Attendance/participant
             // hanya berisi player ID yang memang dipilih untuk event tersebut.
             if(!mutateFn(view)) return false;
-            ev.snapshot={playerStats:{},rotation:{},attendance:cloneJSON(ev.attendance||{}),matchesHistory:cloneJSON(view.matchesHistory),activeMatches:cloneJSON(view.activeMatches),rrTeams:cloneJSON(view.rrTeams),rrMatches:cloneJSON(view.rrMatches),rrSettings:cloneJSON(view.rrSettings),rrPhase:view.rrPhase,rrBracket:cloneJSON(view.rrBracket)};
+            ev.snapshot={playerStats:{},rotation:cloneJSON(ev.snapshot?.rotation||{}),attendance:cloneJSON(ev.attendance||{}),matchesHistory:cloneJSON(view.matchesHistory),activeMatches:cloneJSON(view.activeMatches),roundMixPreview:cloneJSON(view.roundMixPreview||[]),rrTeams:cloneJSON(view.rrTeams),rrMatches:cloneJSON(view.rrMatches),rrSettings:cloneJSON(view.rrSettings),rrPhase:view.rrPhase,rrBracket:cloneJSON(view.rrBracket)};
             view.players.forEach(p=>{ev.snapshot.playerStats[p.id]=cloneJSON(p.stats||{});ev.snapshot.rotation[p.id]={lastPartners:[...(p.lastPartners||[])],lastOpponents:[...(p.lastOpponents||[])]};});
             ev.updatedAt=new Date().toISOString();
             ev.status=view.activeMatches.length?'ongoing':(view.matchesHistory.length?'ongoing':'draft');
@@ -2641,7 +2645,7 @@ async function deletePicRole(roleId){
             q=(fresh.updated_at==null)?q.is('updated_at',null):q.eq('updated_at',fresh.updated_at);
             const {data:updData,error:updErr}=await q.select('id');
             if(!updErr&&updData?.length){
-                players=cloneJSON(view.players);matchesHistory=cloneJSON(view.matchesHistory);activeMatches=cloneJSON(view.activeMatches);financeTransactions=cloneJSON(view.financeTransactions);financeSettings=cloneJSON(view.financeSettings);rrTeams=cloneJSON(view.rrTeams);rrMatches=cloneJSON(view.rrMatches);rrSettings=cloneJSON(view.rrSettings);rrPhase=view.rrPhase;rrBracket=cloneJSON(view.rrBracket);eventRegistry=reg;eventRegistry.activeEventId=ev.id;
+                players=cloneJSON(view.players);matchesHistory=cloneJSON(view.matchesHistory);activeMatches=cloneJSON(view.activeMatches);roundMixPreview=cloneJSON(view.roundMixPreview||[]);financeTransactions=cloneJSON(view.financeTransactions);financeSettings=cloneJSON(view.financeSettings);rrTeams=cloneJSON(view.rrTeams);rrMatches=cloneJSON(view.rrMatches);rrSettings=cloneJSON(view.rrSettings);rrPhase=view.rrPhase;rrBracket=cloneJSON(view.rrBracket);eventRegistry=reg;eventRegistry.activeEventId=ev.id;
                 lastSyncedRow={...fresh,...patch};
                 markSyncSuccess();
                 return true;
@@ -3745,44 +3749,40 @@ async function deletePicRole(roleId){
                 ? tierPlayers
                 : work.slice(0, Math.max(requiredPlayersPerMatch, tierPlayers.length));
 
-            const poolTiers = [
-                {pool:candidatePool, fallback:false},
-                {pool:work.filter(p=>Number(p.stats?.played||0)<=minPlayed+1), fallback:false},
-                {pool:work, fallback:false},
-                {pool:work.filter(p=>getPlayerConsecutiveRounds(p.id,view)<2), fallback:true}
+            const pools = [
+                work.filter(p=>Number(p.stats?.played||0)===minPlayed),
+                work.filter(p=>Number(p.stats?.played||0)<=minPlayed+1),
+                work.filter(p=>getPlayerConsecutiveRounds(p.id,view)<2)
             ];
-            let bestGroup = null, bestTeams = null, bestScore = Infinity;
-            let bestBadness = Infinity;
-            const tried = new Set();
-            for (const tier of poolTiers) {
-                if (tier.pool.length < requiredPlayersPerMatch) continue;
-                for (let attempt = 0; attempt < 300; attempt++) {
-                    const group = shuffleArray(tier.pool).slice(0, requiredPlayersPerMatch);
-                    if (new Set(group.map(p=>p.id)).size !== requiredPlayersPerMatch) continue;
+            let bestGroup=null,bestTeams=null,bestBadness=Infinity,bestRepeatScore=Infinity;
+            const tried=new Set();
+            for(let tierIndex=0;tierIndex<pools.length;tierIndex++){
+                const pool=pools[tierIndex];
+                if(pool.length<requiredPlayersPerMatch) continue;
+                let localGroup=null,localTeams=null,localBadness=Infinity,localRepeats=Infinity;
+                for(let attempt=0;attempt<500;attempt++){
+                    const group=shuffleArray(pool).slice(0,requiredPlayersPerMatch);
+                    if(new Set(group.map(p=>p.id)).size!==requiredPlayersPerMatch) continue;
+                    if(tierIndex===2 && group.some(p=>getPlayerConsecutiveRounds(p.id,view)>=2)) continue;
                     const key=group.map(p=>p.id).sort().join('|');
                     if(tried.has(key)) continue;
                     tried.add(key);
-                    if(tier.fallback && group.some(p=>getPlayerConsecutiveRounds(p.id,view)>=2)) continue;
-                    const balanced = findBalancedTeams(group, teamSize);
-                    if (!balanced) continue;
-                    const partnerRepeats = localPartnerRepeats(balanced.teamA) + localPartnerRepeats(balanced.teamB);
-                    const opponentRepeats = localOpponentRepeats(balanced.teamA, balanced.teamB);
-                    const playedPenalty = group.reduce((sum,p) => sum + Number(p.stats?.played || 0), 0);
-                    const score = balanced.badness*100 + partnerRepeats*3 + opponentRepeats*2 + playedPenalty*.05 + Math.random();
-                    if (score < bestScore) {
-                        bestScore=score; bestBadness=balanced.badness; bestGroup=group; bestTeams=balanced;
+                    const balanced=findBalancedTeams(group,teamSize);
+                    if(!balanced) continue;
+                    const repeats=localPartnerRepeats(balanced.teamA)+localPartnerRepeats(balanced.teamB)+localOpponentRepeats(balanced.teamA,balanced.teamB);
+                    if(balanced.badness<localBadness || (balanced.badness===localBadness && repeats<localRepeats)){
+                        localGroup=group;localTeams=balanced;localBadness=balanced.badness;localRepeats=repeats;
                     }
-                    if(bestBadness < 20 && partnerRepeats===0 && opponentRepeats===0) break;
                 }
-                // Jangan memperluas pool/fallback jika pilihan saat ini sudah cukup seimbang.
-                if(bestGroup && bestBadness < 20) break;
-                // Fallback hanya jika hasil yang ditemukan benar-benar lebih seimbang dari hasil sebelumnya.
-                if(tier.fallback && bestGroup && bestBadness >= 20) {
-                    const normalBest=poolTiers.slice(0,3).length;
-                    void normalBest;
+                if(!localGroup) continue;
+                // Fallback dipakai hanya jika lebih seimbang daripada hasil sebelumnya.
+                if(!bestGroup || localBadness<bestBadness || (localBadness===bestBadness && tierIndex<2 && localRepeats<bestRepeatScore)){
+                    bestGroup=localGroup;bestTeams=localTeams;bestBadness=localBadness;bestRepeatScore=localRepeats;
                 }
+                if(bestBadness<20) break;
+                if(tierIndex===2) break;
             }
-            if (!bestGroup || !bestTeams) break;
+            if (!bestGroup || !bestTeams) break;            if (!bestGroup || !bestTeams) break;
 
             const { teamA, teamB } = bestTeams;
             work.splice(0, work.length, ...work.filter(p => !bestGroup.some(g => g.id === p.id)));
@@ -3820,6 +3820,13 @@ async function deletePicRole(roleId){
             const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
             if (!result.matches.length) return false;
             view.activeMatches.push(...result.matches);
+            view.roundMixPreview = [];
+            if (maxCourts === 1) {
+                const pv = cloneJSON(view);
+                (pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
+                const pr = buildGeneratedMatchesForView(pv, teamSize, 1);
+                if(pr.matches.length) view.roundMixPreview=pr.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
+            }
             rebuildRotationForView(view);
             return true;
         });
@@ -4230,11 +4237,22 @@ async function deletePicRole(roleId){
             // dari data yang BARU saja dihitung. Tidak perlu request kedua.
             if (view.activeMatches.length === 0) {
                 rebuildRotationForView(view);
-                const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
-                if (result.matches.length) {
-                    view.activeMatches.push(...result.matches);
-                    generatedNextRound = result.matches.length;
+                if(maxCourts===1 && (view.roundMixPreview||[]).length){
+                    view.activeMatches=view.roundMixPreview.map((m,i)=>({...cloneJSON(m),isPreview:false,isRunning:false,time:0,scoreA:0,scoreB:0,courtName:`Lapangan ${i+1}`}));
+                    view.roundMixPreview=[];
+                    view.activeMatches.forEach(m=>[...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{const p=view.players.find(x=>x.id===mp.id);if(p)p.status='playing';}));
+                    generatedNextRound=view.activeMatches.length;
+                    const pv=cloneJSON(view);(pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
+                    const pr=buildGeneratedMatchesForView(pv,teamSize,1);
+                    if(pr.matches.length)view.roundMixPreview=pr.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
                     rebuildRotationForView(view);
+                } else {
+                    const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
+                    if (result.matches.length) {
+                        view.activeMatches.push(...result.matches);
+                        generatedNextRound = result.matches.length;
+                        rebuildRotationForView(view);
+                    }
                 }
             } else {
                 rebuildRotationForView(view);
@@ -4408,6 +4426,28 @@ async function deletePicRole(roleId){
         }
     }
 
+    async function editRoundMixPreviewPlayer(matchId,teamKey,playerIndex){
+        const preview=roundMixPreview.find(m=>m.id===matchId);
+        if(!preview||!['teamA','teamB'].includes(teamKey))return;
+        const current=preview[teamKey][playerIndex],ev=activeEvent(),attendance=(ev&&ev.attendance)||{};
+        const candidates=players.filter(p=>attendance[p.id]&&['active','playing'].includes(p.status));
+        const chosen=prompt(`Pilih nomor pemain pengganti untuk ${current?.name||'slot'}:\n\n${candidates.map((p,i)=>`${i+1}. ${p.name} - ${({1:'Newbie',2:'Beginner',3:'Intermediate',4:'Advanced',5:'Expert'})[levelScore(p)]}`).join('\n')}`,String(Math.max(1,candidates.findIndex(p=>p.id===current?.id)+1)));
+        if(chosen===null)return;
+        const idx=parseInt(chosen,10)-1;
+        if(!Number.isInteger(idx)||idx<0||idx>=candidates.length){alert('Pilihan pemain tidak valid.');return;}
+        const selected=candidates[idx];
+        if([...(preview.teamA||[]),...(preview.teamB||[])].some(p=>p.id===selected.id&&p.id!==current?.id)){alert('Pemain sudah ada di ronde preview.');return;}
+        if(getPlayerConsecutiveRounds(selected.id,{matchesHistory,activeMatches})>=2&&!([...(preview.teamA||[]),...(preview.teamB||[])].some(p=>p.id===selected.id))){alert('Pemain ini sudah bermain 2 ronde berturut-turut.');return;}
+        const ok=await safeRoundMixMutation(view=>{
+            const m=(view.roundMixPreview||[]).find(x=>x.id===matchId);if(!m)return false;
+            const old=m[teamKey][playerIndex];
+            if([...(m.teamA||[]),...(m.teamB||[])].some(p=>p.id===selected.id&&p.id!==old?.id))return false;
+            m[teamKey][playerIndex]={...cloneJSON(view.players.find(p=>p.id===selected.id)||selected),matchPoints:0,matchOuts:0,matchFaults:0};
+            m.isManuallyEdited=true;return true;
+        });
+        if(ok)renderCourts();
+    }
+
    function renderCourts() {
     const container = document.getElementById('courtsContainer');
     if (!container) return;
@@ -4482,7 +4522,16 @@ async function deletePicRole(roleId){
             </div>
         `;
     }).join('');
-
+    if(roundMixPreview&&roundMixPreview.length&&Number(document.getElementById('totalCourts')?.value||1)===1){
+        const preview=roundMixPreview[0],A=preview.teamA||[],B=preview.teamB||[],bal=evaluateMatchBalance([...A,...B],A.length||2);
+        const label=bal&&bal.badness<20?'Seimbang':'Kurang seimbang';
+        container.innerHTML+=`<div class="court" style="padding:16px;opacity:.58;border:1px dashed var(--primary);margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><b style="color:var(--primary);">👁️ PREVIEW RONDE ${preview.round||((activeMatches[0]?.round||0)+1)}</b><span class="badge ${bal&&bal.badness<20?'badge-adv':'badge-beg'}">${label}</span></div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:14px;">
+        <div style="text-align:center;"><b>TIM A</b>${A.map((p,i)=>`<div style="margin-top:6px;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamA',${i})" style="opacity:1;pointer-events:auto;border:0;background:transparent;color:var(--primary);cursor:pointer;">✏️</button></div>`).join('')}</div><b>VS</b>
+        <div style="text-align:center;"><b>TIM B</b>${B.map((p,i)=>`<div style="margin-top:6px;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamB',${i})" style="opacity:1;pointer-events:auto;border:0;background:transparent;color:var(--primary);cursor:pointer;">✏️</button></div>`).join('')}</div></div>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:8px;">Preview dapat diedit. Susunan digunakan saat ronde aktif selesai.</div></div>`;
+    }
     if (window.scoreDashboardOpen && window.scoreDashboardMatchId) {
         renderScoreDashboard(window.scoreDashboardMatchId);
     }
