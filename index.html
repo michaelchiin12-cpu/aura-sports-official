@@ -3615,6 +3615,61 @@ async function deletePicRole(roleId){
         return {roundWasitId:id,roundWasitName:person?.name||'Wasit belum tersedia'};
     }
 
+    function roundMixPlayersInRound(roundNumber) {
+        return [...new Set((activeMatches||[]).filter(m=>Number(m.round||0)===Number(roundNumber)).flatMap(m=>[...(m.teamA||[]),...(m.teamB||[])].map(p=>p.id)))];
+    }
+
+    function roundMixNeedsTemporaryReferee(roundNumber) {
+        const roundMatches=(activeMatches||[]).filter(m=>Number(m.round||0)===Number(roundNumber));
+        if(!roundMatches.length) return false;
+        const primary=roundMatches.find(m=>m.roundWasitId||m.roundWasitName);
+        if(!primary) return false;
+        const playingIds=new Set(roundMatches.flatMap(m=>[...(m.teamA||[]),...(m.teamB||[])].map(p=>p.id)));
+        return playingIds.has(primary.roundWasitId);
+    }
+
+    function openTemporaryRefereePicker(roundNumber) {
+        const roundMatches=(activeMatches||[]).filter(m=>Number(m.round||0)===Number(roundNumber));
+        const primary=roundMatches.find(m=>m.roundWasitId||m.roundWasitName);
+        if(!primary) return;
+        const playingIds=new Set(roundMatches.flatMap(m=>[...(m.teamA||[]),...(m.teamB||[])].map(p=>p.id)));
+        const candidates=(players||[]).filter(p=>p&&p.name&&!playingIds.has(p.id)&&p.id!==primary.roundWasitId);
+        if(!candidates.length) {
+            alert('Tidak ada anggota yang sedang tidak bermain di ronde ini. Wasit sementara hanya bisa dipilih dari anggota yang tidak bermain pada ronde tersebut. Tambahkan/siapkan anggota cadangan terlebih dahulu.');
+            return;
+        }
+        const existing=roundMatches.find(m=>m.roundWasitTempId)?.roundWasitTempId||'';
+        const opts=candidates.sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${picEscape(p.id)}">${picEscape(p.name)}</option>`).join('');
+        const ov=document.createElement('div'); ov.className='pic-modal-overlay'; ov.id='roundTempRefereeOverlay';
+        ov.innerHTML=`<div class="pic-modal"><h3>🎽 Wasit Sementara · Ronde ${Number(roundNumber)}</h3>
+          <p>Wasit utama <strong>${picEscape(primary.roundWasitName||'')}</strong> ikut bermain pada ronde ini. Pilih anggota yang tidak bermain di ronde ini untuk menggantikan tugas wasit sementara.</p>
+          <label for="roundTempRefereeSelect">Pilih pengganti</label>
+          <select id="roundTempRefereeSelect"><option value="">-- Pilih anggota --</option>${opts}</select>
+          <div class="pic-modal-actions"><button type="button" onclick="document.getElementById('roundTempRefereeOverlay')?.remove()">Batal</button><button type="button" onclick="saveTemporaryReferee(${Number(roundNumber)})">Simpan Wasit Sementara</button></div></div>`;
+        document.body.appendChild(ov);
+        const sel=document.getElementById('roundTempRefereeSelect'); if(sel)sel.value=existing;
+    }
+
+    async function saveTemporaryReferee(roundNumber) {
+        const sel=document.getElementById('roundTempRefereeSelect');
+        const id=sel?.value;
+        if(!id) { alert('Pilih anggota untuk menjadi wasit sementara.'); return; }
+        const person=(players||[]).find(p=>p.id===id);
+        if(!person) { alert('Anggota tidak ditemukan. Silakan buka ulang pilihan wasit.'); return; }
+        const playingIds=new Set((activeMatches||[]).filter(m=>Number(m.round||0)===Number(roundNumber)).flatMap(m=>[...(m.teamA||[]),...(m.teamB||[])].map(p=>p.id)));
+        if(playingIds.has(id)) { alert('Wasit sementara harus anggota yang tidak bermain di ronde ini.'); return; }
+        const ok=await safeRoundMixMutation(view=>{
+            const roundMatches=(view.activeMatches||[]).filter(m=>Number(m.round||0)===Number(roundNumber));
+            if(!roundMatches.length) return false;
+            roundMatches.forEach(m=>{m.roundWasitTempId=id;m.roundWasitTempName=person.name;});
+            return true;
+        });
+        if(!ok) { markSyncError(); return; }
+        document.getElementById('roundTempRefereeOverlay')?.remove();
+        renderCourts();
+        markSyncSuccess(`${person.name} ditetapkan sebagai wasit sementara untuk Ronde ${roundNumber}.`);
+    }
+
     function buildGeneratedMatchesForView(view, teamSize, maxCourts) {
         const requiredPlayersPerMatch = teamSize * 2;
         const attendance = (view.event && view.event.attendance) || {};
@@ -4335,7 +4390,8 @@ async function deletePicRole(roleId){
                         <div style="color:var(--text-muted);font-size:.78rem;margin-top:3px;">
                             ${match.isRunning ? '● Sedang Main' : 'Ⅱ Paused'}
                         </div>
-                        ${match.roundWasitName ? `<div style="color:var(--primary);font-size:.78rem;font-weight:800;margin-top:5px;">🎽 Wasit Ronde ${match.round}: ${picEscape(match.roundWasitName)}</div>` : ''}
+                        ${match.roundWasitName ? `<div style="color:var(--primary);font-size:.78rem;font-weight:800;margin-top:5px;">🎽 Wasit Ronde ${match.round}: ${picEscape(match.roundWasitTempName || match.roundWasitName)}${match.roundWasitTempName ? ' · Sementara' : ''}</div>` : ''}
+                        ${match.roundWasitName && roundMixNeedsTemporaryReferee(match.round) ? `<button type="button" onclick="openTemporaryRefereePicker(${Number(match.round)})" style="margin-top:7px;padding:7px 10px;border-radius:8px;border:1px solid var(--primary);background:transparent;color:var(--primary);font-weight:800;cursor:pointer;">${match.roundWasitTempName ? '🔁 Ganti Wasit Sementara' : '👤 Pilih Wasit Sementara'}</button>` : ''}
                     </div>
                     <div style="font-size:.78rem;color:var(--text-muted);">${formatTime(match.time || 0)}</div>
                 </div>
