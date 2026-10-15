@@ -2673,9 +2673,26 @@ async function deletePicRole(roleId){
                 // Selaraskan layar lokal hanya kalau ini aksi skor TERAKHIR di antrean HP ini
                 // (supaya klik cepat berulang tidak membuat angka di layar "kedip" mundur).
                 if (pendingScoreOps <= 1 && (!ev || eventRegistry.activeEventId === ev.id)) {
-                    activeMatches = cloneJSON(view.active_matches);
+                    // Waktu berjalan lokal setiap detik, sedangkan server hanya menyimpan
+                    // waktu saat aksi terakhir. Saat update skor selesai, jangan mundurkan
+                    // timer ke snapshot server yang beberapa detik lebih lama.
+                    const localTimes = new Map((activeMatches || []).map(m => [m.id, {
+                        time: Number(m.time || 0),
+                        isRunning: !!m.isRunning
+                    }]));
+                    const savedMatches = cloneJSON(view.active_matches);
+                    savedMatches.forEach(m => {
+                        const local = localTimes.get(m.id);
+                        if (!local) return;
+                        m.time = Math.max(Number(m.time || 0), local.time);
+                        // Skor tidak boleh mengubah status timer yang sedang berjalan.
+                        if (local.isRunning) m.isRunning = true;
+                    });
+                    activeMatches = savedMatches;
                     rrMatches = cloneJSON(view.rr_matches);
                     rrBracket = cloneJSON(view.rr_bracket);
+                    // Pastikan interval timer tetap terpasang setelah array match diganti.
+                    syncTimers();
                 }
                 // Jalur ini menulis sebagian kolom secara manual (di luar performSaveToSupabase),
                 // jadi baseline merge level-kolom (lastSyncedRow) perlu ikut diperbarui untuk
