@@ -1475,6 +1475,46 @@ async function deletePicRole(roleId){
     let financeTransactions = [];
     let financeSettings = { payPerPlay: 0 };
     let timers = {};
+    // Timer Round Mix dipisahkan dari objek skor/server. Skor boleh di-render atau
+    // disinkronkan ulang tanpa mengubah jam yang berjalan.
+    const roundMixTimerRuntime = Object.create(null);
+
+    function roundMixElapsed(matchId, fallbackTime = 0) {
+        const rt = roundMixTimerRuntime[matchId];
+        if (!rt) return Math.max(0, Number(fallbackTime) || 0);
+        const extra = rt.running && rt.startedAt ? Math.floor((Date.now() - rt.startedAt) / 1000) : 0;
+        return Math.max(0, Number(rt.baseTime || 0) + extra);
+    }
+
+    function syncRoundMixTimerRuntime(match) {
+        if (!match || !match.id) return;
+        const id = match.id;
+        const rt = roundMixTimerRuntime[id];
+        if (rt) {
+            match.time = roundMixElapsed(id, match.time);
+            match.isRunning = !!rt.running;
+            return;
+        }
+        // Pemulihan timer dari data tersimpan: mulai baseline lokal baru, bukan
+        // membiarkan refresh skor membuat ulang interval / memundurkan waktunya.
+        roundMixTimerRuntime[id] = {
+            baseTime: Math.max(0, Number(match.time || 0)),
+            startedAt: match.isRunning ? Date.now() : null,
+            running: !!match.isRunning
+        };
+    }
+
+    function renderRoundMixTimer(matchId) {
+        const match = activeMatches.find(m => m.id === matchId);
+        const rt = roundMixTimerRuntime[matchId];
+        if (!match || !rt) return;
+        match.time = roundMixElapsed(matchId, match.time);
+        match.isRunning = !!rt.running;
+        const mainTimer = document.getElementById(`timer-${matchId}`);
+        if (mainTimer) mainTimer.innerText = formatTime(match.time);
+        const scoreTimer = document.getElementById(`score-dashboard-timer-${matchId}`);
+        if (scoreTimer) scoreTimer.innerText = formatTime(match.time);
+    }
 
     // --- State Round Robin + Knockout ---
     let rrTeams = [];              // { id, name, members: [nama...], stats:{played,win,draw,loss,pf,pa,pts} }
@@ -2157,31 +2197,31 @@ async function deletePicRole(roleId){
     // Pastikan timer lokal berjalan/berhenti sesuai flag isRunning tiap match
     // (waktu tidak di-tick per detik ke server, hanya base value + status saat start/pause)
     function syncTimers() {
+        // Hentikan interval yang tidak lagi diperlukan, tetapi jangan reset runtime.
         Object.keys(timers).forEach(matchId => {
             const match = activeMatches.find(m => m.id === matchId);
-            if (!match || !match.isRunning) {
+            if (!match || !roundMixTimerRuntime[matchId]?.running) {
                 clearInterval(timers[matchId]);
                 delete timers[matchId];
             }
         });
         activeMatches.forEach(match => {
-            if (match.isRunning && !timers[match.id]) {
+            syncRoundMixTimerRuntime(match);
+            const rt = roundMixTimerRuntime[match.id];
+            match.time = roundMixElapsed(match.id, match.time);
+            match.isRunning = !!rt.running;
+            if (rt.running && !timers[match.id]) {
                 const matchId = match.id;
                 timers[matchId] = setInterval(() => {
-                    // Cari objek terbaru setiap detik karena update skor dapat mengganti
-                    // array activeMatches dari data server.
                     const current = activeMatches.find(m => m.id === matchId);
-                    if (!current || !current.isRunning) {
+                    const runtime = roundMixTimerRuntime[matchId];
+                    if (!current || !runtime || !runtime.running) {
                         clearInterval(timers[matchId]);
                         delete timers[matchId];
                         return;
                     }
-                    current.time = Number(current.time || 0) + 1;
-                    const el = document.getElementById(`timer-${matchId}`);
-                    if (el) el.innerText = formatTime(current.time);
-                    const scoreEl = document.getElementById(`score-dashboard-timer-${matchId}`);
-                    if (scoreEl) scoreEl.innerText = formatTime(current.time);
-                }, 1000);
+                    renderRoundMixTimer(matchId);
+                }, 250);
             }
         });
     }
@@ -2676,17 +2716,28 @@ async function deletePicRole(roleId){
                     // Waktu berjalan lokal setiap detik, sedangkan server hanya menyimpan
                     // waktu saat aksi terakhir. Saat update skor selesai, jangan mundurkan
                     // timer ke snapshot server yang beberapa detik lebih lama.
-                    const localTimes = new Map((activeMatches || []).map(m => [m.id, {
-                        time: Number(m.time || 0),
-                        isRunning: !!m.isRunning
-                    }]));
+                    const localTimes = new Map((activeMatches || []).map(m => {
+                        syncRoundMixTimerRuntime(m);
+                        return [m.id, {
+                            time: roundMixElapsed(m.id, m.time),
+                            isRunning: !!roundMixTimerRuntime[m.id]?.running
+                        }];
+                    }));
                     const savedMatches = cloneJSON(view.active_matches);
                     savedMatches.forEach(m => {
                         const local = localTimes.get(m.id);
                         if (!local) return;
                         m.time = Math.max(Number(m.time || 0), local.time);
-                        // Skor tidak boleh mengubah status timer yang sedang berjalan.
-                        if (local.isRunning) m.isRunning = true;
+                        // Timer runtime adalah sumber waktu lokal; hasil simpan skor tidak
+                        // boleh mengatur ulang status maupun baseline jam.
+                        const rt = roundMixTimerRuntime[m.id];
+                        if (rt) {
+                            rt.baseTime = Math.max(Number(rt.baseTime || 0), Number(m.time || 0) - (rt.running && rt.startedAt ? Math.floor((Date.now() - rt.startedAt) / 1000) : 0));
+                            m.time = roundMixElapsed(m.id, m.time);
+                            m.isRunning = !!rt.running;
+                        } else {
+                            m.isRunning = local.isRunning;
+                        }
                     });
                     activeMatches = savedMatches;
                     rrMatches = cloneJSON(view.rr_matches);
@@ -3926,37 +3977,37 @@ async function deletePicRole(roleId){
     async function toggleTimer(matchId) {
         const match = activeMatches.find(m => m.id === matchId);
         if(!match) return;
-        const nextRunning = !match.isRunning;
-        const nextTime = Number(match.time || 0);
-        if(nextRunning) {
-            match.isRunning = true;
-            clearInterval(timers[matchId]);
-            timers[matchId] = setInterval(() => {
-                // Jangan pakai objek match yang lama: update skor dapat mengganti activeMatches.
-                const current = activeMatches.find(m => m.id === matchId);
-                if (!current || !current.isRunning) {
-                    clearInterval(timers[matchId]);
-                    delete timers[matchId];
-                    return;
-                }
-                current.time = Number(current.time || 0) + 1;
-                const mainTimer = document.getElementById(`timer-${matchId}`); if (mainTimer) mainTimer.innerText = formatTime(current.time);
-                const scoreTimer = document.getElementById(`score-dashboard-timer-${matchId}`); if (scoreTimer) scoreTimer.innerText = formatTime(current.time);
-            }, 1000);
+        syncRoundMixTimerRuntime(match);
+        const runtime = roundMixTimerRuntime[matchId];
+        const nextRunning = !runtime.running;
+        if (nextRunning) {
+            runtime.baseTime = roundMixElapsed(matchId, match.time);
+            runtime.startedAt = Date.now();
+            runtime.running = true;
         } else {
-            match.isRunning = false;
+            runtime.baseTime = roundMixElapsed(matchId, match.time);
+            runtime.startedAt = null;
+            runtime.running = false;
+        }
+        match.time = runtime.baseTime;
+        match.isRunning = nextRunning;
+        if (!nextRunning) {
             clearInterval(timers[matchId]);
             delete timers[matchId];
+        } else {
+            syncTimers();
         }
+        renderRoundMixTimer(matchId);
         renderScoreDashboard(matchId);
+        const savedTime = Number(match.time || 0);
         const ok = await safeRoundMixMutation(view => {
-            const serverMatch=view.activeMatches.find(m=>m.id===matchId);
-            if(!serverMatch) return false;
-            serverMatch.isRunning=nextRunning;
-            if(!nextRunning) serverMatch.time=Math.max(Number(serverMatch.time||0), nextTime);
+            const serverMatch = view.activeMatches.find(m => m.id === matchId);
+            if (!serverMatch) return false;
+            serverMatch.isRunning = nextRunning;
+            serverMatch.time = savedTime;
             return true;
         });
-        if(!ok) requestRefresh();
+        if (!ok) requestRefresh();
     }
 
     function formatTime(seconds) {
@@ -4096,8 +4147,14 @@ async function deletePicRole(roleId){
     }
 
     function closeScoreDashboard() {
+        // Pilihan pengguna: keluar dari dashboard Update Skor otomatis pause.
+        const closingMatchId = window.scoreDashboardMatchId;
+        const closingMatch = closingMatchId ? activeMatches.find(m => m.id === closingMatchId) : null;
+        if (closingMatch && roundMixTimerRuntime[closingMatchId]?.running) {
+            // toggleTimer menangkap waktu saat ini, menghentikan timer, lalu menyimpan pause.
+            toggleTimer(closingMatchId);
+        }
         window.scoreDashboardOpen = false;
-        window.scoreDashboardMatchId = null;
         window.scoreDashboardMatchId = null;
 
         const dashboard = document.getElementById('scoreDashboard');
