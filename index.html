@@ -1358,6 +1358,7 @@ function getDefaultPicDefinitions(){return [
 {id:'operasional',icon:'🏸',title:'Operasional + Perlengkapan',desc:'Cari jadwal, cari lapangan, dan siapin perlengkapan main.'},
 {id:'p3k',icon:'🩹',title:'PIC P3K',desc:'Menyiapkan dan memastikan perlengkapan P3K tersedia saat kegiatan.'},
 {id:'lapangan',icon:'📋',title:'PIC Lapangan',desc:'Mengatur point di samping lapangan dan membantu koordinasi pergantian pemain.'},
+{id:'hostwasit',icon:'🎽',title:'Host / Wasit',desc:'Daftar anggota internal yang dapat dipilih otomatis menjadi wasit untuk satu ronde Round Mix.',multi:true},
 {id:'dokumentasi',icon:'📸',title:'PIC Dokumentasi',desc:'Dokumentasi gameplay, foto keluarga internal maupun mabar.'},
 {id:'hospitality',icon:'🤝',title:'PIC Hospitality',desc:'Menyambut dan menemani orang baru yang datang sendiri saat mabar agar tidak merasa sendirian. Tidak perlu deep talk, cukup basa-basi dan ajak berbaur.'},
 {id:'medsos',icon:'📱',title:'PIC Medsos',desc:'Publikasi hasil dokumentasi ke media sosial.'}
@@ -1369,8 +1370,10 @@ function getPicDefinitions(){
 function ensurePicRegistry(){
     if(!eventRegistry||typeof eventRegistry!=='object') eventRegistry={activeEventId:null,events:[]};
     if(!Array.isArray(eventRegistry.picRoles)||!eventRegistry.picRoles.length) eventRegistry.picRoles=getDefaultPicDefinitions();
+    // Migrasi ringan untuk data lama yang sudah memiliki daftar PIC.
+    if(!eventRegistry.picRoles.some(x=>x.id==='hostwasit')) eventRegistry.picRoles.push({id:'hostwasit',icon:'🎽',title:'Host / Wasit',desc:'Daftar anggota internal yang dapat dipilih otomatis menjadi wasit untuk satu ronde Round Mix.',multi:true});
     if(!eventRegistry.picAssignments||typeof eventRegistry.picAssignments!=='object') eventRegistry.picAssignments={};
-    // Default PIC yang sudah ditentukan user. Hanya diisi jika belum pernah ada assignment.
+    if(!Array.isArray(eventRegistry.picAssignments.hostwasitIds)) eventRegistry.picAssignments.hostwasitIds=[];
     const findMemberId = name => (players||[]).find(p=>String(p.name||'').trim().toLowerCase()===name.toLowerCase())?.id || null;
     if(eventRegistry.picAssignments.ketua===undefined) eventRegistry.picAssignments.ketua=findMemberId('Michael');
     if(eventRegistry.picAssignments.keuangan===undefined) eventRegistry.picAssignments.keuangan=findMemberId('Michael');
@@ -1381,44 +1384,63 @@ function renderPicTab(){
     ensurePicRegistry();
     const el=document.getElementById('picContent'); if(!el)return;
     const defs=getPicDefinitions();
-    const counts={}; defs.forEach(d=>{const id=eventRegistry.picAssignments[d.id];if(id)counts[id]=(counts[id]||0)+1;});
+    const counts={};
+    defs.forEach(d=>{
+      if(d.id==='hostwasit') (eventRegistry.picAssignments.hostwasitIds||[]).forEach(id=>counts[id]=(counts[id]||0)+1);
+      else {const id=eventRegistry.picAssignments[d.id];if(id)counts[id]=(counts[id]||0)+1;}
+    });
     const assignedPeople=Object.entries(counts).map(([id,count])=>({p:(players||[]).find(x=>x.id===id),count})).filter(x=>x.p);
     el.innerHTML=`
       <div class="pic-toolbar">
         <div class="pic-summary"><strong>${defs.length}</strong><span>Posisi PIC</span></div>
         <div class="pic-summary"><strong>${assignedPeople.length}</strong><span>Member menjadi PIC</span></div>
-        <div class="pic-summary"><strong>${defs.filter(d=>eventRegistry.picAssignments[d.id]).length}</strong><span>Posisi terisi</span></div>
+        <div class="pic-summary"><strong>${defs.filter(d=>d.id==='hostwasit'?(eventRegistry.picAssignments.hostwasitIds||[]).length>0:!!eventRegistry.picAssignments[d.id]).length}</strong><span>Posisi terisi</span></div>
         <button class="pic-add-btn" type="button" onclick="openPicEditor()">＋ Tambah Divisi</button>
       </div>
       <div class="pic-grid">
         ${defs.map(d=>{
+          const isMulti=d.id==='hostwasit';
+          const ids=isMulti?(eventRegistry.picAssignments.hostwasitIds||[]):[];
           const id=eventRegistry.picAssignments[d.id];
           const person=(players||[]).find(x=>x.id===id);
+          const displayName=isMulti?ids.map(mid=>(players||[]).find(x=>x.id===mid)?.name).filter(Boolean).join(', '):(person?person.name:'Belum ada PIC');
           return `<div class="pic-card">
-            <div class="pic-card-head"><div class="pic-icon">${picEscape(d.icon)}</div><div><div class="pic-role">${picEscape(d.title)}</div><div class="pic-person">${person?picEscape(person.name):'Belum ada PIC'}</div></div></div>
-            <div class="pic-desc">${picEscape(d.desc)}</div>
+            <div class="pic-card-head"><div class="pic-icon">${picEscape(d.icon)}</div><div><div class="pic-role">${picEscape(d.title)}</div><div class="pic-person">${picEscape(displayName||(isMulti?'Belum ada Host/Wasit terdaftar':'Belum ada PIC'))}</div></div></div>
+            <div class="pic-desc">${picEscape(d.desc)}${isMulti?'<br><strong>Terdaftar: '+ids.length+' orang</strong>':''}</div>
             <div class="pic-card-actions">
-              <button class="pic-assign-btn" type="button" onclick="openPicAssign('${picEscape(d.id)}')">${person?'👤 Ganti PIC':'＋ Assign PIC'}</button>
+              <button class="pic-assign-btn" type="button" onclick="openPicAssign('${picEscape(d.id)}')">${isMulti?'👥 Atur Daftar Wasit':(person?'👤 Ganti PIC':'＋ Assign PIC')}</button>
               <button class="pic-edit-btn" type="button" onclick="openPicEditor('${picEscape(d.id)}')">✏️ Ubah Divisi</button>
               <button class="pic-delete-btn" type="button" onclick="deletePicRole('${picEscape(d.id)}')">🗑️</button>
             </div>
           </div>`;
         }).join('')}
       </div>
-      <div class="pic-note"><strong>Catatan:</strong> Satu orang boleh memegang lebih dari satu PIC. PIC mengambil nama dari Data Member, sehingga tidak membuat data member baru. Mengubah data Member tidak memutus hubungan PIC karena yang disimpan adalah ID member.</div>`;
+      <div class="pic-note"><strong>Catatan:</strong> PIC biasa mengambil nama dari Data Member. Host/Wasit dapat memilih beberapa member sekaligus; sistem Round Mix memilih satu orang untuk setiap ronde secara acak dengan pemerataan giliran.</div>`;
 }
 function openPicAssign(roleId){
     ensurePicRegistry(); const d=getPicDefinitions().find(x=>x.id===roleId); if(!d)return;
-    const current=eventRegistry.picAssignments[roleId]||'';
-    const opts=(players||[]).filter(p=>p&&p.name).sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${picEscape(p.id)}">${picEscape(p.name)}</option>`).join('');
+    const isHostWasit=roleId==='hostwasit';
+    const current=isHostWasit?(eventRegistry.picAssignments.hostwasitIds||[]):[eventRegistry.picAssignments[roleId]||''];
+    const members=(players||[]).filter(p=>p&&p.name).sort((a,b)=>a.name.localeCompare(b.name));
+    const opts=members.map(p=>isHostWasit
+      ? `<label style="display:flex;align-items:center;gap:9px;padding:9px 4px;border-bottom:1px solid var(--border);margin:0"><input type="checkbox" name="hostWasitMember" value="${picEscape(p.id)}" ${current.includes(p.id)?'checked':''} style="width:auto;margin:0"><span>${picEscape(p.name)}</span></label>`
+      : `<option value="${picEscape(p.id)}">${picEscape(p.name)}</option>`).join('');
     const ov=document.createElement('div'); ov.className='pic-modal-overlay'; ov.id='picAssignOverlay';
-    ov.innerHTML=`<div class="pic-modal"><h3>${picEscape(d.icon)} ${picEscape(d.title)}</h3><p>Pilih penanggung jawab dari Data Member. Satu member boleh memegang lebih dari satu PIC.</p><select id="picAssignSelect"><option value="">Belum ada PIC</option>${opts}</select><div class="pic-modal-actions"><button type="button" onclick="closePicAssign()">Batal</button><button type="button" onclick="savePicAssignment('${picEscape(roleId)}')">Simpan</button></div></div>`;
-    document.body.appendChild(ov); const sel=document.getElementById('picAssignSelect'); if(sel)sel.value=current;
+    ov.innerHTML=isHostWasit
+      ? `<div class="pic-modal"><h3>🎽 Daftar Host / Wasit</h3><p>Pilih semua anggota internal yang bisa menjadi wasit. Sistem akan memilih satu orang untuk setiap ronde Round Mix.</p><div style="max-height:48vh;overflow:auto;margin:0 0 14px">${opts||'<p>Belum ada member di Data Member.</p>'}</div><div class="pic-modal-actions"><button type="button" onclick="closePicAssign()">Batal</button><button type="button" onclick="savePicAssignment('${picEscape(roleId)}')">Simpan Daftar</button></div></div>`
+      : `<div class="pic-modal"><h3>${picEscape(d.icon)} ${picEscape(d.title)}</h3><p>Pilih penanggung jawab dari Data Member. Satu member boleh memegang lebih dari satu PIC.</p><select id="picAssignSelect"><option value="">Belum ada PIC</option>${opts}</select><div class="pic-modal-actions"><button type="button" onclick="closePicAssign()">Batal</button><button type="button" onclick="savePicAssignment('${picEscape(roleId)}')">Simpan</button></div></div>`;
+    document.body.appendChild(ov); const sel=document.getElementById('picAssignSelect'); if(sel)sel.value=current[0]||'';
 }
 function closePicAssign(){document.getElementById('picAssignOverlay')?.remove();}
 async function savePicAssignment(roleId){
-    ensurePicRegistry(); const sel=document.getElementById('picAssignSelect'); if(!sel)return;
-    eventRegistry.picAssignments[roleId]=sel.value||null; closePicAssign(); renderPicTab();
+    ensurePicRegistry();
+    if(roleId==='hostwasit'){
+      eventRegistry.picAssignments.hostwasitIds=[...document.querySelectorAll('#picAssignOverlay input[name="hostWasitMember"]:checked')].map(x=>x.value);
+    } else {
+      const sel=document.getElementById('picAssignSelect'); if(!sel)return;
+      eventRegistry.picAssignments[roleId]=sel.value||null;
+    }
+    closePicAssign(); renderPicTab();
     const ok=await saveData(); if(!ok)markSyncError();
 }
 function openPicEditor(roleId=''){
@@ -3576,6 +3598,23 @@ async function deletePicRole(roleId){
         return best;
     }
 
+    function pickRoundMixReferee(roundNumber) {
+        ensurePicRegistry();
+        const ids=[...new Set(eventRegistry.picAssignments.hostwasitIds||[])].filter(id=>(players||[]).some(p=>p.id===id));
+        if(!ids.length) return null;
+        const ev=activeEvent();
+        const history=[...(matchesHistory||[]),...(activeMatches||[])].filter(m=>Number(m.round||0)<Number(roundNumber||0)&&m.roundWasitId);
+        const counts=Object.fromEntries(ids.map(id=>[id,0]));
+        const byRound=new Map();
+        history.forEach(m=>{const round=Number(m.round||0);if(!byRound.has(round))byRound.set(round,m.roundWasitId);});
+        byRound.forEach(id=>{if(Object.prototype.hasOwnProperty.call(counts,id))counts[id]++;});
+        const minCount=Math.min(...ids.map(id=>counts[id]));
+        const eligible=ids.filter(id=>counts[id]===minCount);
+        const id=eligible[Math.floor(Math.random()*eligible.length)];
+        const person=(players||[]).find(p=>p.id===id);
+        return {roundWasitId:id,roundWasitName:person?.name||'Wasit belum tersedia'};
+    }
+
     function buildGeneratedMatchesForView(view, teamSize, maxCourts) {
         const requiredPlayersPerMatch = teamSize * 2;
         const attendance = (view.event && view.event.attendance) || {};
@@ -3623,6 +3662,7 @@ async function deletePicRole(roleId){
         const generatedMatches = [];
         const rounds = [...(view.activeMatches || []), ...(view.matchesHistory || [])].map(m => Number(m.round || 0));
         const round = rounds.length ? Math.max(...rounds) + 1 : 1;
+        const roundReferee = pickRoundMixReferee(round);
 
         for (let c = 0; c < needed; c++) {
             if (work.length < requiredPlayersPerMatch) break;
@@ -3658,7 +3698,8 @@ async function deletePicRole(roleId){
                 courtName: `Lapangan ${c + 1}`,
                 teamA: teamA.map(p => ({...cloneJSON(p), matchPoints:0, matchOuts:0, matchFaults:0})),
                 teamB: teamB.map(p => ({...cloneJSON(p), matchPoints:0, matchOuts:0, matchFaults:0})),
-                scoreA:0, scoreB:0, time:0, isRunning:false
+                scoreA:0, scoreB:0, time:0, isRunning:false,
+                ...(roundReferee || {})
             };
             generatedMatches.push(match);
             bestGroup.forEach(p => { const ref = view.players.find(x => x.id === p.id); if (ref) ref.status = 'playing'; });
@@ -4294,6 +4335,7 @@ async function deletePicRole(roleId){
                         <div style="color:var(--text-muted);font-size:.78rem;margin-top:3px;">
                             ${match.isRunning ? '● Sedang Main' : 'Ⅱ Paused'}
                         </div>
+                        ${match.roundWasitName ? `<div style="color:var(--primary);font-size:.78rem;font-weight:800;margin-top:5px;">🎽 Wasit Ronde ${match.round}: ${picEscape(match.roundWasitName)}</div>` : ''}
                     </div>
                     <div style="font-size:.78rem;color:var(--text-muted);">${formatTime(match.time || 0)}</div>
                 </div>
