@@ -2033,6 +2033,14 @@ async function deletePicRole(roleId){
         rrTeams = data.rr_teams || [];
         rrMatches = data.rr_matches || [];
         rrSettings = data.rr_settings || { qualifyCount: 4, totalCourts: 2 };
+        let migratedFiveLevelScale = false;
+        if (Number(rrSettings.__auraLevelSchemaVersion || 0) < 2) {
+            // Data lama: 1=Beginner, 2=Intermediate, 3=Advanced, 4=Expert.
+            // Geser satu tingkat agar arti level pemain lama tetap terjaga.
+            players = (players || []).map(p => ({...p, level: Math.max(2, Math.min(5, (parseInt(p.level)||1)+1))}));
+            rrSettings.__auraLevelSchemaVersion = 2;
+            migratedFiveLevelScale = true;
+        }
         rrPhase = data.rr_phase || 'setup';
         rrBracket = data.rr_bracket || [];
         eventRegistry = getEventRegistryFromSettings(data.rr_settings || {});
@@ -2063,6 +2071,10 @@ async function deletePicRole(roleId){
             const clean=cloneJSON(rrSettings); delete clean.__eventRegistry; rrSettings=clean;
             // Data lama dipertahankan di event snapshot; state aktif dikosongkan agar tidak tampil di luar event.
             matchesHistory=[]; activeMatches=[]; rrTeams=[]; rrMatches=[]; rrBracket=[]; rrPhase='setup';
+        }
+        if (migratedFiveLevelScale) {
+            // Simpan migrasi satu kali agar tidak berulang pada reload berikutnya.
+            await performSaveToSupabase();
         }
     }
 
@@ -5339,7 +5351,7 @@ function togglePlayerActions(button) {
     }
 
     function exportData() {
-        const data = { players, matchesHistory, activeMatches, financeTransactions, financeSettings, rrTeams, rrMatches, rrSettings, rrPhase, rrBracket };
+        const data = { players, matchesHistory, activeMatches, roundMixPreview, financeTransactions, financeSettings, rrTeams, rrMatches, rrSettings, rrPhase, rrBracket };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -5358,6 +5370,7 @@ function togglePlayerActions(button) {
                 if(data.players) players = data.players;
                 if(data.matchesHistory) matchesHistory = data.matchesHistory;
                 if(data.activeMatches) activeMatches = data.activeMatches;
+                if(data.roundMixPreview) roundMixPreview = data.roundMixPreview;
                 if(data.financeTransactions) financeTransactions = data.financeTransactions;
                 if(data.financeSettings) financeSettings = data.financeSettings;
                 if(data.rrTeams) rrTeams = data.rrTeams;
