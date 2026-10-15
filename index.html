@@ -3775,7 +3775,7 @@ async function deletePicRole(roleId){
                 for(let attempt=0;attempt<500;attempt++){
                     const group=shuffleArray(pool).slice(0,requiredPlayersPerMatch);
                     if(new Set(group.map(p=>p.id)).size!==requiredPlayersPerMatch) continue;
-                    if(tierIndex===2 && group.some(p=>getPlayerConsecutiveRounds(p.id,view)>=2)) continue;
+                    if(group.some(p=>getPlayerConsecutiveRounds(p.id,view)>=2)) continue;
                     const key=group.map(p=>p.id).sort().join('|');
                     if(tried.has(key)) continue;
                     tried.add(key);
@@ -4038,6 +4038,15 @@ async function deletePicRole(roleId){
                 (view.players||[]).forEach(p=>{ if(p.status==='playing') p.status='active'; });
                 view.activeMatches.forEach(m=>[...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{const ref=view.players.find(p=>p.id===mp.id);if(ref)ref.status='playing';}));
                 rebuildRotationForView(view);
+                // Perubahan ronde aktif membatalkan preview lama; hitung ulang dari komposisi terbaru.
+                const courtsNow=parseInt(document.getElementById('totalCourts')?.value)||1;
+                if(courtsNow===1 && view.activeMatches.length) {
+                    view.roundMixPreview=[];
+                    const pv=cloneJSON(view);
+                    (pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
+                    const previewResult=buildGeneratedMatchesForView(pv,parseInt(document.getElementById('playersPerTeam')?.value)||2,1);
+                    if(previewResult.matches.length)view.roundMixPreview=previewResult.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
+                }
                 return true;
             }).then(ok=>{ if(!ok) requestRefresh(); renderCourts(); renderQueue(); if(window.scoreDashboardOpen) renderScoreDashboard(matchId); });
         });
