@@ -3348,10 +3348,11 @@ async function deletePicRole(roleId){
         const current = parseInt(p.level) || 1;
         const input = prompt(
             'Pilih level pemain:\n\n' +
-            '1 = Beginner\n' +
-            '2 = Intermediate\n' +
-            '3 = Advance\n' +
-            '4 = Expert\n\n' +
+            '1 = Newbie\n' +
+            '2 = Beginner\n' +
+            '3 = Intermediate\n' +
+            '4 = Advanced\n' +
+            '5 = Expert\n\n' +
             `Level saat ini: ${current}`,
             current
         );
@@ -3359,8 +3360,8 @@ async function deletePicRole(roleId){
         if(input === null) return;
 
         const newLevel = parseInt(input);
-        if(![1,2,3,4].includes(newLevel)) {
-            alert('Level harus 1, 2, 3, atau 4.');
+        if(![1,2,3,4,5].includes(newLevel)) {
+            alert('Level harus 1, 2, 3, 4, atau 5.');
             return;
         }
 
@@ -3386,11 +3387,10 @@ async function deletePicRole(roleId){
 
     // --- Tampilan UI ---
     function getLevelBadge(level) {
-        level = parseInt(level) || 1;
-        if(level === 4) return '<span class="badge badge-exp">Expert</span>';
-        if(level === 3) return '<span class="badge badge-adv">Advance</span>';
-        if(level === 2) return '<span class="badge badge-int">Intermediate</span>';
-        return '<span class="badge badge-beg">Beginner</span>';
+        level = Math.max(1, Math.min(5, parseInt(level) || 1));
+        const labels = {1:'Newbie', 2:'Beginner', 3:'Intermediate', 4:'Advanced', 5:'Expert'};
+        const classes = {1:'badge-beg', 2:'badge-beg', 3:'badge-int', 4:'badge-adv', 5:'badge-exp'};
+        return `<span class="badge ${classes[level]}">${labels[level]}</span>`;
     }
 
    function getCareerStats(p) {
@@ -3558,44 +3558,62 @@ async function deletePicRole(roleId){
         });
     }
 
-    // Cari pembagian tim yang levelnya paling seimbang.
-    // Rule 4 level:
-    // Level 1 = Beginner
-    // Level 2 = Intermediate
-    // Level 3 = Advance
-    // Level 4 = Expert
-    //
-    // Target utama: selisih total level Tim A dan Tim B <= 1.
-    // Contoh valid: 1+3 vs 2+2, 4+1 vs 3+2, 2+2 vs 1+3.
-    // Contoh tidak valid: 4+3 vs 1+2.
-    function findBalancedTeams(group, teamSize) {
-        if(!Array.isArray(group) || group.length !== teamSize * 2) return null;
+    // Skor level Aura Match: Newbie=1, Beginner=2, Intermediate=3, Advanced=4, Expert=5.
+    function levelScore(player) {
+        return Math.max(1, Math.min(5, parseInt(player?.level) || 1));
+    }
 
+    function evaluateMatchBalance(group, teamSize) {
+        if (!Array.isArray(group) || group.length !== teamSize * 2) return null;
         let best = null;
-        let bestDiff = Infinity;
-
-        // Untuk match kecil (yang paling umum 2v2), cek semua kombinasi.
-        // Untuk match besar, random sampling menjaga performa tetap ringan.
-        const maxAttempts = group.length <= 10 ? 800 : 1200;
-
-        for(let attempt = 0; attempt < maxAttempts; attempt++) {
-            const shuffled = shuffleArray(group);
-            const teamA = shuffled.slice(0, teamSize);
-            const teamB = shuffled.slice(teamSize);
-
-            const scoreA = teamA.reduce((sum, p) => sum + (parseInt(p.level) || 1), 0);
-            const scoreB = teamB.reduce((sum, p) => sum + (parseInt(p.level) || 1), 0);
-            const diff = Math.abs(scoreA - scoreB);
-
-            if(diff < bestDiff) {
-                bestDiff = diff;
-                best = { teamA, teamB, scoreA, scoreB, diff };
-
-                if(diff <= 1) return best;
+        const splits = [];
+        if (teamSize === 2) {
+            // Ketiga pembagian unik untuk pertandingan ganda.
+            splits.push([[group[0],group[1]],[group[2],group[3]]]);
+            splits.push([[group[0],group[2]],[group[1],group[3]]]);
+            splits.push([[group[0],group[3]],[group[1],group[2]]]);
+        } else {
+            const maxAttempts = group.length <= 10 ? 800 : 1200;
+            for (let i=0;i<maxAttempts;i++) {
+                const shuffled=shuffleArray(group);
+                splits.push([shuffled.slice(0,teamSize),shuffled.slice(teamSize)]);
             }
         }
-
+        for (const [teamA,teamB] of splits) {
+            const scoreA=teamA.reduce((sum,p)=>sum+levelScore(p),0);
+            const scoreB=teamB.reduce((sum,p)=>sum+levelScore(p),0);
+            const diff=Math.abs(scoreA-scoreB);
+            const levels=group.map(levelScore);
+            const widestGap=Math.max(...levels)-Math.min(...levels);
+            let extremeGap=false;
+            for(let i=0;i<levels.length;i++) for(let j=i+1;j<levels.length;j++) {
+                if(Math.abs(levels[i]-levels[j])>=4) extremeGap=true;
+            }
+            const badness=(diff*10)+(Math.max(0,widestGap-2)*5)+(extremeGap?100:0);
+            if(!best || badness<best.badness) best={teamA,teamB,scoreA,scoreB,diff,badness,widestGap,extremeGap};
+        }
         return best;
+    }
+
+    function findBalancedTeams(group, teamSize) {
+        return evaluateMatchBalance(group, teamSize);
+    }
+
+    function getPlayerConsecutiveRounds(playerId, view) {
+        const rounds = new Map();
+        [...(view.matchesHistory||[]), ...(view.activeMatches||[])].forEach(m => {
+            const r=Number(m.round||0);
+            if(!r) return;
+            if([...(m.teamA||[]),...(m.teamB||[])].some(p=>p.id===playerId)) rounds.set(r,true);
+        });
+        const ordered=[...rounds.keys()].sort((a,b)=>b-a);
+        if(!ordered.length) return 0;
+        let count=0, expected=ordered[0];
+        for(const r of ordered) {
+            if(r!==expected) break;
+            count++; expected--;
+        }
+        return count;
     }
 
     function pickRoundMixReferee(roundNumber) {
@@ -3727,20 +3745,41 @@ async function deletePicRole(roleId){
                 ? tierPlayers
                 : work.slice(0, Math.max(requiredPlayersPerMatch, tierPlayers.length));
 
+            const poolTiers = [
+                {pool:candidatePool, fallback:false},
+                {pool:work.filter(p=>Number(p.stats?.played||0)<=minPlayed+1), fallback:false},
+                {pool:work, fallback:false},
+                {pool:work.filter(p=>getPlayerConsecutiveRounds(p.id,view)<2), fallback:true}
+            ];
             let bestGroup = null, bestTeams = null, bestScore = Infinity;
-            for (let attempt = 0; attempt < 180; attempt++) {
-                const group = shuffleArray(candidatePool).slice(0, requiredPlayersPerMatch);
-                const balanced = findBalancedTeams(group, teamSize);
-                if (!balanced || balanced.diff > 1) continue;
-                const partnerRepeats = localPartnerRepeats(balanced.teamA) + localPartnerRepeats(balanced.teamB);
-                const opponentRepeats = localOpponentRepeats(balanced.teamA, balanced.teamB);
-                const playedPenalty = group.reduce((sum,p) => sum + Number(p.stats?.played || 0), 0);
-                const score = partnerRepeats * 80 + opponentRepeats * 50 + playedPenalty * .05 + balanced.diff * 5 + Math.random();
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestGroup = group;
-                    bestTeams = balanced;
-                    if (partnerRepeats === 0 && opponentRepeats === 0 && balanced.diff === 0) break;
+            let bestBadness = Infinity;
+            const tried = new Set();
+            for (const tier of poolTiers) {
+                if (tier.pool.length < requiredPlayersPerMatch) continue;
+                for (let attempt = 0; attempt < 300; attempt++) {
+                    const group = shuffleArray(tier.pool).slice(0, requiredPlayersPerMatch);
+                    if (new Set(group.map(p=>p.id)).size !== requiredPlayersPerMatch) continue;
+                    const key=group.map(p=>p.id).sort().join('|');
+                    if(tried.has(key)) continue;
+                    tried.add(key);
+                    if(tier.fallback && group.some(p=>getPlayerConsecutiveRounds(p.id,view)>=2)) continue;
+                    const balanced = findBalancedTeams(group, teamSize);
+                    if (!balanced) continue;
+                    const partnerRepeats = localPartnerRepeats(balanced.teamA) + localPartnerRepeats(balanced.teamB);
+                    const opponentRepeats = localOpponentRepeats(balanced.teamA, balanced.teamB);
+                    const playedPenalty = group.reduce((sum,p) => sum + Number(p.stats?.played || 0), 0);
+                    const score = balanced.badness*100 + partnerRepeats*3 + opponentRepeats*2 + playedPenalty*.05 + Math.random();
+                    if (score < bestScore) {
+                        bestScore=score; bestBadness=balanced.badness; bestGroup=group; bestTeams=balanced;
+                    }
+                    if(bestBadness < 20 && partnerRepeats===0 && opponentRepeats===0) break;
+                }
+                // Jangan memperluas pool/fallback jika pilihan saat ini sudah cukup seimbang.
+                if(bestGroup && bestBadness < 20) break;
+                // Fallback hanya jika hasil yang ditemukan benar-benar lebih seimbang dari hasil sebelumnya.
+                if(tier.fallback && bestGroup && bestBadness >= 20) {
+                    const normalBest=poolTiers.slice(0,3).length;
+                    void normalBest;
                 }
             }
             if (!bestGroup || !bestTeams) break;
@@ -3761,7 +3800,7 @@ async function deletePicRole(roleId){
             localRecordPartners(teamA); localRecordPartners(teamB); localRecordOpponents(teamA, teamB);
         }
 
-        if (!generatedMatches.length) return { matches: [], reason: 'Belum bisa membuat kombinasi level yang seimbang. Selisih total level tim maksimal 1. Coba tambah pemain dari level yang sesuai.' };
+        if (!generatedMatches.length) return { matches: [], reason: 'Belum bisa membuat kombinasi pertandingan yang valid. Coba tambah pemain yang hadir atau sesuaikan level.' };
         return { matches: generatedMatches, reason: '' };
     }
 
