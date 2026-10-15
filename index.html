@@ -2166,10 +2166,21 @@ async function deletePicRole(roleId){
         });
         activeMatches.forEach(match => {
             if (match.isRunning && !timers[match.id]) {
-                timers[match.id] = setInterval(() => {
-                    match.time++;
-                    const el = document.getElementById(`timer-${match.id}`);
-                    if (el) el.innerText = formatTime(match.time);
+                const matchId = match.id;
+                timers[matchId] = setInterval(() => {
+                    // Cari objek terbaru setiap detik karena update skor dapat mengganti
+                    // array activeMatches dari data server.
+                    const current = activeMatches.find(m => m.id === matchId);
+                    if (!current || !current.isRunning) {
+                        clearInterval(timers[matchId]);
+                        delete timers[matchId];
+                        return;
+                    }
+                    current.time = Number(current.time || 0) + 1;
+                    const el = document.getElementById(`timer-${matchId}`);
+                    if (el) el.innerText = formatTime(current.time);
+                    const scoreEl = document.getElementById(`score-dashboard-timer-${matchId}`);
+                    if (scoreEl) scoreEl.innerText = formatTime(current.time);
                 }, 1000);
             }
         });
@@ -3664,7 +3675,8 @@ async function deletePicRole(roleId){
             return false;
         };
 
-        // Update lokal dulu supaya tombol terasa instan.
+        // Update lokal dulu supaya tombol terasa instan, sekaligus ambil waktu
+        // terbaru agar mutasi skor tidak menimpa timer server dengan nilai lama.
         const localMatch = activeMatches.find(m => m.id === matchId);
         if(localMatch) {
             const p = localMatch[team] && localMatch[team][playerIdx];
@@ -3675,14 +3687,20 @@ async function deletePicRole(roleId){
                 return;
             }
         }
+        const elapsedTime = Number(localMatch?.time || 0);
+        const wasRunning = !!localMatch?.isRunning;
 
-        // Simpan perubahan di atas data TERBARU server. queueScoreOp akan
-        // menggabungkan klik-klik cepat menjadi satu transaksi.
+        // Simpan skor bersama waktu/status timer terkini dari layar ini.
         queueScoreOp(row => {
             const m = (row.active_matches || []).find(x => x.id === matchId);
             if(!m) return false;
             const p = m[team] && m[team][playerIdx];
-            return applyScoreChange(m, p);
+            const changed = applyScoreChange(m, p);
+            if (changed) {
+                m.time = Math.max(Number(m.time || 0), elapsedTime);
+                if (localMatch) m.isRunning = wasRunning;
+            }
+            return changed;
         });
     }
 
@@ -3895,14 +3913,23 @@ async function deletePicRole(roleId){
         const nextTime = Number(match.time || 0);
         if(nextRunning) {
             match.isRunning = true;
+            clearInterval(timers[matchId]);
             timers[matchId] = setInterval(() => {
-                match.time++;
-                const mainTimer = document.getElementById(`timer-${matchId}`); if (mainTimer) mainTimer.innerText = formatTime(match.time);
-                const scoreTimer = document.getElementById(`score-dashboard-timer-${matchId}`); if (scoreTimer) scoreTimer.innerText = formatTime(match.time);
+                // Jangan pakai objek match yang lama: update skor dapat mengganti activeMatches.
+                const current = activeMatches.find(m => m.id === matchId);
+                if (!current || !current.isRunning) {
+                    clearInterval(timers[matchId]);
+                    delete timers[matchId];
+                    return;
+                }
+                current.time = Number(current.time || 0) + 1;
+                const mainTimer = document.getElementById(`timer-${matchId}`); if (mainTimer) mainTimer.innerText = formatTime(current.time);
+                const scoreTimer = document.getElementById(`score-dashboard-timer-${matchId}`); if (scoreTimer) scoreTimer.innerText = formatTime(current.time);
             }, 1000);
         } else {
             match.isRunning = false;
             clearInterval(timers[matchId]);
+            delete timers[matchId];
         }
         renderScoreDashboard(matchId);
         const ok = await safeRoundMixMutation(view => {
