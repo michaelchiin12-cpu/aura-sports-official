@@ -5942,16 +5942,20 @@ function togglePlayerActions(button) {
         ctx.strokeStyle=GOLD;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(270,1740);ctx.lineTo(420,1740);ctx.moveTo(660,1740);ctx.lineTo(810,1740);ctx.stroke();
         ctx.fillStyle=WHITE;ctx.font='600 25px Montserrat,Arial,sans-serif';ctx.fillText('◎  aurasportclub.id',540,1735);
 
-        // Sponsor lockup centered at the very bottom, below the social handle.
-        ctx.textAlign='center'; ctx.fillStyle=GOLD2;
-        ctx.font='600 15px Montserrat,Arial,sans-serif';
-        ctx.fillText('S U P P O R T E D  B Y',540,1790);
+        // Sponsor lockup centered at the very bottom, with strong visibility.
+        ctx.textAlign='center';
+        ctx.fillStyle='rgba(0,0,0,.92)';
+        ctx.strokeStyle=GOLD2; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.roundRect(260,1760,560,145,18); ctx.fill(); ctx.stroke();
+        ctx.fillStyle=GOLD2;
+        ctx.font='700 17px Montserrat,Arial,sans-serif';
+        ctx.fillText('OFFICIAL SPONSOR',540,1788);
         if (sponsorLogo) {
-            const maxW=300, maxH=100, scale=Math.min(maxW/sponsorLogo.width,maxH/sponsorLogo.height);
+            const maxW=440, maxH=100, scale=Math.min(maxW/sponsorLogo.width,maxH/sponsorLogo.height);
             const sw=sponsorLogo.width*scale, sh=sponsorLogo.height*scale;
-            ctx.drawImage(sponsorLogo,540-sw/2,1805,sw,sh);
+            ctx.drawImage(sponsorLogo,540-sw/2,1796,sw,sh);
         } else {
-            ctx.font='italic 34px Georgia,serif'; ctx.fillText('Marinee',540,1840);
+            ctx.font='italic 38px Georgia,serif'; ctx.fillText('Marinee',540,1855);
         }
         const link=document.createElement('a');
         link.download='AuraSportsClub_MVP_'+Date.now()+'.png';
