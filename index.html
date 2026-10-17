@@ -2277,8 +2277,10 @@ async function deletePicRole(roleId){
     }
 
     function requestRefresh() {
+        // Gabungkan burst event Realtime supaya semua perangkat tidak berulang kali
+        // mengunduh state JSON besar dalam jeda yang sangat pendek.
         clearTimeout(refreshTimer);
-        refreshTimer = setTimeout(runRefresh, 150);
+        refreshTimer = setTimeout(runRefresh, 800);
     }
 
     async function runRefresh() {
@@ -2308,7 +2310,14 @@ async function deletePicRole(roleId){
                 schema: 'public',
                 table: 'sport_manager_state',
                 filter: `id=eq.${STATE_ROW_ID}`
-            }, () => { requestRefresh(); })
+            }, (payload) => {
+                // Abaikan notifikasi update yang sudah diketahui perangkat ini sendiri.
+                // Jika updated_at tidak tersedia, tetap refresh sebagai fallback aman.
+                const eventUpdatedAt = payload?.new?.updated_at;
+                if (eventUpdatedAt && lastSyncedRow?.updated_at &&
+                    eventUpdatedAt === lastSyncedRow.updated_at) return;
+                requestRefresh();
+            })
             .subscribe();
     }
 
