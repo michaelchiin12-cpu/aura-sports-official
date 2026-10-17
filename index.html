@@ -6519,12 +6519,12 @@ async function generateBestPartnerStoryCard() {
     ctx.restore();
 
     // ==========================================
-    // STATISTIK MATCH / WIN / WIN RATE
+    // PANEL SELISIH SKOR — SATU KOLOM
     // ==========================================
-    const statsX = 120;
-    const statsY = 1480;
-    const statsW = 840;
-    const statsH = 175;
+    const statsW = 600;
+    const statsH = 150;
+    const statsX = (W - statsW) / 2;
+    const statsY = 1490;
 
     ctx.save();
 
@@ -6536,25 +6536,10 @@ async function generateBestPartnerStoryCard() {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Garis pemisah untuk tiga statistik
-    drawGoldLine(400, statsY + 32, 400, statsY + statsH - 32, 0.75);
-    drawGoldLine(680, statsY + 32, 680, statsY + statsH - 32, 0.75);
-
     ctx.restore();
 
-    const statItems = [
-        { x: 260, value: String(totalMatch), label: 'MATCH' },
-        { x: 540, value: String(totalWin), label: 'WIN' },
-        { x: 820, value: `${winRate}%`, label: 'WIN RATE' }
-    ];
-
-    statItems.forEach(item => {
-        drawText(item.value, item.x, statsY + 92, 62, 900, GOLD_LIGHT);
-        drawText(item.label, item.x, statsY + 135, 23, 700, MUTED);
-    });
-
-    // Selisih poin kemenangan terbesar ditampilkan terpisah agar statistik utama tetap ringkas.
-    drawText(`SELISIH POIN +${bestPartner.margin || 0}`, W / 2, statsY + statsH + 45, 25, 800, GOLD_LIGHT);
+    drawText(`+${bestPartner.margin || 0}`, W / 2, statsY + 82, 58, 900, GOLD_LIGHT);
+    drawText('SELISIH SKOR', W / 2, statsY + 120, 22, 800, MUTED);
 
     // ==========================================
     // QUOTE
