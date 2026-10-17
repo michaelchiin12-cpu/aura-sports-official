@@ -5645,7 +5645,15 @@ function togglePlayerActions(button) {
         ctx.font='900 76px Montserrat,Arial,sans-serif'; ctx.fillText(String(net),540,1650); ctx.restore();
 
         ctx.strokeStyle=GOLD;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(270,1730);ctx.lineTo(420,1730);ctx.moveTo(660,1730);ctx.lineTo(810,1730);ctx.stroke();
-        ctx.fillStyle=WHITE;ctx.font='600 25px Montserrat,Arial,sans-serif';ctx.fillText('◎  aurasportclub.id',540,1725);
+        // Instagram icon + handle
+        ctx.save();
+        ctx.strokeStyle=GOLD2; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.roundRect(365,1703,30,30,8); ctx.stroke();
+        ctx.beginPath(); ctx.arc(380,1718,7,0,Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(388,1710,2,0,Math.PI*2); ctx.fillStyle=GOLD2; ctx.fill();
+        ctx.textAlign='left'; ctx.fillStyle=WHITE; ctx.font='600 25px Montserrat,Arial,sans-serif';
+        ctx.fillText('aurasportclub.id',407,1725);
+        ctx.restore();
 
         const sponsorLogo = await loadImageEl('marinee-logo.png');
         ctx.textAlign='center'; ctx.fillStyle='rgba(0,0,0,.92)'; ctx.strokeStyle=GOLD2; ctx.lineWidth=3;
@@ -6030,7 +6038,15 @@ function togglePlayerActions(button) {
         ctx.fillText('“Bukan hanya soal menang,',540,1635);
         ctx.fillText('tapi tentang memberi yang terbaik.”',540,1674);
         ctx.strokeStyle=GOLD;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(270,1740);ctx.lineTo(420,1740);ctx.moveTo(660,1740);ctx.lineTo(810,1740);ctx.stroke();
-        ctx.fillStyle=WHITE;ctx.font='600 25px Montserrat,Arial,sans-serif';ctx.fillText('◎  aurasportclub.id',540,1735);
+        // Instagram icon + handle
+        ctx.save();
+        ctx.strokeStyle=GOLD2; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.roundRect(365,1713,30,30,8); ctx.stroke();
+        ctx.beginPath(); ctx.arc(380,1728,7,0,Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(388,1720,2,0,Math.PI*2); ctx.fillStyle=GOLD2; ctx.fill();
+        ctx.textAlign='left'; ctx.fillStyle=WHITE; ctx.font='600 25px Montserrat,Arial,sans-serif';
+        ctx.fillText('aurasportclub.id',407,1735);
+        ctx.restore();
 
         // Sponsor lockup centered at the very bottom, with strong visibility.
         ctx.textAlign='center';
