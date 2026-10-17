@@ -2581,37 +2581,44 @@ async function deletePicRole(roleId){
         }
     }
 
+    // Batasi waktu tunggu request simpan agar indikator tidak menggantung selamanya.
     async function performSaveToSupabase() {
-        if (!stateLoaded) { console.error('Simpan dibatalkan: data awal belum berhasil dimuat dari server (mencegah menimpa server dengan data kosong).'); return; }
+        if (!stateLoaded) { console.error('Simpan dibatalkan: data awal belum berhasil dimuat dari server (mencegah menimpa server dengan data kosong).'); return false; }
 
         const MAX_ATTEMPT = 8;
+        const REQUEST_TIMEOUT_MS = 12000;
         for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
             const current = currentColumnsSnapshot();
             markSyncProgress(15 + Math.min(10, attempt * 2), attempt ? `Mencoba simpan ulang (${attempt + 1}/${MAX_ATTEMPT})...` : 'Membandingkan perubahan dengan data terakhir...');
 
-            // Kolom mana saja yang BENAR-BENAR berubah di HP ini sejak sinkron terakhir?
             const changedCols = {};
             STATE_COLUMNS.forEach(col => {
-                if (!lastSyncedRow || !columnsEqual(current[col], lastSyncedRow[col])) {
-                    changedCols[col] = current[col];
-                }
+                if (!lastSyncedRow || !columnsEqual(current[col], lastSyncedRow[col])) changedCols[col] = current[col];
             });
 
             if (Object.keys(changedCols).length === 0) {
                 markSyncProgress(95, 'Tidak ada perubahan baru; data sudah sinkron.');
-                return true; // tidak ada perubahan nyata, tidak perlu menulis apa pun
+                return true;
             }
             markSyncProgress(35, `Mengirim ${Object.keys(changedCols).length} bagian data untuk disimpan...`);
 
-            // Ambil baris TERBARU dari server: untuk tahu updated_at saat ini (kunci CAS)
-            // dan untuk mengambil nilai kolom yang TIDAK kita ubah (supaya tidak ketinggalan
-            // perubahan HP lain di kolom tsb).
-            const { data: fresh, error: fetchErr } = await supabaseClient
-                .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
+            let fresh = null, fetchErr = null;
+            const fetchController = new AbortController();
+            const fetchTimer = setTimeout(() => fetchController.abort(), REQUEST_TIMEOUT_MS);
+            try {
+                const result = await supabaseClient.from('sport_manager_state').select('*')
+                    .eq('id', STATE_ROW_ID).single().abortSignal(fetchController.signal);
+                fresh = result.data;
+                fetchErr = result.error;
+            } catch (err) {
+                fetchErr = err;
+            } finally {
+                clearTimeout(fetchTimer);
+            }
             if (fetchErr || !fresh) {
-                markSyncProgress(25, `Server lambat merespons; mencoba ulang (${attempt + 1}/${MAX_ATTEMPT})...`);
                 console.error('Gagal ambil data server sebelum menyimpan:', fetchErr);
-                await _sleep(150 + attempt * 100);
+                markSyncProgress(25, `Server belum merespons; mencoba ulang (${attempt + 1}/${MAX_ATTEMPT})...`);
+                await _sleep(250 + attempt * 150);
                 continue;
             }
 
@@ -2620,25 +2627,37 @@ async function deletePicRole(roleId){
             const patch = { ...changedCols, updated_at: nowIso };
             let q = supabaseClient.from('sport_manager_state').update(patch).eq('id', STATE_ROW_ID);
             q = (fresh.updated_at === null || fresh.updated_at === undefined) ? q.is('updated_at', null) : q.eq('updated_at', fresh.updated_at);
-            const { error: updErr } = await q;
+
+            let savedRow = null, updErr = null;
+            const updateController = new AbortController();
+            const updateTimer = setTimeout(() => updateController.abort(), REQUEST_TIMEOUT_MS);
+            try {
+                // select memastikan kita tahu apakah benar ada baris yang berhasil di-update.
+                const result = await q.select('id').maybeSingle().abortSignal(updateController.signal);
+                savedRow = result.data;
+                updErr = result.error;
+            } catch (err) {
+                updErr = err;
+            } finally {
+                clearTimeout(updateTimer);
+            }
             if (updErr) lastError = updErr;
 
-            if (!updErr) {
+            if (!updErr && savedRow) {
                 markSyncProgress(92, 'Database menerima perubahan; menyelesaikan sinkronisasi...');
-                // Berhasil. Kolom yang TIDAK kita ubah diambil nilai terbarunya dari server,
-                // supaya layar HP ini juga ikut tahu perubahan HP lain di kolom tsb.
                 STATE_COLUMNS.forEach(col => { if (!(col in changedCols)) current[col] = fresh[col]; });
                 lastSyncedRow = { ...current, updated_at: nowIso };
                 applyMergedColumnsToState(current);
                 return true;
             }
-            // Gagal (HP lain baru saja menulis di antara kita membaca & menulis) -> ulangi
-            await _sleep(80 + Math.random() * 150 + attempt * 40);
+
+            console.error('Simpan gagal atau konflik versi:', updErr || 'Tidak ada baris yang ter-update.');
+            markSyncProgress(35, `Penyimpanan belum terkonfirmasi; mencoba ulang (${attempt + 1}/${MAX_ATTEMPT})...`);
+            await _sleep(250 + Math.random() * 200 + attempt * 100);
         }
-        console.error('performSaveToSupabase: gagal setelah beberapa kali percobaan.');
+        console.error('performSaveToSupabase: gagal setelah beberapa kali percobaan.', lastError);
         return false;
     }
-
     // ============================================================================
     // PERBAIKAN RACE CONDITION SKOR (2 HP update skor match yang sama bersamaan)
     // ----------------------------------------------------------------------------
