@@ -4627,17 +4627,26 @@ async function deletePicRole(roleId){
     if (!activeMatches.length && !(roundMixPreview && roundMixPreview.length)) {
         container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Tidak ada pertandingan yang sedang berjalan.</p>';
     }
+    // Satu kartu tambahan untuk pertandingan yang akan dimainkan berikutnya.
+    // Match aktif tetap mengikuti jumlah lapangan; kartu ini hanya menampilkan
+    // pertandingan pertama dari preview ronde berikutnya.
     if(roundMixPreview && roundMixPreview.length){
-        roundMixPreview.forEach((preview, previewIndex) => {
-            const A=preview.teamA||[],B=preview.teamB||[],bal=evaluateMatchBalance([...A,...B],A.length||2);
-            const label=bal&&bal.badness<20?'Seimbang':'Kurang seimbang';
-            container.innerHTML+=`<div class="court" style="padding:16px;opacity:.78;border:1px dashed var(--primary);margin-top:14px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><b style="color:var(--primary);">👁️ PREVIEW RONDE ${preview.round||((activeMatches[0]?.round||0)+1)} · LAPANGAN ${previewIndex+1}</b><span class="badge ${bal&&bal.badness<20?'badge-adv':'badge-beg'}">${label}</span></div>
-            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:14px;">
-            <div style="text-align:center;"><b>TIM A</b>${A.map((p,i)=>`<div style="margin-top:6px;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamA',${i})" style="opacity:1;pointer-events:auto;border:0;background:transparent;color:var(--primary);cursor:pointer;">✏️</button></div>`).join('')}</div><b>VS</b>
-            <div style="text-align:center;"><b>TIM B</b>${B.map((p,i)=>`<div style="margin-top:6px;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamB',${i})" style="opacity:1;pointer-events:auto;border:0;background:transparent;color:var(--primary);cursor:pointer;">✏️</button></div>`).join('')}</div></div>
-            <div style="font-size:.75rem;color:var(--text-muted);margin-top:8px;">Preview dapat diedit. Susunan digunakan saat ronde aktif selesai.</div></div>`;
-        });
+        const preview = roundMixPreview[0];
+        const A=preview.teamA||[], B=preview.teamB||[];
+        const bal=evaluateMatchBalance([...A,...B],A.length||2);
+        const label=bal&&bal.badness<20?'Seimbang':'Kurang seimbang';
+        container.innerHTML+=`<div class="court" style="padding:16px;opacity:.92;border:1px dashed var(--primary);margin-top:14px;background:linear-gradient(145deg,rgba(200,159,76,.08),var(--bg-card));">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+            <b style="color:var(--primary);">⏭️ NEXT RONDE · PERTANDINGAN SELANJUTNYA</b>
+            <span class="badge ${bal&&bal.badness<20?'badge-adv':'badge-beg'}">${label}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:14px;">
+            <div style="text-align:center;min-width:0;"><b style="color:var(--text-muted);font-size:.75rem;">TIM A</b>${A.map((p,i)=>`<div style="margin-top:7px;overflow-wrap:anywhere;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamA',${i})" title="Edit pemain" style="border:0;background:transparent;color:var(--primary);cursor:pointer;padding:2px 4px;">✏️</button></div>`).join('')}</div>
+            <b style="color:var(--primary);">VS</b>
+            <div style="text-align:center;min-width:0;"><b style="color:var(--text-muted);font-size:.75rem;">TIM B</b>${B.map((p,i)=>`<div style="margin-top:7px;overflow-wrap:anywhere;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamB',${i})" title="Edit pemain" style="border:0;background:transparent;color:var(--primary);cursor:pointer;padding:2px 4px;">✏️</button></div>`).join('')}</div>
+        </div>
+        <div style="font-size:.78rem;color:var(--text-muted);margin-top:9px;text-align:center;">Susunan pemain untuk ronde berikutnya · Belum dimulai</div>
+        </div>`;
     }
     if (window.scoreDashboardOpen && window.scoreDashboardMatchId) {
         renderScoreDashboard(window.scoreDashboardMatchId);
