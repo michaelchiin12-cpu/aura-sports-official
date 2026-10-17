@@ -5819,166 +5819,135 @@ function togglePlayerActions(button) {
 
     async function generateMVPStoryCard() {
         const mvp = computeMVP();
-        if(!mvp) {
+        if (!mvp) {
             alert('Belum ada data pertandingan selesai untuk dibuatkan story MVP. Selesaikan minimal 1 match dulu.');
             return;
         }
         await ensureStoryFonts();
-
         const W = 1080, H = 1920;
         const canvas = document.createElement('canvas');
         canvas.width = W; canvas.height = H;
         const ctx = canvas.getContext('2d');
+        const GOLD = '#e5bd55', GOLD2 = '#f9df8b', WHITE = '#fffaf0', MUTED = '#c6bda8';
 
-        const GOLD = '#c89f4c', GOLD_LIGHT = '#e0b865', WHITE = '#ffffff', MUTED = '#9ca3af';
-
-        // Background gelap + vignette emas lembut
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, W, H);
-        const glow = ctx.createRadialGradient(W*0.65, H*0.32, 60, W*0.65, H*0.32, 800);
-        glow.addColorStop(0, 'rgba(200,159,76,0.16)');
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow;
-        ctx.fillRect(0, 0, W, H);
-
+        // Background premium: black, subtle gold glow and diagonal metallic strokes.
+        ctx.fillStyle = '#030303'; ctx.fillRect(0, 0, W, H);
+        const bg = ctx.createRadialGradient(540, 780, 40, 540, 780, 1050);
+        bg.addColorStop(0, '#33220b'); bg.addColorStop(.45, '#100c06'); bg.addColorStop(1, '#020202');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        for (let i = 0; i < 18; i++) {
+            ctx.strokeStyle = i % 3 === 0 ? 'rgba(245,190,65,.28)' : 'rgba(210,160,50,.10)';
+            ctx.lineWidth = i % 3 === 0 ? 5 : 2;
+            ctx.beginPath(); ctx.moveTo(-160 + i * 48, 0); ctx.lineTo(-620 + i * 48, 600); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(1250 + i * 35, 1260); ctx.lineTo(720 + i * 35, 1920); ctx.stroke();
+        }
+        ctx.restore();
         drawWatermark(ctx, W, H, 'AURA');
 
-        // Aksen garis diagonal emas pojok kiri-atas & kanan-bawah
-        ctx.save();
-        ctx.strokeStyle = 'rgba(200,159,76,0.5)';
-        for(let i=0;i<4;i++){
-            ctx.lineWidth = 6 - i;
-            ctx.globalAlpha = 0.35 - i*0.06;
-            ctx.beginPath(); ctx.moveTo(-40 + i*55, 260); ctx.lineTo(260, -40 + i*55); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(W+40 - i*55, H-260); ctx.lineTo(W-260, H+40 - i*55); ctx.stroke();
-        }
-        ctx.restore();
-
-        // Shuttlecock dekoratif pojok
-        drawShuttlecock(ctx, W-110, 140, 130, 200, 0.14);
-        drawShuttlecock(ctx, 90, H-150, 150, 18, 0.12);
-
-        // ==== HEADER MVP: logo Aura + nama event aktif + sponsor kecil ====
-        let y = 95;
+        const ev = typeof activeEvent === 'function' ? activeEvent() : null;
+        const eventTitle = String(ev?.name || 'AURA SPORTS CLUB').trim().toUpperCase();
         const logoImg = await loadImageEl('logo.png');
-        const evForStory = typeof activeEvent === 'function' ? activeEvent() : null;
-        const eventTitle = String(evForStory?.name || 'AURA SPORTS CLUB').trim().toUpperCase();
-        const headerY = 88;
         if (logoImg) {
-            const logoW = 112, logoH = logoW * (logoImg.height / logoImg.width);
-            ctx.drawImage(logoImg, 58, headerY, logoW, logoH);
+            const lw = 150, lh = lw * logoImg.height / logoImg.width;
+            ctx.save(); ctx.shadowColor = 'rgba(244,194,65,.6)'; ctx.shadowBlur = 20;
+            ctx.drawImage(logoImg, 62, 65, lw, lh); ctx.restore();
         }
-        // Nama event menggantikan tulisan Aura Sports Club.
-        ctx.textAlign = 'left';
-        ctx.fillStyle = GOLD;
-        ctx.font = '700 34px Oswald, Segoe UI, sans-serif';
-        const maxEventWidth = 590;
-        let eventFont = 34;
-        while (eventFont > 21) {
-            ctx.font = '700 ' + eventFont + 'px Oswald, Segoe UI, sans-serif';
-            if (ctx.measureText(eventTitle).width <= maxEventWidth) break;
-            eventFont -= 1;
+        ctx.textAlign = 'left'; ctx.fillStyle = GOLD2;
+        let eventFont = 37;
+        ctx.font = '800 ' + eventFont + 'px Montserrat, Arial, sans-serif';
+        while (ctx.measureText(eventTitle).width > 555 && eventFont > 23) {
+            eventFont--; ctx.font = '800 ' + eventFont + 'px Montserrat, Arial, sans-serif';
         }
-        ctx.fillText(eventTitle, 198, headerY + 66, maxEventWidth);
-        ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(198, headerY + 84); ctx.lineTo(198 + Math.min(maxEventWidth, Math.max(100, ctx.measureText(eventTitle).width)), headerY + 84); ctx.stroke();
-
-        // Sponsor dibuat ringkas di kanan atas. Logo vector sederhana agar tidak mengambil alih fokus MVP.
-        ctx.textAlign = 'right';
-        ctx.fillStyle = MUTED;
-        ctx.font = '500 13px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('SUPPORTED BY', W - 58, headerY + 24);
+        ctx.fillText(eventTitle, 240, 133, 555);
         ctx.strokeStyle = GOLD; ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(W - 165, headerY + 40); ctx.lineTo(W - 145, headerY + 22);
-        ctx.lineTo(W - 125, headerY + 40); ctx.lineTo(W - 145, headerY + 58);
-        ctx.closePath(); ctx.stroke();
-        ctx.textAlign = 'right';
-        ctx.fillStyle = GOLD_LIGHT;
-        ctx.font = 'italic 26px Georgia, serif';
-        ctx.fillText('Marineee', W - 58, headerY + 56);
-        y = 290;
+        ctx.beginPath(); ctx.moveTo(240, 155); ctx.lineTo(240 + Math.min(555, ctx.measureText(eventTitle).width), 155); ctx.stroke();
+
+        // Sponsor label and wordmark kept compact in the upper-right corner.
+        ctx.textAlign = 'right'; ctx.fillStyle = GOLD2;
+        ctx.font = '600 16px Montserrat, Arial, sans-serif';
+        ctx.fillText('S U P P O R T E D  B Y', 1018, 70);
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(882, 105); ctx.lineTo(910, 80); ctx.lineTo(938, 105); ctx.lineTo(910, 130); ctx.closePath(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(882,105); ctx.lineTo(938,105); ctx.moveTo(895,93); ctx.lineTo(910,130); ctx.lineTo(925,93); ctx.stroke();
+        ctx.font = 'italic 33px Georgia, serif'; ctx.fillStyle = GOLD2; ctx.fillText('Marineee', 1018, 128);
+
+        // Large title block modeled on the approved reference.
+        drawCrown(ctx, 540, 205, 145, GOLD2);
         ctx.textAlign = 'center';
-        ctx.fillStyle = GOLD;
-        ctx.font = '500 24px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('MOST VALUABLE PLAYER', W/2, y);
-        y += 55;
+        ctx.save(); ctx.shadowColor = 'rgba(255,185,35,.65)'; ctx.shadowBlur = 26;
+        ctx.fillStyle = GOLD2; ctx.font = '900 188px "Permanent Marker", Impact, sans-serif';
+        ctx.fillText('MVP', 540, 445); ctx.restore();
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(315, 463); ctx.lineTo(760, 420); ctx.stroke();
+        ctx.fillStyle = GOLD2; ctx.font = '800 31px Montserrat, Arial, sans-serif';
+        ctx.fillText('M O S T   V A L U A B L E   P L A Y E R', 540, 515);
 
-        // ==== FOTO MVP (bingkai heksagon, kiri) ====
-        const frameX = 60, frameY = y, frameW = 460, frameH = 640;
-        await drawHexPhotoFrame(ctx, frameX, frameY, frameW, frameH, mvp.photo, mvp.name);
-        drawCrown(ctx, frameX + 25, frameY - 5, 90, GOLD);
-
-        // ==== TEKS MVP (kanan) ====
-        const rightX = frameX + frameW + 55;
-        const rightCenter = rightX + (W - 60 - rightX) / 2;
-        let ry = frameY + 40;
-
-        drawCrown(ctx, rightCenter - 130, ry, 55, GOLD_LIGHT);
-        ry += 60;
-        ctx.textAlign = 'center';
-        ctx.fillStyle = GOLD;
-        ctx.font = '110px "Permanent Marker", Oswald, sans-serif';
+        // Big centered portrait frame, avoiding the old split layout and empty bottom area.
+        const fx = 170, fy = 570, fw = 740, fh = 710;
+        const photo = mvp.photo ? await loadImageEl(mvp.photo) : null;
         ctx.save();
-        ctx.shadowColor = 'rgba(200,159,76,0.4)';
-        ctx.shadowBlur = 20;
-        ctx.fillText('MVP', rightCenter, ry + 90);
+        ctx.shadowColor = 'rgba(255,190,55,.65)'; ctx.shadowBlur = 28;
+        ctx.strokeStyle = GOLD2; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(fx+55,fy); ctx.lineTo(fx+fw-55,fy); ctx.lineTo(fx+fw,fy+55);
+        ctx.lineTo(fx+fw,fy+fh-55); ctx.lineTo(fx+fw-55,fy+fh); ctx.lineTo(fx+55,fy+fh);
+        ctx.lineTo(fx,fy+fh-55); ctx.lineTo(fx,fy+55); ctx.closePath(); ctx.stroke();
         ctx.restore();
-        ry += 130;
+        ctx.save();
+        ctx.beginPath(); ctx.moveTo(fx+58,fy+12); ctx.lineTo(fx+fw-58,fy+12); ctx.lineTo(fx+fw-12,fy+58);
+        ctx.lineTo(fx+fw-12,fy+fh-58); ctx.lineTo(fx+fw-58,fy+fh-12); ctx.lineTo(fx+58,fy+fh-12);
+        ctx.lineTo(fx+12,fy+fh-58); ctx.lineTo(fx+12,fy+58); ctx.closePath(); ctx.clip();
+        if (photo) {
+            const scale = Math.max((fw-28)/photo.width, (fh-28)/photo.height);
+            const pw = photo.width*scale, ph = photo.height*scale;
+            ctx.drawImage(photo, fx+14+(fw-28-pw)/2, fy+14+(fh-28-ph)/2, pw, ph);
+            const shade = ctx.createLinearGradient(0,fy+fh*.45,0,fy+fh);
+            shade.addColorStop(0,'rgba(0,0,0,0)'); shade.addColorStop(1,'rgba(0,0,0,.7)');
+            ctx.fillStyle=shade; ctx.fillRect(fx,fy,fw,fh);
+        } else {
+            const pg = ctx.createRadialGradient(540,850,30,540,900,500);
+            pg.addColorStop(0,'#4b3514'); pg.addColorStop(1,'#070707');
+            ctx.fillStyle=pg; ctx.fillRect(fx,fy,fw,fh);
+            ctx.fillStyle='rgba(255,255,255,.22)'; ctx.font='900 170px Montserrat,Arial,sans-serif';
+            ctx.textAlign='center'; ctx.fillText(String(mvp.name||'M').trim().charAt(0).toUpperCase(),540,980);
+        }
+        ctx.restore();
 
-        ctx.fillStyle = WHITE;
-        ctx.font = '700 30px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('PLAYER OF THE DAY', rightCenter, ry);
-        ry += 35;
-        ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(rightCenter-135, ry); ctx.lineTo(rightCenter+135, ry); ctx.stroke();
-        ry += 68;
+        // Nameplate overlays the lower edge of the portrait.
+        const plateY = 1210;
+        ctx.fillStyle = '#050505'; ctx.strokeStyle = GOLD2; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(220,plateY); ctx.lineTo(860,plateY); ctx.lineTo(820,plateY+95);
+        ctx.lineTo(260,plateY+95); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.textAlign='center'; ctx.fillStyle=WHITE;
+        let nameFont=58; ctx.font='900 '+nameFont+'px Montserrat,Arial,sans-serif';
+        while(ctx.measureText(String(mvp.name).toUpperCase()).width>560 && nameFont>28){nameFont--;ctx.font='900 '+nameFont+'px Montserrat,Arial,sans-serif';}
+        ctx.fillText(String(mvp.name).toUpperCase(),540,plateY+64,560);
+        ctx.fillStyle=GOLD2; ctx.font='800 34px Montserrat,Arial,sans-serif';
+        ctx.fillText('M V P',540,1358);
 
-        ctx.fillStyle = WHITE;
-        ctx.font = '700 48px Oswald, Segoe UI, sans-serif';
-        ctx.fillText(mvp.name.toUpperCase(), rightCenter, ry);
-        ry += 30;
-        ctx.strokeStyle = 'rgba(200,159,76,0.5)'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(rightCenter-100, ry); ctx.lineTo(rightCenter+100, ry); ctx.stroke();
-        ry += 90;
-
-        const wr = mvp.stats.played > 0 ? Math.round((mvp.stats.wins / mvp.stats.played) * 100) : 0;
-        const stats = [['shuttle','MATCHES', mvp.stats.played], ['trophy','WINS', mvp.stats.wins], ['target','WIN RATE', wr + '%']];
-        const segW = (W - 60 - rightX) / 3;
-        stats.forEach(([icon, label, val], i) => {
-            const cx = rightX + segW*i + segW/2;
-            drawStatIcon(ctx, icon, cx, ry, 34, GOLD);
-            ctx.fillStyle = GOLD;
-            ctx.font = '700 42px Oswald, Segoe UI, sans-serif';
-            ctx.fillText(String(val), cx, ry + 65);
-            ctx.fillStyle = MUTED;
-            ctx.font = '500 20px Oswald, Segoe UI, sans-serif';
-            ctx.fillText(label, cx, ry + 95);
-            if(i < 2) {
-                ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(rightX+segW*(i+1), ry-25); ctx.lineTo(rightX+segW*(i+1), ry+95); ctx.stroke();
-            }
+        // Compact stats panel across the poster width.
+        const wr = mvp.stats.played > 0 ? Math.round(mvp.stats.wins / mvp.stats.played * 100) : 0;
+        const stats=[['MATCH',String(mvp.stats.played)],['WIN',String(mvp.stats.wins)],['WIN RATE',wr+'%']];
+        const sx=150, sy=1410, sw=780, sh=150, seg=sw/3;
+        ctx.fillStyle='rgba(0,0,0,.72)'; ctx.strokeStyle=GOLD; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.moveTo(sx+22,sy);ctx.lineTo(sx+sw-22,sy);ctx.lineTo(sx+sw,sy+22);
+        ctx.lineTo(sx+sw,sy+sh-22);ctx.lineTo(sx+sw-22,sy+sh);ctx.lineTo(sx+22,sy+sh);
+        ctx.lineTo(sx,sy+sh-22);ctx.lineTo(sx,sy+22);ctx.closePath();ctx.fill();ctx.stroke();
+        stats.forEach((s,i)=>{
+            const cx=sx+seg*i+seg/2;
+            if(i>0){ctx.strokeStyle='rgba(229,189,85,.7)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx+seg*i,sy+20);ctx.lineTo(sx+seg*i,sy+sh-20);ctx.stroke();}
+            drawStatIcon(ctx,i===0?'shuttle':i===1?'trophy':'target',cx,sy+42,34,GOLD2);
+            ctx.fillStyle=WHITE;ctx.font='600 22px Montserrat,Arial,sans-serif';ctx.textAlign='center';ctx.fillText(s[0],cx,sy+82);
+            ctx.fillStyle=GOLD2;ctx.font='900 43px Montserrat,Arial,sans-serif';ctx.fillText(s[1],cx,sy+128);
         });
-
-        // ==== Ilustrasi net lapangan di bawah ====
-        drawCourtNet(ctx, W, frameY + frameH + 130, 0.5);
-
-        // ==== Footer ====
-        const footerY = H - 130;
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-        ctx.beginPath(); ctx.moveTo(W/2-90, footerY-35); ctx.lineTo(W/2+90, footerY-35); ctx.stroke();
-        ctx.fillStyle = GOLD;
-        ctx.font = '700 28px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('AURA WEEKEND PLAY M-3', W/2, footerY);
-        ctx.fillStyle = MUTED;
-        ctx.font = '500 20px Oswald, Segoe UI, sans-serif';
-        const todayStr = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
-        ctx.fillText(`${todayStr}  •  BADMINTON SESSION`, W/2, footerY + 32);
-
-        const link = document.createElement('a');
-        link.download = `AuraSportsClub_MVP_${Date.now()}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+        ctx.textAlign='center'; ctx.fillStyle=GOLD2; ctx.font='italic 29px Georgia,serif';
+        ctx.fillText('“Bukan hanya soal menang,',540,1635);
+        ctx.fillText('tapi tentang memberi yang terbaik.”',540,1674);
+        ctx.strokeStyle=GOLD;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(270,1740);ctx.lineTo(420,1740);ctx.moveTo(660,1740);ctx.lineTo(810,1740);ctx.stroke();
+        ctx.fillStyle=WHITE;ctx.font='600 25px Montserrat,Arial,sans-serif';ctx.fillText('◎  aurasportclub.id',540,1750);
+        const link=document.createElement('a');
+        link.download='AuraSportsClub_MVP_'+Date.now()+'.png';
+        link.href=canvas.toDataURL('image/png');link.click();
     }
 
     // Ikon jabat tangan sederhana (vector) untuk judul Best Partner
