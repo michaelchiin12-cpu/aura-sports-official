@@ -797,9 +797,9 @@
 
         <div class="standings-actions">
             <button
-                onclick="exportStandingsToImage()"
-                class="btn-warning">
-                📥 Download
+                onclick="generateBestPartnerStoryCard()"
+                class="btn-success">
+                🤝 Best Partner
             </button>
 
             <button
@@ -809,15 +809,9 @@
             </button>
 
             <button
-                onclick="generateBestPartnerStoryCard()"
+                onclick="generateTopPointStoryCard()"
                 class="btn-success">
-                🤝 Best Partner
-            </button>
-
-            <button
-                onclick="generateBirthdayStoryFlow()"
-                class="btn-success">
-                🎂 Birthday
+                🎯 Top Point
             </button>
         </div>
     </div>
@@ -5395,15 +5389,89 @@ function togglePlayerActions(button) {
 
     // ================= STORY INSTAGRAM: MVP & BEST PARTNER =================
 
-    // MVP = pemain dengan jumlah kemenangan terbanyak (sudah main minimal 1x), tie-break win rate tertinggi
+    // MVP: jumlah kemenangan tertinggi, lalu jumlah match terbanyak; jika masih seri, total poin menjadi penentu.
     function computeMVP() {
-        const candidates = players.filter(p => p.stats.played > 0);
+        const candidates = players.filter(p => Number(p.stats?.played || 0) > 0);
         if(candidates.length === 0) return null;
         return [...candidates].sort((a, b) => {
-            if(b.stats.wins !== a.stats.wins) return b.stats.wins - a.stats.wins;
-            const wrA = a.stats.wins / a.stats.played, wrB = b.stats.wins / b.stats.played;
-            return wrB - wrA;
+            const winsDiff = Number(b.stats?.wins || 0) - Number(a.stats?.wins || 0);
+            if(winsDiff !== 0) return winsDiff;
+            const playedDiff = Number(b.stats?.played || 0) - Number(a.stats?.played || 0);
+            if(playedDiff !== 0) return playedDiff;
+            return Number(b.stats?.points || 0) - Number(a.stats?.points || 0);
         })[0];
+    }
+
+    // Top Point: poin bersih = Point - Fault - Out.
+    function computeTopPoint() {
+        const candidates = players.filter(p => Number(p.stats?.played || 0) > 0);
+        if(candidates.length === 0) return null;
+        return [...candidates].sort((a, b) => {
+            const netA = Number(a.stats?.points || 0) - Number(a.stats?.fault || 0) - Number(a.stats?.out || 0);
+            const netB = Number(b.stats?.points || 0) - Number(b.stats?.fault || 0) - Number(b.stats?.out || 0);
+            if(netB !== netA) return netB - netA;
+            if(Number(b.stats?.points || 0) !== Number(a.stats?.points || 0)) return Number(b.stats?.points || 0) - Number(a.stats?.points || 0);
+            return Number(b.stats?.wins || 0) - Number(a.stats?.wins || 0);
+        })[0];
+    }
+
+    // Buat story Top Point yang bisa diunduh, tanpa mengunduh tabel klasemen.
+    async function generateTopPointStoryCard() {
+        const player = computeTopPoint();
+        if(!player) {
+            alert('Belum ada data pertandingan untuk menentukan Top Point.');
+            return;
+        }
+        const stats = player.stats || {};
+        const points = Number(stats.points || 0);
+        const fault = Number(stats.fault || 0);
+        const out = Number(stats.out || 0);
+        const net = points - fault - out;
+        const W = 1080, H = 1920;
+        const canvas = document.createElement('canvas');
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext('2d');
+        const bg = ctx.createLinearGradient(0, 0, W, H);
+        bg.addColorStop(0, '#080808'); bg.addColorStop(1, '#19140a');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+        ctx.strokeStyle = '#d6aa4b'; ctx.lineWidth = 4;
+        ctx.strokeRect(42, 42, W - 84, H - 84);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#d6aa4b';
+        ctx.font = '800 48px Montserrat, Segoe UI, sans-serif';
+        ctx.fillText('AURA SPORTS CLUB', W / 2, 155);
+        ctx.font = '900 92px Montserrat, Segoe UI, sans-serif';
+        ctx.fillText('TOP POINT', W / 2, 390);
+        ctx.font = '500 32px Montserrat, Segoe UI, sans-serif';
+        ctx.fillStyle = '#f4d88b';
+        ctx.fillText('MOST VALUABLE POINTS', W / 2, 455);
+        ctx.fillStyle = '#ffffff';
+        let nameSize = 76;
+        ctx.font = `900 ${nameSize}px Montserrat, Segoe UI, sans-serif`;
+        while(ctx.measureText(String(player.name || 'PLAYER').toUpperCase()).width > 900 && nameSize > 36) {
+            nameSize -= 2;
+            ctx.font = `900 ${nameSize}px Montserrat, Segoe UI, sans-serif`;
+        }
+        ctx.fillText(String(player.name || 'PLAYER').toUpperCase(), W / 2, 790);
+        ctx.fillStyle = '#d6aa4b';
+        ctx.font = '900 230px Montserrat, Segoe UI, sans-serif';
+        ctx.fillText(String(net), W / 2, 1100);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '700 38px Montserrat, Segoe UI, sans-serif';
+        ctx.fillText('NET POINT', W / 2, 1170);
+        ctx.fillStyle = '#d1d5db';
+        ctx.font = '600 32px Montserrat, Segoe UI, sans-serif';
+        ctx.fillText(`POINT ${points}  −  FAULT ${fault}  −  OUT ${out}`, W / 2, 1320);
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '500 28px Montserrat, Segoe UI, sans-serif';
+        ctx.fillText(new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' }), W / 2, 1770);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '700 26px Montserrat, Segoe UI, sans-serif';
+        ctx.fillText('PLAY WITH HEART • PLAY WITH AURA', W / 2, 1830);
+        const link = document.createElement('a');
+        link.download = `AuraSportsClub_TopPoint_${String(player.name || 'Player').replace(/[^a-z0-9_-]+/gi, '_')}_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
     }
 
     // Best Partner = pasangan (tim berisi 2 pemain) yang menang telak dengan selisih skor terbesar
