@@ -2603,19 +2603,19 @@ async function deletePicRole(roleId){
             }
             markSyncProgress(35, `Mengirim ${Object.keys(changedCols).length} bagian data untuk disimpan...`);
 
-            // Ambil baris TERBARU dari server: untuk tahu updated_at saat ini (kunci CAS)
-            // dan untuk mengambil nilai kolom yang TIDAK kita ubah (supaya tidak ketinggalan
-            // perubahan HP lain di kolom tsb).
+            // Ambil hanya updated_at sebagai kunci concurrency. SELECT * sebelumnya
+            // mengunduh seluruh baris (termasuk rr_settings.__eventRegistry sekitar 5.9 MB)
+            // pada SETIAP simpan, padahal nilai kolom lain tidak dibutuhkan untuk CAS.
             const { data: fresh, error: fetchErr } = await supabaseClient
-                .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
+                .from('sport_manager_state').select('updated_at').eq('id', STATE_ROW_ID).single();
             if (fetchErr || !fresh) {
                 markSyncProgress(25, `Server lambat merespons; mencoba ulang (${attempt + 1}/${MAX_ATTEMPT})...`);
-                console.error('Gagal ambil data server sebelum menyimpan:', fetchErr);
+                console.error('Gagal mengambil versi data server sebelum menyimpan:', fetchErr);
                 await _sleep(150 + attempt * 100);
                 continue;
             }
 
-            markSyncProgress(65, 'Data terbaru diterima; menyimpan perubahan ke database...');
+            markSyncProgress(65, 'Menyimpan perubahan ke database...');
             const nowIso = new Date().toISOString();
             const patch = { ...changedCols, updated_at: nowIso };
             let q = supabaseClient.from('sport_manager_state').update(patch).eq('id', STATE_ROW_ID);
@@ -2625,11 +2625,10 @@ async function deletePicRole(roleId){
 
             if (!updErr) {
                 markSyncProgress(92, 'Database menerima perubahan; menyelesaikan sinkronisasi...');
-                // Berhasil. Kolom yang TIDAK kita ubah diambil nilai terbarunya dari server,
-                // supaya layar HP ini juga ikut tahu perubahan HP lain di kolom tsb.
-                STATE_COLUMNS.forEach(col => { if (!(col in changedCols)) current[col] = fresh[col]; });
-                lastSyncedRow = { ...current, updated_at: nowIso };
-                applyMergedColumnsToState(current);
+                // Jangan unduh ulang 5.9 MB hanya untuk menyinkronkan kolom yang tidak
+                // diubah. changedCols saja yang ditulis; kolom lain tetap di server.
+                // CAS dengan updated_at tetap mencegah penulisan jika ada update bersamaan.
+                lastSyncedRow = { ...(lastSyncedRow || {}), ...current, updated_at: nowIso };
                 return true;
             }
             // Gagal (HP lain baru saja menulis di antara kita membaca & menulis) -> ulangi
