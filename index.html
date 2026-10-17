@@ -4556,13 +4556,11 @@ async function deletePicRole(roleId){
     const container = document.getElementById('courtsContainer');
     if (!container) return;
 
-    if (!activeMatches.length) {
-        container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Tidak ada pertandingan yang sedang berjalan.</p>';
-        if (window.scoreDashboardOpen) closeScoreDashboard();
-        return;
-    }
+    // Tetap render container walaupun tidak ada match aktif, karena preview ronde
+    // berikutnya bisa tetap tersimpan dan perlu terlihat setelah refresh/sinkronisasi.
+    if (!activeMatches.length && window.scoreDashboardOpen) closeScoreDashboard();
 
-    container.innerHTML = activeMatches.map(match => {
+    container.innerHTML = activeMatches.length ? activeMatches.map(match => {
         const teamA = (match.teamA || []).map(p => p.name).join(' / ');
         const teamB = (match.teamB || []).map(p => p.name).join(' / ');
         return `
@@ -4625,7 +4623,10 @@ async function deletePicRole(roleId){
                 </div>
             </div>
         `;
-    }).join('');
+    }).join('') : '';
+    if (!activeMatches.length && !(roundMixPreview && roundMixPreview.length)) {
+        container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Tidak ada pertandingan yang sedang berjalan.</p>';
+    }
     if(roundMixPreview&&roundMixPreview.length&&Number(document.getElementById('totalCourts')?.value||1)===1){
         const preview=roundMixPreview[0],A=preview.teamA||[],B=preview.teamB||[],bal=evaluateMatchBalance([...A,...B],A.length||2);
         const label=bal&&bal.badness<20?'Seimbang':'Kurang seimbang';
