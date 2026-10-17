@@ -5644,15 +5644,24 @@ function togglePlayerActions(button) {
         ctx.save(); ctx.shadowColor='rgba(255,185,35,.5)'; ctx.shadowBlur=18;
         ctx.font='900 76px Montserrat,Arial,sans-serif'; ctx.fillText(String(net),540,1650); ctx.restore();
 
-        ctx.strokeStyle=GOLD;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(270,1730);ctx.lineTo(420,1730);ctx.moveTo(660,1730);ctx.lineTo(810,1730);ctx.stroke();
-        // Instagram icon + handle
+        // Instagram handle dan ikon dipusatkan sebagai satu grup; garis samping mengikuti lebar grup.
         ctx.save();
+        const igText='aurasportclub.id', igFont='600 25px Montserrat,Arial,sans-serif';
+        ctx.font=igFont;
+        const igIcon=30, igGap=12, igTextW=ctx.measureText(igText).width;
+        const igGroupW=igIcon+igGap+igTextW, igX=(W-igGroupW)/2, igY=1708;
         ctx.strokeStyle=GOLD2; ctx.lineWidth=3;
-        ctx.beginPath(); ctx.roundRect(365,1703,30,30,8); ctx.stroke();
-        ctx.beginPath(); ctx.arc(380,1718,7,0,Math.PI*2); ctx.stroke();
-        ctx.beginPath(); ctx.arc(388,1710,2,0,Math.PI*2); ctx.fillStyle=GOLD2; ctx.fill();
-        ctx.textAlign='left'; ctx.fillStyle=WHITE; ctx.font='600 25px Montserrat,Arial,sans-serif';
-        ctx.fillText('aurasportclub.id',407,1725);
+        ctx.beginPath(); ctx.roundRect(igX,igY,igIcon,30,8); ctx.stroke();
+        ctx.beginPath(); ctx.arc(igX+15,igY+15,7,0,Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(igX+23,igY+7,2,0,Math.PI*2); ctx.fillStyle=GOLD2; ctx.fill();
+        ctx.textAlign='left'; ctx.fillStyle=WHITE; ctx.font=igFont;
+        ctx.fillText(igText,igX+igIcon+igGap,igY+22);
+        ctx.strokeStyle=GOLD; ctx.lineWidth=2;
+        const lineY=1725, lineGap=28, lineStart=270, lineEnd=810;
+        ctx.beginPath();
+        if(igX-lineGap>lineStart){ctx.moveTo(lineStart,lineY);ctx.lineTo(igX-lineGap,lineY);}
+        if(igX+igGroupW+lineGap<lineEnd){ctx.moveTo(igX+igGroupW+lineGap,lineY);ctx.lineTo(lineEnd,lineY);}
+        ctx.stroke();
         ctx.restore();
 
         const sponsorLogo = await loadImageEl('marinee-logo.png');
@@ -6037,15 +6046,24 @@ function togglePlayerActions(button) {
         ctx.textAlign='center'; ctx.fillStyle=GOLD2; ctx.font='italic 29px Georgia,serif';
         ctx.fillText('“Bukan hanya soal menang,',540,1635);
         ctx.fillText('tapi tentang memberi yang terbaik.”',540,1674);
-        ctx.strokeStyle=GOLD;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(270,1740);ctx.lineTo(420,1740);ctx.moveTo(660,1740);ctx.lineTo(810,1740);ctx.stroke();
-        // Instagram icon + handle
+        // Instagram handle dan ikon dipusatkan sebagai satu grup; garis samping mengikuti lebar grup.
         ctx.save();
+        const igText='aurasportclub.id', igFont='600 25px Montserrat,Arial,sans-serif';
+        ctx.font=igFont;
+        const igIcon=30, igGap=12, igTextW=ctx.measureText(igText).width;
+        const igGroupW=igIcon+igGap+igTextW, igX=(W-igGroupW)/2, igY=1713;
         ctx.strokeStyle=GOLD2; ctx.lineWidth=3;
-        ctx.beginPath(); ctx.roundRect(365,1713,30,30,8); ctx.stroke();
-        ctx.beginPath(); ctx.arc(380,1728,7,0,Math.PI*2); ctx.stroke();
-        ctx.beginPath(); ctx.arc(388,1720,2,0,Math.PI*2); ctx.fillStyle=GOLD2; ctx.fill();
-        ctx.textAlign='left'; ctx.fillStyle=WHITE; ctx.font='600 25px Montserrat,Arial,sans-serif';
-        ctx.fillText('aurasportclub.id',407,1735);
+        ctx.beginPath(); ctx.roundRect(igX,igY,igIcon,30,8); ctx.stroke();
+        ctx.beginPath(); ctx.arc(igX+15,igY+15,7,0,Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(igX+23,igY+7,2,0,Math.PI*2); ctx.fillStyle=GOLD2; ctx.fill();
+        ctx.textAlign='left'; ctx.fillStyle=WHITE; ctx.font=igFont;
+        ctx.fillText(igText,igX+igIcon+igGap,igY+22);
+        ctx.strokeStyle=GOLD; ctx.lineWidth=2;
+        const lineY=1730, lineGap=28, lineStart=270, lineEnd=810;
+        ctx.beginPath();
+        if(igX-lineGap>lineStart){ctx.moveTo(lineStart,lineY);ctx.lineTo(igX-lineGap,lineY);}
+        if(igX+igGroupW+lineGap<lineEnd){ctx.moveTo(igX+igGroupW+lineGap,lineY);ctx.lineTo(lineEnd,lineY);}
+        ctx.stroke();
         ctx.restore();
 
         // Sponsor lockup centered at the very bottom, with strong visibility.
