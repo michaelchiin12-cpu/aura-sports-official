@@ -1872,17 +1872,38 @@ async function deletePicRole(roleId){
         persistStateOnly().then(() => init());
     }
 
-    function finishCurrentEvent() {
+    async function finishCurrentEvent() {
         const ev = activeEvent();
         if (!ev) return;
-        if (activeMatches.length || rrMatches.some(m=>m.status==='ongoing') || rrBracket.some(r=>r.matches.some(m=>m.status==='ongoing'))) {
-            return alert('Masih ada pertandingan yang sedang berlangsung. Selesaikan dulu match yang aktif.');
+
+        const hasOngoingRR = rrMatches.some(m=>m.status==='ongoing') || rrBracket.some(r=>r.matches.some(m=>m.status==='ongoing'));
+        if (hasOngoingRR) {
+            return alert('Masih ada pertandingan Round Robin/Knockout yang aktif. Selesaikan atau batalkan pertandingan tersebut terlebih dahulu.');
         }
-        if (!confirm(`Tandai "${ev.name}" sebagai selesai?`)) return;
+
+        const activeCount = activeMatches.length;
+        const previewCount = (roundMixPreview || []).length;
+        if (activeCount || previewCount) {
+            const details = [
+                activeCount ? `${activeCount} match Round Mix yang belum selesai` : '',
+                previewCount ? `${previewCount} match preview yang belum dimainkan` : ''
+            ].filter(Boolean).join(' dan ');
+            if (!confirm(`Masih ada ${details}.\n\nJika event diselesaikan sekarang, match tersebut akan dibatalkan tanpa menambah statistik atau biaya main. Lanjutkan?`)) return;
+
+            Object.keys(timers || {}).forEach(id => clearInterval(timers[id]));
+            timers = {};
+            releasePlayersFromMatches(activeMatches);
+            activeMatches = [];
+            roundMixPreview = [];
+            Object.keys(roundMixTimerRuntime || {}).forEach(id => delete roundMixTimerRuntime[id]);
+        } else if (!confirm(`Tandai "${ev.name}" sebagai selesai?`)) {
+            return;
+        }
+
         ev.status = 'finished';
         snapshotCurrentEvent();
         ev.status = 'finished';
-        persistStateOnly();
+        await persistStateOnly();
         backToEventList();
     }
 
