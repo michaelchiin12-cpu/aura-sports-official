@@ -5703,7 +5703,9 @@ function togglePlayerActions(button) {
             }
         });
         if(!best) return null;
-        return best.players.map(mp => players.find(p => p.id === mp.id) || mp);
+        const result = best.players.map(mp => players.find(p => p.id === mp.id) || mp);
+        result.margin = best.margin;
+        return result;
     }
 
     function loadImageEl(src) {
@@ -6534,21 +6536,23 @@ async function generateBestPartnerStoryCard() {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Garis pemisah
-    drawGoldLine(400, statsY + 32, 400, statsY + statsH - 32, 0.75);
-    drawGoldLine(680, statsY + 32, 680, statsY + statsH - 32, 0.75);
+    // Garis pemisah untuk empat statistik
+    drawGoldLine(330, statsY + 32, 330, statsY + statsH - 32, 0.75);
+    drawGoldLine(540, statsY + 32, 540, statsY + statsH - 32, 0.75);
+    drawGoldLine(750, statsY + 32, 750, statsY + statsH - 32, 0.75);
 
     ctx.restore();
 
     const statItems = [
-        { x: 260, value: String(totalMatch), label: 'MATCH' },
-        { x: 540, value: String(totalWin), label: 'WIN' },
-        { x: 820, value: `${winRate}%`, label: 'WIN RATE' }
+        { x: 225, value: String(totalMatch), label: 'MATCH' },
+        { x: 435, value: String(totalWin), label: 'WIN' },
+        { x: 645, value: `${winRate}%`, label: 'WIN RATE' },
+        { x: 855, value: `+${bestPartner.margin || 0}`, label: 'SELISIH POIN' }
     ];
 
     statItems.forEach(item => {
-        drawText(item.value, item.x, statsY + 92, 62, 900, GOLD_LIGHT);
-        drawText(item.label, item.x, statsY + 135, 23, 700, MUTED);
+        drawText(item.value, item.x, statsY + 92, 48, 900, GOLD_LIGHT);
+        drawText(item.label, item.x, statsY + 135, 17, 700, MUTED);
     });
 
     // ==========================================
