@@ -5632,7 +5632,7 @@ function togglePlayerActions(button) {
         ctx.beginPath(); ctx.moveTo(sx+22,sy);ctx.lineTo(sx+sw-22,sy);ctx.lineTo(sx+sw,sy+22);
         ctx.lineTo(sx+sw,sy+sh-22);ctx.lineTo(sx+sw-22,sy+sh);ctx.lineTo(sx+22,sy+sh);
         ctx.lineTo(sx,sy+sh-22);ctx.lineTo(sx,sy+22);ctx.closePath();ctx.fill();ctx.stroke();
-        const statItems = [['POINT',String(points)],['FAULT',String(fault)],['OUT',String(out)]];
+        const statItems = [['POINT',String(points)],['FAULT+OUT',String(fault + out)]];
         statItems.forEach((item,i)=>{
             const cx=sx+seg*i+seg/2;
             if(i>0){ctx.strokeStyle='rgba(229,189,85,.7)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx+seg*i,sy+20);ctx.lineTo(sx+seg*i,sy+sh-20);ctx.stroke();}
