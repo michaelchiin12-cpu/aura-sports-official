@@ -1,41 +1,46 @@
-# Aura Sports Telegram Agent (Bootstrap)
+# Aura Sports Telegram Agent
 
-This folder is intended to be deployed as a **separate Vercel project** with Root Directory set to `telegram-agent`. Do not attach this folder as the root of the existing Aura Sports website project.
+Deploy this folder as a **separate Vercel project** with Root Directory set to `telegram-agent`. Never change the existing website project to use this folder.
 
 ## Current capability
 
 - Validates Telegram's `X-Telegram-Bot-Api-Secret-Token` header.
 - Fails closed unless the sender's numeric Telegram user ID and chat ID are explicitly allowlisted.
 - Supports `/start`, `/help`, `/status`, and `/task <instruction>`.
-- Uses the OpenAI Responses API to produce a risk-labelled plan only.
-- Includes a GitHub Actions TypeScript check for changes in this folder.
-- Does **not** read or write GitHub, create branches/PRs, access Supabase, or deploy Production yet.
-- Does not log incoming message contents or provider response bodies.
+- Uses the OpenAI Responses API to classify task risk and draft changes.
+- For LOW-risk changes only, it can create a **Draft Pull Request** for one to three allowlisted existing app files: `index.html`, `mobile-responsive.css`, `mobile-responsive.js`, `story-mvp.js`.
+- It never merges a PR and never deploys to Production.
+- MEDIUM/HIGH tasks are not executed. A complete persistent approval workflow is not implemented yet.
+- GitHub Actions checks TypeScript for changes in this folder.
 
-## Configure privately
+## Setup
 
-Follow [SETUP_CHECKLIST.md](./SETUP_CHECKLIST.md). In short:
+Follow [SETUP_CHECKLIST.md](./SETUP_CHECKLIST.md). Configure these variables directly in the separate Vercel project:
 
-1. Create a bot using Telegram's official BotFather.
-2. Create a **separate Vercel project** from this repository and set Root Directory to `telegram-agent`. Do not change the existing `aura-sports-official` project.
-3. Add environment variables using `.env.example` as a name-only checklist. Enter real values directly in Vercel Settings, never in GitHub files, Telegram messages, or ChatGPT.
-4. Set `OWNER_TELEGRAM_IDS` to the owner's numeric Telegram ID and `ALLOWED_TELEGRAM_CHAT_IDS` to the approved chat ID. Keep owner-only access during initial testing.
-5. Deploy a Preview first. Configure the Telegram webhook to the deployed endpoint `/api/telegram/webhook`, with a random webhook secret supplied privately. The webhook header secret must match `TELEGRAM_WEBHOOK_SECRET`.
-6. Confirm `/help`, `/status`, unauthorized-user rejection, and `/task` before expanding access.
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_WEBHOOK_SECRET`
+- `OPENAI_API_KEY`
+- `GITHUB_TOKEN` — fine-grained token limited to this repository, with Contents (read/write) and Pull requests (read/write) permissions only
+- `GITHUB_REPOSITORY=michaelchiin12-cpu/aura-sports-official`
+- `OWNER_TELEGRAM_IDS` — numeric owner ID
+- `ALLOWED_TELEGRAM_CHAT_IDS` — start with owner's private chat ID only
+- Optional: `OPENAI_MODEL`
 
-## Important limitations
+Never place actual values in repository files, PR comments, Telegram messages, or ChatGPT.
 
-This is a security-first bootstrap, **not yet a fully autonomous coding agent**. GitHub branch/PR automation, database-backed task history, durable job queue, approval records tied to commit SHAs, and controlled Vercel deployment actions remain unimplemented. Do not enable Production actions until those controls and tests are implemented and reviewed.
+## Required validation before use
 
-The GitHub Actions check validates TypeScript only; it does not prove Telegram, OpenAI, GitHub, Supabase, or Vercel integration works at runtime.
+1. Create a separate Vercel project linked to this repository, Root Directory `telegram-agent`.
+2. Add environment variables to Preview first.
+3. Deploy Preview and configure Telegram webhook to `https://<agent-domain>/api/telegram/webhook` using the same webhook secret.
+4. Test `/help`, `/status`, rejection of unauthorized senders, a harmless low-risk task, and a medium-risk task.
+5. Confirm the bot only creates Draft PRs and never merges or deploys.
+6. Keep the bot private until these checks pass.
 
-## Local typecheck
+## Limitations and safety
 
-Use Node.js 20 or later:
+This agent creates draft PRs, not guaranteed correct code. Every PR needs human review and tests before merge. The model's risk classification is not a substitute for review. Database, authentication, permissions, secrets, deployment workflows, deletion, and other high-risk changes are outside the automatic allowlist.
 
-```sh
-npm install
-npm run typecheck
-```
+There is no durable task queue or commit-SHA-bound approval flow for medium/high-risk actions yet. Those tasks are deliberately refused for execution. Do not promote the agent to unrestricted use until approval handling, idempotency, runtime tests, and monitoring are implemented.
 
-Vercel deployment and provider credentials are intentionally not included in this repository.
+The GitHub Actions workflow runs a TypeScript check only; it does not validate external integrations at runtime.
