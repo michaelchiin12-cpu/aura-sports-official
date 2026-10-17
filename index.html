@@ -5947,7 +5947,7 @@ function togglePlayerActions(button) {
         ctx.font='600 15px Montserrat,Arial,sans-serif';
         ctx.fillText('S U P P O R T E D  B Y',540,1790);
         if (sponsorLogo) {
-            const maxW=190, maxH=62, scale=Math.min(maxW/sponsorLogo.width,maxH/sponsorLogo.height);
+            const maxW=300, maxH=100, scale=Math.min(maxW/sponsorLogo.width,maxH/sponsorLogo.height);
             const sw=sponsorLogo.width*scale, sh=sponsorLogo.height*scale;
             ctx.drawImage(sponsorLogo,540-sw/2,1805,sw,sh);
         } else {
