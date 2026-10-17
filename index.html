@@ -6431,17 +6431,25 @@ async function generateBestPartnerStoryCard() {
     );
 
     // ==========================================
-    // FOOTER
+    // FOOTER — SPONSOR MARINEE
     // ==========================================
-    drawGoldLine(220, 1810, 430, 1810);
-    drawGoldLine(650, 1810, 860, 1810);
+    drawGoldLine(150, 1810, 340, 1810);
+    drawGoldLine(740, 1810, 930, 1810);
 
-    drawShuttlecock(ctx, W / 2, 1800, 42, 20, 0.9);
+    drawText('SPONSOR', W / 2, 1808, 18, 700, MUTED);
 
-    drawText(
-        'AURA SPORT MANAGER',
-        W / 2, 1850, 22, 700, WHITE
-    );
+    // Gunakan logo Marinee asli dari repository; tidak menampilkan ikon kok.
+    const marineeSponsorLogo = await loadImageEl('marinee-logo.png');
+    if (marineeSponsorLogo) {
+        const maxLogoW = 350;
+        const maxLogoH = 72;
+        const logoScale = Math.min(maxLogoW / marineeSponsorLogo.width, maxLogoH / marineeSponsorLogo.height);
+        const logoW = marineeSponsorLogo.width * logoScale;
+        const logoH = marineeSponsorLogo.height * logoScale;
+        ctx.drawImage(marineeSponsorLogo, (W - logoW) / 2, 1828, logoW, logoH);
+    } else {
+        drawText('MARINEE', W / 2, 1860, 28, 900, GOLD_LIGHT);
+    }
 
     // ==========================================
     // DOWNLOAD
