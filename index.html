@@ -5958,23 +5958,29 @@ function togglePlayerActions(button) {
         ctx.restore();
         drawWatermark(ctx, W, H, 'AURA');
 
+        // Logo Aura di tengah paling atas, nama event tepat di bawahnya.
         const ev = typeof activeEvent === 'function' ? activeEvent() : null;
         const eventTitle = String(ev?.name || 'AURA SPORTS CLUB').trim().toUpperCase();
         const logoImg = await loadImageEl('logo.png');
+        let logoBottom = 145;
         if (logoImg) {
-            const lw = 150, lh = lw * logoImg.height / logoImg.width;
-            ctx.save(); ctx.shadowColor = 'rgba(244,194,65,.6)'; ctx.shadowBlur = 20;
-            ctx.drawImage(logoImg, 62, 65, lw, lh); ctx.restore();
+            const lw = 112, lh = lw * logoImg.height / logoImg.width;
+            const lx = (W - lw) / 2, ly = 28;
+            ctx.save(); ctx.shadowColor = 'rgba(244,194,65,.6)'; ctx.shadowBlur = 18;
+            ctx.drawImage(logoImg, lx, ly, lw, lh); ctx.restore();
+            logoBottom = ly + lh;
         }
-        ctx.textAlign = 'left'; ctx.fillStyle = GOLD2;
-        let eventFont = 37;
+        ctx.textAlign = 'center'; ctx.fillStyle = GOLD2;
+        let eventFont = 31;
         ctx.font = '800 ' + eventFont + 'px Montserrat, Arial, sans-serif';
-        while (ctx.measureText(eventTitle).width > 555 && eventFont > 23) {
+        while (ctx.measureText(eventTitle).width > 850 && eventFont > 20) {
             eventFont--; ctx.font = '800 ' + eventFont + 'px Montserrat, Arial, sans-serif';
         }
-        ctx.fillText(eventTitle, 240, 133, 555);
-        ctx.strokeStyle = GOLD; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(240, 155); ctx.lineTo(240 + Math.min(555, ctx.measureText(eventTitle).width), 155); ctx.stroke();
+        const eventY = Math.max(logoBottom + 42, 190);
+        ctx.fillText(eventTitle, W/2, eventY, 850);
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+        const eventLineW = Math.min(600, ctx.measureText(eventTitle).width);
+        ctx.beginPath(); ctx.moveTo((W-eventLineW)/2, eventY+18); ctx.lineTo((W+eventLineW)/2, eventY+18); ctx.stroke();
 
         // Sponsor is intentionally reserved for the bottom center.
         // Use the supplied original asset when it is added to the repository; do not fake the logo.
@@ -5982,7 +5988,7 @@ function togglePlayerActions(button) {
 
 
         // Large title block modeled on the approved reference.
-        drawCrown(ctx, 540, 205, 145, GOLD2);
+        drawCrown(ctx, 540, 300, 100, GOLD2);
         ctx.textAlign = 'center';
         ctx.save(); ctx.shadowColor = 'rgba(255,185,35,.65)'; ctx.shadowBlur = 26;
         ctx.fillStyle = GOLD2; ctx.font = '900 188px "Permanent Marker", Impact, sans-serif';
