@@ -3760,7 +3760,7 @@ async function deletePicRole(roleId){
             const pools = [
                 work.filter(p=>Number(p.stats?.played||0)===minPlayed),
                 work.filter(p=>Number(p.stats?.played||0)<=minPlayed+1),
-                work.filter(p=>getPlayerConsecutiveRounds(p.id,view)<2)
+                work.filter(p=>getPlayerConsecutiveRounds(p.id,view)<1)
             ];
             let bestGroup=null,bestTeams=null,bestBadness=Infinity,bestRepeatScore=Infinity;
             const tried=new Set();
@@ -3771,7 +3771,7 @@ async function deletePicRole(roleId){
                 for(let attempt=0;attempt<500;attempt++){
                     const group=shuffleArray(pool).slice(0,requiredPlayersPerMatch);
                     if(new Set(group.map(p=>p.id)).size!==requiredPlayersPerMatch) continue;
-                    if(group.some(p=>getPlayerConsecutiveRounds(p.id,view)>=2)) continue;
+                    if(group.some(p=>getPlayerConsecutiveRounds(p.id,view)>=1)) continue;
                     const key=group.map(p=>p.id).sort().join('|');
                     if(tried.has(key)) continue;
                     tried.add(key);
@@ -4201,10 +4201,13 @@ async function deletePicRole(roleId){
             const match = view.activeMatches.find(m => m.id === matchId);
             if (!match) return false;
 
+            // Skor 0-0 berarti match belum dimulai: boleh ditutup, tetapi tidak masuk histori/statistik.
+            const unplayedZeroScore = Number(match.scoreA || 0) === 0 && Number(match.scoreB || 0) === 0;
+            const countAsPlayed = !isSkip && !unplayedZeroScore;
             const winner = match.scoreA > match.scoreB ? 'A' : (match.scoreB > match.scoreA ? 'B' : 'Draw');
             const fee = parseInt(view.financeSettings.payPerPlay) || 0;
 
-            if (!isSkip) {
+            if (countAsPlayed) {
                 const update = (mp, team) => {
                     const ref = view.players.find(x => x.id === mp.id);
                     if (!ref) return;
