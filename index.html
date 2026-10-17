@@ -5523,10 +5523,12 @@ function togglePlayerActions(button) {
     // Buat story Top Point yang bisa diunduh, tanpa mengunduh tabel klasemen.
     async function generateTopPointStoryCard() {
         const player = computeTopPoint();
-        if(!player) {
+        if (!player) {
             alert('Belum ada data pertandingan untuk menentukan Top Point.');
             return;
         }
+
+        await ensureStoryFonts();
         const stats = player.stats || {};
         const points = Number(stats.points || 0);
         const fault = Number(stats.fault || 0);
@@ -5536,43 +5538,128 @@ function togglePlayerActions(button) {
         const canvas = document.createElement('canvas');
         canvas.width = W; canvas.height = H;
         const ctx = canvas.getContext('2d');
-        const bg = ctx.createLinearGradient(0, 0, W, H);
-        bg.addColorStop(0, '#080808'); bg.addColorStop(1, '#19140a');
+        const GOLD = '#e5bd55', GOLD2 = '#f9df8b', WHITE = '#fffaf0', MUTED = '#c6bda8';
+
+        // Visual mengikuti template MVP: background hitam-emas, watermark, frame foto, dan panel statistik.
+        ctx.fillStyle = '#030303'; ctx.fillRect(0, 0, W, H);
+        const bg = ctx.createRadialGradient(540, 780, 40, 540, 780, 1050);
+        bg.addColorStop(0, '#33220b'); bg.addColorStop(.45, '#100c06'); bg.addColorStop(1, '#020202');
         ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-        ctx.strokeStyle = '#d6aa4b'; ctx.lineWidth = 4;
-        ctx.strokeRect(42, 42, W - 84, H - 84);
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#d6aa4b';
-        ctx.font = '800 48px Montserrat, Segoe UI, sans-serif';
-        ctx.fillText('AURA SPORTS CLUB', W / 2, 155);
-        ctx.font = '900 92px Montserrat, Segoe UI, sans-serif';
-        ctx.fillText('TOP POINT', W / 2, 390);
-        ctx.font = '500 32px Montserrat, Segoe UI, sans-serif';
-        ctx.fillStyle = '#f4d88b';
-        ctx.fillText('MOST VALUABLE POINTS', W / 2, 455);
-        ctx.fillStyle = '#ffffff';
-        let nameSize = 76;
-        ctx.font = `900 ${nameSize}px Montserrat, Segoe UI, sans-serif`;
-        while(ctx.measureText(String(player.name || 'PLAYER').toUpperCase()).width > 900 && nameSize > 36) {
-            nameSize -= 2;
-            ctx.font = `900 ${nameSize}px Montserrat, Segoe UI, sans-serif`;
+        ctx.save();
+        for (let i = 0; i < 18; i++) {
+            ctx.strokeStyle = i % 3 === 0 ? 'rgba(245,190,65,.28)' : 'rgba(210,160,50,.10)';
+            ctx.lineWidth = i % 3 === 0 ? 5 : 2;
+            ctx.beginPath(); ctx.moveTo(-160 + i * 48, 0); ctx.lineTo(-620 + i * 48, 600); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(1250 + i * 35, 1260); ctx.lineTo(720 + i * 35, 1920); ctx.stroke();
         }
-        ctx.fillText(String(player.name || 'PLAYER').toUpperCase(), W / 2, 790);
-        ctx.fillStyle = '#d6aa4b';
-        ctx.font = '900 230px Montserrat, Segoe UI, sans-serif';
-        ctx.fillText(String(net), W / 2, 1100);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '700 38px Montserrat, Segoe UI, sans-serif';
-        ctx.fillText('NET POINT', W / 2, 1170);
-        ctx.fillStyle = '#d1d5db';
-        ctx.font = '600 32px Montserrat, Segoe UI, sans-serif';
-        ctx.fillText(`POINT ${points}  −  FAULT ${fault}  −  OUT ${out}`, W / 2, 1320);
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = '500 28px Montserrat, Segoe UI, sans-serif';
-        ctx.fillText(new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' }), W / 2, 1770);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '700 26px Montserrat, Segoe UI, sans-serif';
-        ctx.fillText('PLAY WITH HEART • PLAY WITH AURA', W / 2, 1830);
+        ctx.restore();
+        drawWatermark(ctx, W, H, 'AURA');
+
+        const ev = typeof activeEvent === 'function' ? activeEvent() : null;
+        const eventTitle = String(ev?.name || 'AURA SPORTS CLUB').trim().toUpperCase();
+        const logoImg = await loadImageEl('logo.png');
+        if (logoImg) {
+            const lw = 150, lh = lw * logoImg.height / logoImg.width;
+            ctx.save(); ctx.shadowColor = 'rgba(244,194,65,.6)'; ctx.shadowBlur = 20;
+            ctx.drawImage(logoImg, 62, 65, lw, lh); ctx.restore();
+        }
+        ctx.textAlign = 'left'; ctx.fillStyle = GOLD2;
+        let eventFont = 37;
+        ctx.font = '800 ' + eventFont + 'px Montserrat, Arial, sans-serif';
+        while (ctx.measureText(eventTitle).width > 555 && eventFont > 23) {
+            eventFont--; ctx.font = '800 ' + eventFont + 'px Montserrat, Arial, sans-serif';
+        }
+        ctx.fillText(eventTitle, 240, 133, 555);
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(240, 155); ctx.lineTo(240 + Math.min(555, ctx.measureText(eventTitle).width), 155); ctx.stroke();
+
+        // Judul dan subjudul Top Point; kata-kata dapat disesuaikan kemudian.
+        drawCrown(ctx, 540, 205, 145, GOLD2);
+        ctx.textAlign = 'center';
+        ctx.save(); ctx.shadowColor = 'rgba(255,185,35,.65)'; ctx.shadowBlur = 26;
+        ctx.fillStyle = GOLD2; ctx.font = '900 150px "Permanent Marker", Impact, sans-serif';
+        ctx.fillText('TOP POINT', 540, 435); ctx.restore();
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(315, 463); ctx.lineTo(760, 420); ctx.stroke();
+        ctx.fillStyle = GOLD2; ctx.font = '800 31px Montserrat, Arial, sans-serif';
+        ctx.fillText('MOST VALUABLE POINTS', 540, 515);
+
+        // Frame foto mengikuti layout portrait pada story MVP.
+        const fx = 170, fy = 570, fw = 740, fh = 650;
+        const photo = player.photo ? await loadImageEl(player.photo) : null;
+        ctx.save();
+        ctx.shadowColor = 'rgba(255,190,55,.65)'; ctx.shadowBlur = 28;
+        ctx.strokeStyle = GOLD2; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(fx+55,fy); ctx.lineTo(fx+fw-55,fy); ctx.lineTo(fx+fw,fy+55);
+        ctx.lineTo(fx+fw,fy+fh-55); ctx.lineTo(fx+fw-55,fy+fh); ctx.lineTo(fx+55,fy+fh);
+        ctx.lineTo(fx,fy+fh-55); ctx.lineTo(fx,fy+55); ctx.closePath(); ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.beginPath(); ctx.moveTo(fx+58,fy+12); ctx.lineTo(fx+fw-58,fy+12); ctx.lineTo(fx+fw-12,fy+58);
+        ctx.lineTo(fx+fw-12,fy+fh-58); ctx.lineTo(fx+fw-58,fy+fh-12); ctx.lineTo(fx+58,fy+fh-12);
+        ctx.lineTo(fx+12,fy+fh-58); ctx.lineTo(fx+12,fy+58); ctx.closePath(); ctx.clip();
+        if (photo) {
+            const scale = Math.max((fw-28)/photo.width, (fh-28)/photo.height);
+            const pw = photo.width*scale, ph = photo.height*scale;
+            ctx.drawImage(photo, fx+14+(fw-28-pw)/2, fy+14+(fh-28-ph)/2, pw, ph);
+            const shade = ctx.createLinearGradient(0,fy+fh*.45,0,fy+fh);
+            shade.addColorStop(0,'rgba(0,0,0,0)'); shade.addColorStop(1,'rgba(0,0,0,.7)');
+            ctx.fillStyle=shade; ctx.fillRect(fx,fy,fw,fh);
+        } else {
+            const pg = ctx.createRadialGradient(540,850,30,540,900,500);
+            pg.addColorStop(0,'#4b3514'); pg.addColorStop(1,'#070707');
+            ctx.fillStyle=pg; ctx.fillRect(fx,fy,fw,fh);
+            ctx.fillStyle='rgba(255,255,255,.22)'; ctx.font='900 170px Montserrat,Arial,sans-serif';
+            ctx.textAlign='center'; ctx.fillText(String(player.name||'P').trim().charAt(0).toUpperCase(),540,980);
+        }
+        ctx.restore();
+
+        // Nameplate dan nilai Top Point.
+        const plateY = 1160;
+        ctx.fillStyle = '#050505'; ctx.strokeStyle = GOLD2; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(220,plateY); ctx.lineTo(860,plateY); ctx.lineTo(820,plateY+95);
+        ctx.lineTo(260,plateY+95); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.textAlign='center'; ctx.fillStyle=WHITE;
+        let nameFont=58; ctx.font='900 '+nameFont+'px Montserrat,Arial,sans-serif';
+        while(ctx.measureText(String(player.name||'PLAYER').toUpperCase()).width>560 && nameFont>28){nameFont--;ctx.font='900 '+nameFont+'px Montserrat,Arial,sans-serif';}
+        ctx.fillText(String(player.name||'PLAYER').toUpperCase(),540,plateY+62,560);
+        ctx.fillStyle=GOLD2; ctx.font='800 30px Montserrat,Arial,sans-serif';
+        ctx.fillText('TOP POINT',540,1305);
+
+        // Statistik ringkas dengan bentuk dan warna yang sama seperti MVP.
+        const sx=150, sy=1350, sw=780, sh=150, seg=sw/3;
+        ctx.fillStyle='rgba(0,0,0,.72)'; ctx.strokeStyle=GOLD; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.moveTo(sx+22,sy);ctx.lineTo(sx+sw-22,sy);ctx.lineTo(sx+sw,sy+22);
+        ctx.lineTo(sx+sw,sy+sh-22);ctx.lineTo(sx+sw-22,sy+sh);ctx.lineTo(sx+22,sy+sh);
+        ctx.lineTo(sx,sy+sh-22);ctx.lineTo(sx,sy+22);ctx.closePath();ctx.fill();ctx.stroke();
+        const statItems = [['POINT',String(points)],['FAULT',String(fault)],['OUT',String(out)]];
+        statItems.forEach((item,i)=>{
+            const cx=sx+seg*i+seg/2;
+            if(i>0){ctx.strokeStyle='rgba(229,189,85,.7)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx+seg*i,sy+20);ctx.lineTo(sx+seg*i,sy+sh-20);ctx.stroke();}
+            ctx.fillStyle=GOLD2;ctx.font='900 43px Montserrat,Arial,sans-serif';ctx.textAlign='center';ctx.fillText(item[1],cx,sy+68);
+            ctx.fillStyle=MUTED;ctx.font='600 22px Montserrat,Arial,sans-serif';ctx.fillText(item[0],cx,sy+112);
+        });
+        ctx.textAlign='center'; ctx.fillStyle=GOLD2; ctx.font='italic 29px Georgia,serif';
+        ctx.fillText('NET POINT',540,1570);
+        ctx.save(); ctx.shadowColor='rgba(255,185,35,.5)'; ctx.shadowBlur=18;
+        ctx.font='900 76px Montserrat,Arial,sans-serif'; ctx.fillText(String(net),540,1650); ctx.restore();
+
+        ctx.strokeStyle=GOLD;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(270,1730);ctx.lineTo(420,1730);ctx.moveTo(660,1730);ctx.lineTo(810,1730);ctx.stroke();
+        ctx.fillStyle=WHITE;ctx.font='600 25px Montserrat,Arial,sans-serif';ctx.fillText('◎  aurasportclub.id',540,1725);
+
+        const sponsorLogo = await loadImageEl('marinee-logo.png');
+        ctx.textAlign='center'; ctx.fillStyle='rgba(0,0,0,.92)'; ctx.strokeStyle=GOLD2; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.roundRect(260,1760,560,145,18); ctx.fill(); ctx.stroke();
+        ctx.fillStyle=GOLD2; ctx.font='700 17px Montserrat,Arial,sans-serif';
+        ctx.fillText('OFFICIAL SPONSOR',540,1788);
+        if (sponsorLogo) {
+            const maxW=440, maxH=100, scale=Math.min(maxW/sponsorLogo.width,maxH/sponsorLogo.height);
+            const swLogo=sponsorLogo.width*scale, shLogo=sponsorLogo.height*scale;
+            ctx.drawImage(sponsorLogo,540-swLogo/2,1796,swLogo,shLogo);
+        } else {
+            ctx.font='italic 38px Georgia,serif'; ctx.fillText('Marinee',540,1855);
+        }
+
         const link = document.createElement('a');
         link.download = `AuraSportsClub_TopPoint_${String(player.name || 'Player').replace(/[^a-z0-9_-]+/gi, '_')}_${Date.now()}.png`;
         link.href = canvas.toDataURL('image/png');
