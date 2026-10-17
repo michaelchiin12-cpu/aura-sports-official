@@ -161,6 +161,21 @@
         .event-participant-toolbar-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
         .event-collapse-btn { display:inline-flex; align-items:center; justify-content:center; flex:0 0 28px; width:28px; height:28px; min-width:28px; padding:0; margin:0; border-radius:7px; border:1px solid var(--border); background:var(--bg-main); color:var(--text-muted); font-size:1rem; line-height:1; font-weight:700; }
         .event-collapse-btn:hover { color:var(--primary); border-color:var(--primary); }
+/* Keep collapse controls compact on mobile; prevent labels/template text from wrapping into the card. */
+.event-participant-toolbar-actions { flex:0 0 auto; min-width:0; }
+.event-participant-toolbar-actions .event-collapse-btn {
+    position:static; flex:0 0 28px !important; width:28px !important; min-width:28px !important;
+    max-width:28px; height:28px !important; min-height:28px; padding:0 !important;
+    white-space:nowrap; overflow:hidden; word-break:normal; overflow-wrap:normal;
+}
+.rotation-queue-heading { display:flex; align-items:center; justify-content:center; position:relative; min-width:0; padding-right:42px; }
+.rotation-queue-heading .event-collapse-btn {
+    position:absolute; right:0; top:50%; transform:translateY(-50%);
+    display:inline-flex; flex:0 0 30px !important; width:30px !important; min-width:30px !important;
+    max-width:30px; height:30px !important; min-height:30px; padding:0 !important;
+    white-space:nowrap; overflow:hidden; word-break:normal; overflow-wrap:normal;
+}
+.rotation-queue-heading .event-collapse-btn * { display:none !important; }
         .event-participant-toolbar-actions .event-collapse-btn { width:28px !important; min-width:28px; height:28px; }
         .rotation-queue-heading { padding-right:34px; }
         .rotation-queue-heading .event-collapse-btn { right:0; top:50%; transform:translateY(-50%); }
