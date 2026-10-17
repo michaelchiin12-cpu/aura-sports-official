@@ -1,0 +1,17 @@
+{
+  "name": "aura-sports-telegram-agent",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Secure Telegram AI agent foundation for Aura Sports project management",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vercel/node": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "typescript": "^5.8.3"
+  }
+}
