@@ -5858,28 +5858,51 @@ function togglePlayerActions(button) {
         drawShuttlecock(ctx, W-110, 140, 130, 200, 0.14);
         drawShuttlecock(ctx, 90, H-150, 150, 18, 0.12);
 
-        // ==== HEADER: logo + judul ====
+        // ==== HEADER MVP: logo Aura + nama event aktif + sponsor kecil ====
         let y = 95;
         const logoImg = await loadImageEl('logo.png');
-        if(logoImg) {
-            const logoW = 120, logoH = logoW * (logoImg.height / logoImg.width);
-            ctx.drawImage(logoImg, W/2 - logoW/2, y, logoW, logoH);
-            y += logoH + 26;
-        } else { y += 20; }
+        const evForStory = typeof activeEvent === 'function' ? activeEvent() : null;
+        const eventTitle = String(evForStory?.name || 'AURA SPORTS CLUB').trim().toUpperCase();
+        const headerY = 88;
+        if (logoImg) {
+            const logoW = 112, logoH = logoW * (logoImg.height / logoImg.width);
+            ctx.drawImage(logoImg, 58, headerY, logoW, logoH);
+        }
+        // Nama event menggantikan tulisan Aura Sports Club.
+        ctx.textAlign = 'left';
+        ctx.fillStyle = GOLD;
+        ctx.font = '700 34px Oswald, Segoe UI, sans-serif';
+        const maxEventWidth = 590;
+        let eventFont = 34;
+        while (eventFont > 21) {
+            ctx.font = '700 ' + eventFont + 'px Oswald, Segoe UI, sans-serif';
+            if (ctx.measureText(eventTitle).width <= maxEventWidth) break;
+            eventFont -= 1;
+        }
+        ctx.fillText(eventTitle, 198, headerY + 66, maxEventWidth);
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(198, headerY + 84); ctx.lineTo(198 + Math.min(maxEventWidth, Math.max(100, ctx.measureText(eventTitle).width)), headerY + 84); ctx.stroke();
 
+        // Sponsor dibuat ringkas di kanan atas. Logo vector sederhana agar tidak mengambil alih fokus MVP.
+        ctx.textAlign = 'right';
+        ctx.fillStyle = MUTED;
+        ctx.font = '500 13px Oswald, Segoe UI, sans-serif';
+        ctx.fillText('SUPPORTED BY', W - 58, headerY + 24);
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(W - 165, headerY + 40); ctx.lineTo(W - 145, headerY + 22);
+        ctx.lineTo(W - 125, headerY + 40); ctx.lineTo(W - 145, headerY + 58);
+        ctx.closePath(); ctx.stroke();
+        ctx.textAlign = 'right';
+        ctx.fillStyle = GOLD_LIGHT;
+        ctx.font = 'italic 26px Georgia, serif';
+        ctx.fillText('Marineee', W - 58, headerY + 56);
+        y = 290;
         ctx.textAlign = 'center';
         ctx.fillStyle = GOLD;
-        ctx.font = '700 46px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('A U R A   S P O R T S   C L U B', W/2, y);
-        y += 42;
-        ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(W/2-95, y); ctx.lineTo(W/2+95, y); ctx.stroke();
-        drawStatIcon(ctx, 'shuttle', W/2, y, 24, GOLD);
-        y += 42;
-        ctx.fillStyle = MUTED;
         ctx.font = '500 24px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('B A D M I N T O N   S E S S I O N', W/2, y);
-        y += 70;
+        ctx.fillText('MOST VALUABLE PLAYER', W/2, y);
+        y += 55;
 
         // ==== FOTO MVP (bingkai heksagon, kiri) ====
         const frameX = 60, frameY = y, frameW = 460, frameH = 640;
