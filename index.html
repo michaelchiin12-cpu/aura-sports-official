@@ -3913,11 +3913,11 @@ async function deletePicRole(roleId){
             if (!result.matches.length) return false;
             view.activeMatches.push(...result.matches);
             view.roundMixPreview = [];
-            if (maxCourts === 1) {
+            {
                 const pv = cloneJSON(view);
                 (pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
-                const pr = buildGeneratedMatchesForView(pv, teamSize, 1);
-                if(pr.matches.length) view.roundMixPreview=pr.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
+                const pr = buildGeneratedMatchesForView(pv, teamSize, maxCourts);
+                view.roundMixPreview = pr.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
             }
             rebuildRotationForView(view);
             return true;
@@ -4120,12 +4120,12 @@ async function deletePicRole(roleId){
                 rebuildRotationForView(view);
                 // Perubahan ronde aktif membatalkan preview lama; hitung ulang dari komposisi terbaru.
                 const courtsNow=parseInt(document.getElementById('totalCourts')?.value)||1;
-                if(courtsNow===1 && view.activeMatches.length) {
+                if(view.activeMatches.length) {
                     view.roundMixPreview=[];
                     const pv=cloneJSON(view);
                     (pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
-                    const previewResult=buildGeneratedMatchesForView(pv,parseInt(document.getElementById('playersPerTeam')?.value)||2,1);
-                    if(previewResult.matches.length)view.roundMixPreview=previewResult.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
+                    const previewResult=buildGeneratedMatchesForView(pv,parseInt(document.getElementById('playersPerTeam')?.value)||2,Math.max(1,courtsNow));
+                    view.roundMixPreview=previewResult.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
                 }
                 return true;
             }).then(ok=>{ if(!ok) requestRefresh(); renderCourts(); renderQueue(); if(window.scoreDashboardOpen) renderScoreDashboard(matchId); });
@@ -4341,14 +4341,14 @@ async function deletePicRole(roleId){
             // dari data yang BARU saja dihitung. Tidak perlu request kedua.
             if (view.activeMatches.length === 0) {
                 rebuildRotationForView(view);
-                if(maxCourts===1 && (view.roundMixPreview||[]).length){
+                if((view.roundMixPreview||[]).length){
                     view.activeMatches=view.roundMixPreview.map((m,i)=>({...cloneJSON(m),isPreview:false,isRunning:false,time:0,scoreA:0,scoreB:0,courtName:`Lapangan ${i+1}`}));
                     view.roundMixPreview=[];
                     view.activeMatches.forEach(m=>[...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{const p=view.players.find(x=>x.id===mp.id);if(p)p.status='playing';}));
                     generatedNextRound=view.activeMatches.length;
                     const pv=cloneJSON(view);(pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
-                    const pr=buildGeneratedMatchesForView(pv,teamSize,1);
-                    if(pr.matches.length)view.roundMixPreview=pr.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
+                    const pr=buildGeneratedMatchesForView(pv,teamSize,maxCourts);
+                    view.roundMixPreview=pr.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
                     rebuildRotationForView(view);
                 } else {
                     const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
@@ -4627,15 +4627,17 @@ async function deletePicRole(roleId){
     if (!activeMatches.length && !(roundMixPreview && roundMixPreview.length)) {
         container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Tidak ada pertandingan yang sedang berjalan.</p>';
     }
-    if(roundMixPreview&&roundMixPreview.length&&Number(document.getElementById('totalCourts')?.value||1)===1){
-        const preview=roundMixPreview[0],A=preview.teamA||[],B=preview.teamB||[],bal=evaluateMatchBalance([...A,...B],A.length||2);
-        const label=bal&&bal.badness<20?'Seimbang':'Kurang seimbang';
-        container.innerHTML+=`<div class="court" style="padding:16px;opacity:.58;border:1px dashed var(--primary);margin-top:14px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><b style="color:var(--primary);">👁️ PREVIEW RONDE ${preview.round||((activeMatches[0]?.round||0)+1)}</b><span class="badge ${bal&&bal.badness<20?'badge-adv':'badge-beg'}">${label}</span></div>
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:14px;">
-        <div style="text-align:center;"><b>TIM A</b>${A.map((p,i)=>`<div style="margin-top:6px;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamA',${i})" style="opacity:1;pointer-events:auto;border:0;background:transparent;color:var(--primary);cursor:pointer;">✏️</button></div>`).join('')}</div><b>VS</b>
-        <div style="text-align:center;"><b>TIM B</b>${B.map((p,i)=>`<div style="margin-top:6px;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamB',${i})" style="opacity:1;pointer-events:auto;border:0;background:transparent;color:var(--primary);cursor:pointer;">✏️</button></div>`).join('')}</div></div>
-        <div style="font-size:.75rem;color:var(--text-muted);margin-top:8px;">Preview dapat diedit. Susunan digunakan saat ronde aktif selesai.</div></div>`;
+    if(roundMixPreview && roundMixPreview.length){
+        roundMixPreview.forEach((preview, previewIndex) => {
+            const A=preview.teamA||[],B=preview.teamB||[],bal=evaluateMatchBalance([...A,...B],A.length||2);
+            const label=bal&&bal.badness<20?'Seimbang':'Kurang seimbang';
+            container.innerHTML+=`<div class="court" style="padding:16px;opacity:.78;border:1px dashed var(--primary);margin-top:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><b style="color:var(--primary);">👁️ PREVIEW RONDE ${preview.round||((activeMatches[0]?.round||0)+1)} · LAPANGAN ${previewIndex+1}</b><span class="badge ${bal&&bal.badness<20?'badge-adv':'badge-beg'}">${label}</span></div>
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:14px;">
+            <div style="text-align:center;"><b>TIM A</b>${A.map((p,i)=>`<div style="margin-top:6px;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamA',${i})" style="opacity:1;pointer-events:auto;border:0;background:transparent;color:var(--primary);cursor:pointer;">✏️</button></div>`).join('')}</div><b>VS</b>
+            <div style="text-align:center;"><b>TIM B</b>${B.map((p,i)=>`<div style="margin-top:6px;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamB',${i})" style="opacity:1;pointer-events:auto;border:0;background:transparent;color:var(--primary);cursor:pointer;">✏️</button></div>`).join('')}</div></div>
+            <div style="font-size:.75rem;color:var(--text-muted);margin-top:8px;">Preview dapat diedit. Susunan digunakan saat ronde aktif selesai.</div></div>`;
+        });
     }
     if (window.scoreDashboardOpen && window.scoreDashboardMatchId) {
         renderScoreDashboard(window.scoreDashboardMatchId);
