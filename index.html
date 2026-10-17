@@ -6080,6 +6080,9 @@ async function generateBestPartnerStoryCard() {
     const GOLD_LIGHT = '#f4d88b';
     const WHITE = '#ffffff';
     const MUTED = '#b7b7bd';
+    const currentEvent = typeof activeEvent === 'function' ? activeEvent() : null;
+    const eventDisplayName = String(currentEvent?.name || 'AURA SPORTS CLUB').trim().toUpperCase();
+    const eventDisplaySize = eventDisplayName.length > 38 ? 17 : eventDisplayName.length > 28 ? 20 : 24;
 
     const p1 = bestPartner[0];
     const p2 = bestPartner[1];
@@ -6235,7 +6238,7 @@ async function generateBestPartnerStoryCard() {
     drawText('AURA SPORTS CLUB', W / 2, 270, 43, 900, GOLD);
 
     drawGoldLine(310, 310, 770, 310);
-    drawText('BADMINTON SESSION', W / 2, 355, 24, 700, MUTED);
+    drawText(eventDisplayName, W / 2, 355, eventDisplaySize, 700, MUTED);
 
     // ==========================================
     // JUDUL BEST PARTNER
