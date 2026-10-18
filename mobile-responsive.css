@@ -4847,3 +4847,33 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .header > img { width: 58px !important; height: 58px !important; flex-basis: 58px !important; }
   .header > h1 { font-size: .88rem !important; }
 }
+
+
+/* AURA MOBILE TYPOGRAPHY TUNING — smaller, cleaner text on phones */
+@media (max-width: 768px) {
+  body { font-size: 13px !important; line-height: 1.45 !important; }
+  h1 { font-size: 1.12rem !important; line-height: 1.25 !important; }
+  h2 { font-size: 1rem !important; line-height: 1.3 !important; }
+  h3 { font-size: .9rem !important; line-height: 1.3 !important; }
+  h4, h5, h6 { font-size: .82rem !important; line-height: 1.3 !important; }
+  p, label, li, td, th, small, .badge { font-size: .78rem !important; line-height: 1.4 !important; }
+  input, select, textarea { font-size: .82rem !important; }
+  button { font-size: .78rem !important; line-height: 1.25 !important; }
+  .card h2 { font-size: .98rem !important; margin-bottom: 10px !important; }
+  .member-card, .member-profile-card { font-size: .78rem !important; }
+  .member-card h3, .member-profile-card h3 { font-size: .88rem !important; }
+  .stat-card .val, .stat-grid .val { font-size: 1rem !important; }
+  .mobile-tab-btn { font-size: .54rem !important; }
+  .header > h1 { font-size: clamp(.78rem, 3.8vw, .98rem) !important; letter-spacing: .025em !important; }
+}
+@media (max-width: 420px) {
+  body { font-size: 12px !important; }
+  h1 { font-size: 1rem !important; }
+  h2, .card h2 { font-size: .92rem !important; }
+  h3 { font-size: .84rem !important; }
+  p, label, li, td, th, small, .badge { font-size: .72rem !important; }
+  input, select, textarea, button { font-size: .76rem !important; }
+  .member-card h3, .member-profile-card h3 { font-size: .82rem !important; }
+  .stat-card .val, .stat-grid .val { font-size: .92rem !important; }
+  .header > h1 { font-size: .82rem !important; }
+}
