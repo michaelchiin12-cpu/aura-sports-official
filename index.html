@@ -2113,7 +2113,7 @@ async function deletePicRole(roleId){
     async function loadState() {
         const { data, error } = await supabaseClient
             .from('sport_manager_state')
-            .select('*')
+            .select([...STATE_COLUMNS, 'updated_at'].join(','))
             .eq('id', STATE_ROW_ID)
             .single();
 
