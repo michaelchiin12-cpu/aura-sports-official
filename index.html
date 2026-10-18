@@ -2634,21 +2634,36 @@ async function deletePicRole(roleId){
             const patch = { ...changedCols, updated_at: nowIso };
             let q = supabaseClient.from('sport_manager_state').update(patch).eq('id', STATE_ROW_ID);
             q = (fresh.updated_at === null || fresh.updated_at === undefined) ? q.is('updated_at', null) : q.eq('updated_at', fresh.updated_at);
-            const { error: updErr } = await q;
-            if (updErr) lastError = updErr;
+            const saveStartedAt = Date.now();
+            // Minta representasi baris yang benar-benar diperbarui. Tanpa .select(),
+            // PostgREST dapat mengembalikan sukses tanpa error meski CAS tidak cocok
+            // dan tidak ada baris yang berubah.
+            const { data: updatedRows, error: updErr } = await q.select('id,updated_at');
+            const saveElapsedMs = Date.now() - saveStartedAt;
+            if (updErr) {
+                lastError = updErr;
+                console.error('[AURA SAVE] UPDATE gagal', { attempt: attempt + 1, elapsedMs: saveElapsedMs, code: updErr.code, message: updErr.message });
+            }
 
-            if (!updErr) {
-                markSyncProgress(92, 'Database menerima perubahan; menyelesaikan sinkronisasi...');
-                // Jangan unduh ulang 5.9 MB hanya untuk menyinkronkan kolom yang tidak
-                // diubah. changedCols saja yang ditulis; kolom lain tetap di server.
-                // CAS dengan updated_at tetap mencegah penulisan jika ada update bersamaan.
-                lastSyncedRow = { ...(lastSyncedRow || {}), ...current, updated_at: nowIso };
+            if (!updErr && Array.isArray(updatedRows) && updatedRows.length > 0) {
+                const savedAt = updatedRows[0].updated_at || nowIso;
+                markSyncProgress(92, 'Perubahan tersimpan; menyelesaikan sinkronisasi...');
+                console.info('[AURA SAVE] UPDATE terverifikasi', { elapsedMs: saveElapsedMs, changedColumns: Object.keys(changedCols).length, updatedAt: savedAt });
+                // Hanya tandai kolom yang dikirim sebagai tersimpan. Jangan menganggap
+                // perubahan lokal lain yang terjadi selama request ikut tersimpan.
+                lastSyncedRow = { ...(lastSyncedRow || {}), ...changedCols, updated_at: savedAt };
                 return true;
             }
-            // Gagal (HP lain baru saja menulis di antara kita membaca & menulis) -> ulangi
+
+            if (!updErr && (!Array.isArray(updatedRows) || updatedRows.length === 0)) {
+                console.warn('[AURA SAVE] Tidak ada baris diperbarui; kemungkinan konflik versi updated_at. Mengambil ulang versi server.', { attempt: attempt + 1, elapsedMs: saveElapsedMs });
+            }
+            // Error jaringan / konflik CAS -> ulangi dengan jeda kecil. Batas percobaan
+            // tetap MAX_ATTEMPT; setiap percobaan mencatat durasi agar hang dapat didiagnosis.
             await _sleep(80 + Math.random() * 150 + attempt * 40);
         }
-        console.error('performSaveToSupabase: gagal setelah beberapa kali percobaan.');
+        console.error('[AURA SAVE] Gagal setelah batas percobaan', { attempts: MAX_ATTEMPT, lastError: lastError ? { code: lastError.code, message: lastError.message } : null });
+        markSyncProgress(0, 'Gagal menyimpan. Periksa koneksi lalu coba lagi; perubahan lokal belum terverifikasi tersimpan.');
         return false;
     }
 
