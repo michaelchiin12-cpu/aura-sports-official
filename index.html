@@ -7166,10 +7166,7 @@ async function generateBestPartnerStoryCard() {
         const access = await auraResolveAccess(authData.session);
         if (!access) { await supabaseClient.auth.signOut(); auraShowLogin('Akun belum terdaftar sebagai member/admin.'); if (splash) splash.remove(); appBooted = false; return; }
         auraApplyRole(access);
-        if (sessionStorage.getItem('auraShowMaintenanceAfterLogin') === '1') {
-            sessionStorage.removeItem('auraShowMaintenanceAfterLogin');
-            auraShowMaintenanceNotice();
-        }
+        const shouldShowMaintenanceNotice = sessionStorage.getItem('auraShowMaintenanceAfterLogin') === '1';
 
         const startedAt = Date.now();
         try {
@@ -7188,6 +7185,11 @@ async function generateBestPartnerStoryCard() {
             if (splash) {
                 splash.classList.add('hide');
                 setTimeout(() => splash.remove(), 400);
+            }
+            // Tampilkan notice setelah data awal siap dan splash ditutup agar tidak menutupi proses login/boot.
+            if (shouldShowMaintenanceNotice) {
+                sessionStorage.removeItem('auraShowMaintenanceAfterLogin');
+                setTimeout(() => auraShowMaintenanceNotice(), splash ? 450 : 0);
             }
         } else if (splash) {
             const msg = splash.querySelector('.splash-loading');
