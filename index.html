@@ -3005,8 +3005,7 @@ async function deletePicRole(roleId){
     function downloadMemberTemplate() {
         if (!window.XLSX) return alert('Library Excel belum siap. Muat ulang halaman lalu coba lagi.');
         const rows = [
-            ['Nama', 'Gender', 'Level', 'Tanggal Lahir', 'Tanggal Join'],
-            ['Contoh Nama', 'L', 2, '1998-05-21', '2026-10-18']
+            ['Nama', 'Gender', 'Level', 'Tanggal Lahir', 'Tanggal Join']
         ];
         const ws = XLSX.utils.aoa_to_sheet(rows);
         ws['!cols'] = [{wch:28},{wch:12},{wch:12},{wch:18},{wch:18}];
@@ -3110,7 +3109,7 @@ async function deletePicRole(roleId){
                 });
             });
             const saved = await saveData();
-            if (saved === false) {
+            if (!saved) {
                 players = players.filter(p => originalIds.has(String(p.id)));
                 resultBox.textContent = 'Penyimpanan gagal. Member import dibatalkan di tampilan. Periksa status sinkronisasi sebelum mencoba kembali.';
                 renderPlayers();
