@@ -692,72 +692,11 @@
 }
 </style>
 
-<style id="aura-maintenance-mode">
-  html, body { min-height:100%; margin:0; background:#070707 !important; }
-  body > :not(#auraMaintenanceScreen) { display:none !important; }
-  #auraMaintenanceScreen {
-    position:fixed; inset:0; z-index:2147483647; display:flex; align-items:center; justify-content:center;
-    overflow:hidden; padding:24px; box-sizing:border-box; color:#f5f5f5;
-    background: radial-gradient(ellipse at 50% 35%, #242016 0%, #101010 38%, #050505 78%);
-    font-family:Montserrat,Arial,sans-serif; text-align:center;
-  }
-  #auraMaintenanceScreen * { box-sizing:border-box; }
-  #auraMaintenanceScreen .maintenance-glow {
-    position:absolute; width:340px; height:340px; border-radius:50%;
-    border:1px solid rgba(220,184,95,.13); animation:auraPulse 3.5s ease-in-out infinite;
-    box-shadow:0 0 80px rgba(214,174,72,.07), inset 0 0 55px rgba(214,174,72,.04);
-  }
-  #auraMaintenanceScreen .maintenance-glow::before,
-  #auraMaintenanceScreen .maintenance-glow::after {
-    content:""; position:absolute; inset:22px; border:1px solid rgba(220,184,95,.12); border-radius:50%;
-  }
-  #auraMaintenanceScreen .maintenance-glow::after { inset:48px; border-style:dashed; animation:auraSpin 22s linear infinite; }
-  #auraMaintenanceScreen .maintenance-card { position:relative; z-index:1; width:min(100%,440px); padding:34px 26px; }
-  #auraMaintenanceScreen .maintenance-logo {
-    width:96px; height:96px; object-fit:contain; display:block; margin:0 auto 22px;
-    filter:drop-shadow(0 0 22px rgba(219,183,91,.25)); animation:auraFloat 3s ease-in-out infinite;
-  }
-  #auraMaintenanceScreen .maintenance-brand { font-size:12px; font-weight:800; letter-spacing:.34em; color:#d7b86b; margin-bottom:25px; }
-  #auraMaintenanceScreen .maintenance-icon {
-    width:58px; height:58px; display:grid; place-items:center; margin:0 auto 18px;
-    border:1px solid rgba(218,184,104,.45); border-radius:18px; color:#e4c779;
-    background:linear-gradient(145deg,rgba(220,184,95,.14),rgba(255,255,255,.025));
-    animation:auraWrench 4s ease-in-out infinite;
-  }
-  #auraMaintenanceScreen h1 { font-size:clamp(30px,7vw,43px); line-height:1.1; letter-spacing:-.04em; margin:0 0 15px; font-weight:900; }
-  #auraMaintenanceScreen .maintenance-desc { max-width:340px; margin:0 auto; color:#b8b8b8; font-size:14px; line-height:1.8; }
-  #auraMaintenanceScreen .maintenance-status {
-    display:inline-flex; align-items:center; gap:9px; margin-top:27px; padding:10px 14px;
-    border:1px solid rgba(218,184,104,.22); border-radius:999px; background:rgba(255,255,255,.035);
-    color:#e0c579; font-size:11px; font-weight:700; letter-spacing:.12em;
-  }
-  #auraMaintenanceScreen .maintenance-dot { width:7px; height:7px; border-radius:50%; background:#e0bd62; box-shadow:0 0 12px #d8b35b; animation:auraBlink 1.4s ease-in-out infinite; }
-  #auraMaintenanceScreen .maintenance-footer { margin-top:36px; font-size:10px; color:#676767; letter-spacing:.16em; }
-  @keyframes auraPulse { 0%,100% { transform:scale(.94); opacity:.5; } 50% { transform:scale(1.04); opacity:1; } }
-  @keyframes auraSpin { to { transform:rotate(360deg); } }
-  @keyframes auraFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-7px); } }
-  @keyframes auraWrench { 0%,85%,100% { transform:rotate(0); } 90% { transform:rotate(-12deg); } 95% { transform:rotate(12deg); } }
-  @keyframes auraBlink { 0%,100% { opacity:1; } 50% { opacity:.35; } }
-  @media (prefers-reduced-motion:reduce) { #auraMaintenanceScreen *,#auraMaintenanceScreen *::before,#auraMaintenanceScreen *::after { animation:none !important; } }
-</style>
+
 
 </head>
 <body>
 
-<div id="auraMaintenanceScreen" role="main" aria-labelledby="auraMaintenanceTitle">
-  <div class="maintenance-glow" aria-hidden="true"></div>
-  <main class="maintenance-card">
-    <img class="maintenance-logo" src="logo-favicon.png" alt="Logo AURA Sports" onerror="this.style.display='none'">
-    <div class="maintenance-brand">AURA SPORTS</div>
-    <div class="maintenance-icon" aria-hidden="true">
-      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4.5 4.5 0 0 0-6 6L3 18l3 3 5.7-5.7a4.5 4.5 0 0 0 6-6l-3 3-3-3 3-3Z"/><path d="m5 19 1 1"/></svg>
-    </div>
-    <h1 id="auraMaintenanceTitle">Sedang Maintenance</h1>
-    <p class="maintenance-desc">Kami sedang melakukan perawatan dan peningkatan sistem agar AURA Sports dapat kembali berjalan lebih baik. Mohon tunggu sebentar, ya.</p>
-    <div class="maintenance-status"><span class="maintenance-dot"></span> SYSTEM UNDER MAINTENANCE</div>
-    <div class="maintenance-footer">AURA SPORTS MANAGER · BACK SOON</div>
-  </main>
-</div>
 
 <div id="auraAuthGate" role="dialog" aria-modal="true"><div class="auth-card"><div class="auth-brand">AURA SPORT MANAGER</div><h2>Selamat datang</h2><p>Login untuk melanjutkan. Admin memiliki akses penuh; member hanya dapat melihat informasi komunitas.</p><form id="auraAuthForm"><label for="auraAuthRole">Masuk sebagai</label><select id="auraAuthRole"><option value="member">Member</option><option value="admin">Admin</option></select><label for="auraAuthEmail">Email</label><input id="auraAuthEmail" type="email" autocomplete="username" required placeholder="nama@email.com"><label for="auraAuthPassword">Password</label><input id="auraAuthPassword" type="password" autocomplete="current-password" required placeholder="Password akun"><button class="auth-submit" id="auraAuthSubmit" type="submit">LOGIN</button><div class="auth-error" id="auraAuthError" role="alert"></div><button type="button" id="auraForgotPassword" class="auth-submit" style="margin-top:8px;background:transparent;border:1px solid #c89f4c;color:#c89f4c" onclick="auraSendPasswordReset()">LUPA PASSWORD</button><div id="auraResetPanel" style="display:none;margin-top:14px"><label for="auraNewPassword">Password baru</label><input id="auraNewPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Minimal 8 karakter"><button type="button" class="auth-submit" onclick="auraUpdatePassword()">SIMPAN PASSWORD BARU</button></div></form><div class="auth-note">Akun member harus diaktifkan oleh pengelola. Pilihan role tidak memberi hak akses dengan sendirinya.</div></div></div><div id="auraAccountBar"><span id="auraAccountLabel"></span></div>
 
