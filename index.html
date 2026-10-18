@@ -2113,7 +2113,7 @@ async function deletePicRole(roleId){
     async function loadState() {
         const { data, error } = await supabaseClient
             .from('sport_manager_state')
-            .select('*')
+            .select([...STATE_COLUMNS, 'updated_at'].join(','))
             .eq('id', STATE_ROW_ID)
             .single();
 
@@ -2575,8 +2575,18 @@ async function deletePicRole(roleId){
         markSyncSaving('Menyiapkan perubahan untuk disimpan...', 8);
         if(saveInFlight) { savePending = true; markSyncProgress(18, 'Perubahan masuk antrean penyimpanan...'); return true; }
         saveInFlight = true;
-        const result = await performSaveToSupabase();
-        saveInFlight = false;
+        let result = false;
+        try {
+            result = await performSaveToSupabase();
+        } catch (err) {
+            // Jangan biarkan exception tak terduga mengunci antrean simpan selamanya.
+            console.error('[AURA SAVE] Exception tak tertangani saat menyimpan:', err);
+            markSyncError('Simpan gagal karena kesalahan tak terduga. Periksa koneksi lalu coba lagi.');
+            result = false;
+        } finally {
+            // Selalu lepaskan lock, termasuk ketika Supabase/network melempar exception.
+            saveInFlight = false;
+        }
         if(savePending) {
             savePending = false;
             const nextResult = await saveData();
