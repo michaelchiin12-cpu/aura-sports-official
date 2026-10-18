@@ -628,6 +628,26 @@
 .pic-card{background:var(--bg-main);border:1px solid var(--border);border-radius:12px;padding:16px}.pic-card-head{display:flex;align-items:center;gap:12px}.pic-icon{width:42px;height:42px;border-radius:10px;background:rgba(200,159,76,.1);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0}.pic-role{font-weight:800;color:var(--primary);font-size:.95rem}.pic-person{font-weight:700;margin-top:3px}.pic-desc{color:var(--text-muted);font-size:.82rem;line-height:1.5;margin:12px 0}.pic-assign-btn{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);font-weight:700;cursor:pointer}.pic-assign-btn:hover{border-color:var(--primary);color:var(--primary)}.pic-note{margin-top:16px;padding:12px;border:1px dashed var(--border);border-radius:10px;color:var(--text-muted);font-size:.82rem;line-height:1.5}@media(max-width:600px){.pic-grid{grid-template-columns:1fr}}
 .pic-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:10001;padding:18px}.pic-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:100%;max-width:430px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.55)}.pic-modal h3{margin:0 0 6px;color:var(--primary)}.pic-modal p{font-size:.82rem;color:var(--text-muted);margin:0 0 14px}.pic-modal select{width:100%;margin:0 0 14px}.pic-modal-actions{display:flex;gap:8px}.pic-modal-actions button{flex:1}
 
+/* AURA MAINTENANCE NOTICE */
+#auraMaintenanceNotice{position:fixed;inset:0;z-index:1000002;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.88);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+#auraMaintenanceNotice.is-visible{display:flex;animation:auraNoticeBackdrop .35s ease-out both}
+#auraMaintenanceNotice .maintenance-card{position:relative;isolation:isolate;overflow:hidden;width:min(100%,720px);padding:clamp(24px,5vw,46px);border:2px solid #f4c542;border-radius:24px;background:radial-gradient(ellipse at top,rgba(244,197,66,.17),transparent 60%),linear-gradient(145deg,#171717,#070707);box-shadow:0 0 0 1px rgba(244,197,66,.12),0 24px 100px rgba(0,0,0,.8),0 0 50px rgba(244,197,66,.18);text-align:center;animation:auraNoticeEnter .55s cubic-bezier(.2,.8,.2,1) both}
+#auraMaintenanceNotice .maintenance-card:before{content:"";position:absolute;z-index:-1;inset:0;border-radius:inherit;background:linear-gradient(115deg,transparent 25%,rgba(255,255,255,.08) 48%,transparent 68%);transform:translateX(-120%);animation:auraNoticeShine 3.8s ease-in-out 1s infinite}
+#auraMaintenanceNotice .maintenance-icon{font-size:clamp(42px,7vw,68px);line-height:1;margin-bottom:16px;display:inline-block;filter:drop-shadow(0 0 16px rgba(255,190,40,.35));animation:auraNoticeIcon 1.8s ease-in-out infinite}
+#auraMaintenanceNotice .maintenance-kicker{font-size:clamp(12px,2vw,15px);font-weight:900;letter-spacing:.24em;color:#f4c542;margin-bottom:12px}
+#auraMaintenanceNotice .maintenance-heading{font-size:clamp(25px,5vw,43px);font-weight:1000;letter-spacing:.035em;line-height:1.1;color:#fff;margin:0 0 20px;text-shadow:0 0 22px rgba(244,197,66,.18)}
+#auraMaintenanceNotice .maintenance-message{font-size:clamp(16px,2.6vw,23px);font-weight:850;line-height:1.55;color:#fff;margin:0 auto;max-width:620px}
+#auraMaintenanceNotice .maintenance-message strong{color:#f4c542}
+#auraMaintenanceNotice .maintenance-contact{margin-top:22px;font-size:clamp(14px,2vw,17px);color:#d4d4d4}
+#auraMaintenanceNotice .maintenance-contact strong{color:#f4c542;letter-spacing:.12em}
+#auraMaintenanceNotice .maintenance-ack{margin-top:28px;min-width:190px;padding:13px 24px;border:0;border-radius:999px;background:linear-gradient(135deg,#ffe58a,#d9a82e);color:#16120a;font-weight:950;font-size:15px;box-shadow:0 8px 28px rgba(244,197,66,.2);cursor:pointer;transition:transform .2s ease,box-shadow .2s ease}
+#auraMaintenanceNotice .maintenance-ack:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(244,197,66,.34)}
+@keyframes auraNoticeBackdrop{from{opacity:0}to{opacity:1}}
+@keyframes auraNoticeEnter{0%{opacity:0;transform:translateY(26px) scale(.94)}70%{opacity:1;transform:translateY(-3px) scale(1.01)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes auraNoticeIcon{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-4px) rotate(-5deg)}75%{transform:translateY(-4px) rotate(5deg)}}
+@keyframes auraNoticeShine{0%,45%{transform:translateX(-120%)}75%,100%{transform:translateX(120%)}}
+@media(prefers-reduced-motion:reduce){#auraMaintenanceNotice.is-visible,#auraMaintenanceNotice .maintenance-card,#auraMaintenanceNotice .maintenance-icon,#auraMaintenanceNotice .maintenance-card:before{animation:none!important;transition:none!important}}
+@media(max-width:480px){#auraMaintenanceNotice{padding:14px}#auraMaintenanceNotice .maintenance-card{border-radius:18px;padding:25px 18px}#auraMaintenanceNotice .maintenance-message{font-size:16px}}
 /* AURA AUTH GATE */
 #auraAuthGate{position:fixed;inset:0;z-index:1000000;display:none;align-items:center;justify-content:center;padding:22px;background:radial-gradient(ellipse at top,rgba(200,159,76,.13),transparent 55%),#050505}#auraAuthGate .auth-card{width:100%;max-width:430px;padding:28px;border:1px solid rgba(200,159,76,.38);border-radius:20px;background:#111;box-shadow:0 25px 90px #000b}#auraAuthGate .auth-brand{color:#c89f4c;font-size:12px;font-weight:900;letter-spacing:3px}#auraAuthGate h2{color:#fff;font-size:27px;margin:10px 0 7px}#auraAuthGate p{color:#aaa;font-size:13px;line-height:1.6}#auraAuthGate label{display:block;color:#ddd;font-size:12px;margin:15px 0 6px}#auraAuthGate input,#auraAuthGate select{width:100%;padding:13px;border:1px solid #393939;border-radius:9px;background:#080808;color:#fff}#auraAuthGate .auth-submit{width:100%;padding:13px;margin-top:18px;border-radius:9px;background:#c89f4c;color:#000;font-weight:900}#auraAuthGate .auth-error{color:#ff8585;font-size:12px;margin-top:12px;min-height:18px}#auraAuthGate .auth-note{font-size:11px;color:#777;margin-top:16px}body.aura-member #tab-finance,body.aura-member [data-admin-only="true"],body.aura-member .admin-only,body.aura-member .aura-write-control{display:none!important}#auraAccountBar{position:absolute;z-index:99990;top:12px;left:8px;right:auto;display:none;align-items:center;padding:2px 0;background:transparent;border:0;border-radius:0;font-size:9px;line-height:1.2;color:#eee;white-space:nowrap;pointer-events:none;box-shadow:none}@media(max-width:600px){#auraAuthGate .auth-card{padding:22px}#auraAccountBar{top:8px;left:4px;right:auto;padding:2px 0;font-size:8px}}
 /* Modern, responsive event history cards */
@@ -7146,6 +7166,9 @@ async function generateBestPartnerStoryCard() {
         const access = await auraResolveAccess(authData.session);
         if (!access) { await supabaseClient.auth.signOut(); auraShowLogin('Akun belum terdaftar sebagai member/admin.'); if (splash) splash.remove(); appBooted = false; return; }
         auraApplyRole(access);
+        // Tampilkan notice pada setiap pembukaan aplikasi untuk sesi yang sudah terautentikasi,
+        // termasuk pengguna yang sebelumnya sudah login dan hanya membuka ulang/refresh website.
+        const shouldShowMaintenanceNotice = true;
 
         const startedAt = Date.now();
         try {
@@ -7164,6 +7187,11 @@ async function generateBestPartnerStoryCard() {
             if (splash) {
                 splash.classList.add('hide');
                 setTimeout(() => splash.remove(), 400);
+            }
+            // Tampilkan notice setelah data awal siap dan splash ditutup agar tidak menutupi proses login/boot.
+            if (shouldShowMaintenanceNotice) {
+                sessionStorage.removeItem('auraShowMaintenanceAfterLogin');
+                setTimeout(() => auraShowMaintenanceNotice(), splash ? 450 : 0);
             }
         } else if (splash) {
             const msg = splash.querySelector('.splash-loading');
@@ -7202,8 +7230,20 @@ function auraShowLogin(message=''){const g=document.getElementById('auraAuthGate
 function auraHideLogin(){const g=document.getElementById('auraAuthGate');if(g)g.style.display='none';document.body.style.overflow='';}
 async function auraResolveAccess(session){if(!session?.user?.id)return null;const {data:admin,error}=await supabaseClient.rpc('is_aura_admin');if(!error&&admin===true)return'admin';const {data:member,error:me}=await supabaseClient.from('aura_members').select('user_id,active').eq('user_id',session.user.id).eq('active',true).maybeSingle();if(!me&&member)return'member';return null;}
 function auraApplyRole(role){auraCurrentRole=role;document.body.classList.toggle('aura-member',role==='member');document.body.classList.toggle('aura-admin',role==='admin');const bar=document.getElementById('auraAccountBar'),label=document.getElementById('auraAccountLabel');if(label)label.textContent=(role==='admin'?'ADMIN':'MEMBER')+' 🟢 Aktif';if(bar)bar.style.display='flex';if(role==='member'){document.querySelectorAll('#tab-finance,[data-admin-only="true"],.admin-only').forEach(el=>el.style.display='none');document.querySelectorAll('button,input,select,textarea').forEach(el=>{if(el.closest('#auraAuthGate')||el.closest('#auraAccountBar')||el.classList.contains('tab-btn')||el.classList.contains('mobile-tab-btn')||el.type==='search'||el.dataset.memberAllowed==='true')return;el.classList.add('aura-write-control');});}auraHideLogin();}
+async function auraShowMaintenanceNotice(){const n=document.getElementById('auraMaintenanceNotice');if(!n)return;n.classList.add('is-visible');document.body.style.overflow='hidden';const b=n.querySelector('.maintenance-ack');if(b)b.focus();}
+function auraDismissMaintenanceNotice(){const n=document.getElementById('auraMaintenanceNotice');if(n)n.classList.remove('is-visible');document.body.style.overflow='';}
 async function auraSignOut(){try{await supabaseClient.auth.signOut();}finally{location.reload();}}
-document.getElementById('auraAuthForm')?.addEventListener('submit',async e=>{e.preventDefault();const b=document.getElementById('auraAuthSubmit'),err=document.getElementById('auraAuthError');b.disabled=true;b.textContent='MEMERIKSA...';err.textContent='';const email=document.getElementById('auraAuthEmail').value.trim().toLowerCase(),password=document.getElementById('auraAuthPassword').value,requested=document.getElementById('auraAuthRole').value;try{const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});if(error)throw error;const role=await auraResolveAccess(data.session);if(!role){await supabaseClient.auth.signOut();throw Error('Akun belum terdaftar. Hubungi admin untuk mengaktifkan akses member.');}if(role!==requested){await supabaseClient.auth.signOut();throw Error('Role akun adalah '+role.toUpperCase()+'. Pilih role yang sesuai.');}location.reload();}catch(x){err.textContent=x?.message||'Login gagal.';}finally{b.disabled=false;b.textContent='LOGIN';}});
+document.getElementById('auraAuthForm')?.addEventListener('submit',async e=>{e.preventDefault();const b=document.getElementById('auraAuthSubmit'),err=document.getElementById('auraAuthError');b.disabled=true;b.textContent='MEMERIKSA...';err.textContent='';const email=document.getElementById('auraAuthEmail').value.trim().toLowerCase(),password=document.getElementById('auraAuthPassword').value,requested=document.getElementById('auraAuthRole').value;try{const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});if(error)throw error;const role=await auraResolveAccess(data.session);if(!role){await supabaseClient.auth.signOut();throw Error('Akun belum terdaftar. Hubungi admin untuk mengaktifkan akses member.');}if(role!==requested){await supabaseClient.auth.signOut();throw Error('Role akun adalah '+role.toUpperCase()+'. Pilih role yang sesuai.');}sessionStorage.setItem('auraShowMaintenanceAfterLogin','1');location.reload();}catch(x){err.textContent=x?.message||'Login gagal.';}finally{b.disabled=false;b.textContent='LOGIN';}});
 </script>
+<div id="auraMaintenanceNotice" role="dialog" aria-modal="true" aria-labelledby="auraMaintenanceHeading" aria-describedby="auraMaintenanceMessage">
+  <div class="maintenance-card">
+    <div class="maintenance-icon" aria-hidden="true">⛔</div>
+    <div class="maintenance-kicker">AURA SPORT MANAGER</div>
+    <h2 class="maintenance-heading" id="auraMaintenanceHeading">MOHON PERHATIANNYA!</h2>
+    <p class="maintenance-message" id="auraMaintenanceMessage">MOHON JANGAN MELAKUKAN UPDATE APAPUN TERLEBIH DAHULU DI DALAM APPS INI, <strong>AURA MANAGER MASIH DALAM PROSES MAINTENANCE</strong> ⛔</p>
+    <p class="maintenance-contact">Jika ada pertanyaan bisa hubungi:<br><strong>MICHAEL</strong></p>
+    <button type="button" class="maintenance-ack" onclick="auraDismissMaintenanceNotice()">SAYA MENGERTI</button>
+  </div>
+</div>
 </body>
 </html>
