@@ -7166,7 +7166,9 @@ async function generateBestPartnerStoryCard() {
         const access = await auraResolveAccess(authData.session);
         if (!access) { await supabaseClient.auth.signOut(); auraShowLogin('Akun belum terdaftar sebagai member/admin.'); if (splash) splash.remove(); appBooted = false; return; }
         auraApplyRole(access);
-        const shouldShowMaintenanceNotice = sessionStorage.getItem('auraShowMaintenanceAfterLogin') === '1';
+        // Tampilkan notice pada setiap pembukaan aplikasi untuk sesi yang sudah terautentikasi,
+        // termasuk pengguna yang sebelumnya sudah login dan hanya membuka ulang/refresh website.
+        const shouldShowMaintenanceNotice = true;
 
         const startedAt = Date.now();
         try {
