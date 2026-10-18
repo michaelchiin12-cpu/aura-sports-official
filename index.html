@@ -14,7 +14,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
 <!-- Library html2canvas untuk fitur Export Klasemen ke Gambar -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
     <!-- Supabase JS client - untuk penyimpanan data bersama + sinkronisasi realtime antar pengguna -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <style>
@@ -797,6 +798,12 @@
         <div class="card">
             <h2>👑 Data Member</h2>
             <p style="font-size: 0.9rem; margin-bottom: 15px; color: var(--text-muted);">Daftar pemain ini berlaku untuk SEMUA pertandingan (Round Mix, Round Robin, Round Grup) — tidak digabung/khusus ke satu pertandingan saja.</p>
+            <div class="flex-row" style="margin:12px 0 16px;padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(200,159,76,.07);">
+                <button type="button" onclick="downloadMemberTemplate()">📥 Download Template Member (Excel)</button>
+                <label for="memberImportFile" style="padding:8px 12px;margin:5px 0;border-radius:5px;background:var(--primary);color:#000;font-weight:bold;cursor:pointer;">📤 Upload Data Member (Excel/CSV)</label>
+                <input id="memberImportFile" type="file" accept=".xlsx,.xls,.csv" onchange="importMemberFile(event)" style="max-width:100%;flex:1 1 100%;">
+                <small style="color:var(--text-muted);flex-basis:100%;">Kolom: Nama, Gender, Level, Tanggal Join, Tanggal Ulang Tahun. Nama yang sudah ada diperbarui, tidak diduplikasi. Foto dan statistik tetap dipertahankan.</small>
+            </div>
             <form id="playerForm" onsubmit="addPlayer(event)" class="flex-row">
                 <input type="text" id="playerName" placeholder="Nama Pemain" required style="flex:2;">
                 <select id="playerGender" required style="flex:1;">
@@ -3014,6 +3021,61 @@ async function deletePicRole(roleId){
     }
 
     // --- Fitur Pemain ---
+
+    function downloadMemberTemplate() {
+        const rows = [['Nama','Gender','Level','Tanggal Join','Tanggal Ulang Tahun'], ...players.map(p => [p.name||'',p.gender||'L',Number(p.level||1),p.joinDate||'',p.birthDate||''])];
+        if (typeof XLSX !== 'undefined') {
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Data Member');
+            XLSX.writeFile(wb, 'Aura_Manager_Data_Member.xlsx');
+        } else {
+            const csv = rows.map(row => row.map(v => '"' + String(v ?? '').replace(/"/g,'""') + '"').join(',')).join('\r\n');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'}));
+            a.download = 'Aura_Manager_Data_Member.csv'; a.click();
+        }
+    }
+    function importMemberFile(event) {
+        const file = event.target.files && event.target.files[0]; if (!file) return;
+        const norm = v => String(v ?? '').trim().toLowerCase().replace(/[_-]+/g,' ').replace(/\s+/g,' ');
+        const parse = rows => {
+            if (!rows || rows.length < 2) { alert('File tidak berisi data member.'); return; }
+            const h=rows[0].map(norm), col=(...names)=>h.findIndex(x=>names.includes(x));
+            const ni=col('nama','nama pemain','name','member name'), gi=col('gender','jenis kelamin','jk'), li=col('level','tingkat'), ji=col('tanggal join','join date','joindate','join'), bi=col('tanggal ulang tahun','tanggal lahir','birthday','birth date','birthdate');
+            if (ni<0) { alert('Kolom Nama tidak ditemukan. Gunakan template yang disediakan.'); return; }
+            const date = v => {
+                if (v===null || v===undefined || v==='') return '';
+                if (typeof v==='number') return new Date(Date.UTC(1899,11,30)+v*86400000).toISOString().slice(0,10);
+                const x=String(v).trim(); let m=x.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+                if(m) return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+                m=x.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                return m ? m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0') : '';
+            };
+            const level = v => ({'expert':4,'4':4,'advance':3,'advanced':3,'3':3,'intermediate':2,'2':2,'beginner':1,'1':1})[norm(v)] ?? null;
+            let added=0,updated=0,skipped=0;
+            rows.slice(1).forEach(row => {
+                const name=String(row[ni]??'').trim(); if(!name){skipped++;return;}
+                const old=players.find(p=>norm(p.name)===norm(name));
+                const g=gi<0?'':norm(row[gi]), gender=['p','perempuan','female','wanita'].includes(g)?'P':['l','laki-laki','laki laki','male','pria'].includes(g)?'L':'';
+                const lv=li<0?null:level(row[li]), join=ji<0?'':date(row[ji]), birth=bi<0?'':date(row[bi]);
+                if(old){if(gender)old.gender=gender;if(lv!==null)old.level=lv;if(join)old.joinDate=join;if(bi>=0)old.birthDate=birth||null;updated++;}
+                else {players.push({id:Date.now()+'-'+Math.random().toString(36).slice(2,8),name,gender:gender||'L',level:lv??1,joinDate:join||todayISO(),birthDate:birth||null,photo:null,careerStats:{played:0,wins:0,points:0,out:0,fault:0,errors:0},stats:{played:0,wins:0,points:0,out:0,fault:0,errors:0},status:'active',ready:false,deposit:0,lastPartners:[],lastOpponents:[]});added++;}
+            });
+            saveData(); renderPlayers(); alert('Import selesai. Ditambahkan: '+added+', diperbarui: '+updated+', dilewati: '+skipped+'.');
+        };
+        const reader=new FileReader();
+        reader.onload=e=>{try{
+            if(/\.csv$/i.test(file.name)){
+                const text=String(e.target.result||'').replace(/^\uFEFF/,''); const rows=[]; let row=[],cell='',quoted=false;
+                for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(c==='"'&&quoted&&n==='"'){cell+='"';i++;}else if(c==='"')quoted=!quoted;else if(c===','&&!quoted){row.push(cell);cell='';}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&n==='\n')i++;row.push(cell);rows.push(row);row=[];cell='';}else cell+=c;}
+                if(cell.length||row.length){row.push(cell);rows.push(row);} parse(rows);
+            } else if(typeof XLSX!=='undefined'){const wb=XLSX.read(e.target.result,{type:'array'});parse(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:true}));}
+            else alert('Library Excel belum tersedia. Gunakan CSV.');
+        }catch(err){console.error(err);alert('File gagal dibaca. Pastikan format sesuai template.');}finally{event.target.value='';}};
+        if(/\.csv$/i.test(file.name)) reader.readAsText(file,'UTF-8'); else reader.readAsArrayBuffer(file);
+    }
+
     async function addPlayer(e) {
         e.preventDefault();
         const name = document.getElementById('playerName').value.trim();
