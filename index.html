@@ -777,6 +777,13 @@
         <div class="card">
             <h2>👑 Data Member</h2>
             <p style="font-size: 0.9rem; margin-bottom: 15px; color: var(--text-muted);">Daftar pemain ini berlaku untuk SEMUA pertandingan (Round Mix, Round Robin, Round Grup) — tidak digabung/khusus ke satu pertandingan saja.</p>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px;align-items:center;">
+                <button type="button" class="btn-secondary" onclick="downloadMemberTemplate()">⬇ Unduh Template Excel</button>
+                <button type="button" class="btn-secondary" onclick="document.getElementById('memberImportFile').click()">⬆ Import Member</button>
+                <input type="file" id="memberImportFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importMembersFromFile(event)">
+                <span style="font-size:.78rem;color:var(--text-muted);">Baris dengan nama duplikat otomatis dilewati dan dilaporkan.</span>
+            </div>
+            <div id="memberImportResult" role="status" aria-live="polite" style="display:none;margin:0 0 16px;padding:12px 14px;border:1px solid rgba(200,159,76,.3);border-radius:10px;background:rgba(200,159,76,.07);font-size:.86rem;white-space:pre-line;"></div>
             <form id="playerForm" onsubmit="addPlayer(event)" class="flex-row">
                 <input type="text" id="playerName" placeholder="Nama Pemain" required style="flex:2;">
                 <select id="playerGender" required style="flex:1;">
@@ -2991,6 +2998,134 @@ async function deletePicRole(roleId){
             renderEventManager(tabName);
         }
         if (tabName === 'pic') renderPicTab();
+    }
+
+
+    // --- Import member dari template Excel/CSV; nama duplikat selalu dilewati ---
+    function downloadMemberTemplate() {
+        if (!window.XLSX) return alert('Library Excel belum siap. Muat ulang halaman lalu coba lagi.');
+        const rows = [
+            ['Nama', 'Gender', 'Level', 'Tanggal Lahir', 'Tanggal Join']
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{wch:28},{wch:12},{wch:12},{wch:18},{wch:18}];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Member');
+        XLSX.writeFile(wb, 'Template_Import_Member_AURA.xlsx');
+    }
+
+    function normalizeMemberName(value) {
+        return String(value ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
+    }
+
+    function normalizeImportDate(value) {
+        if (value === null || value === undefined || value === '') return null;
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            return [value.getFullYear(), String(value.getMonth()+1).padStart(2,'0'), String(value.getDate()).padStart(2,'0')].join('-');
+        }
+        if (typeof value === 'number' && window.XLSX && XLSX.SSF) {
+            const parsed = XLSX.SSF.parse_date_code(value);
+            if (parsed && parsed.y && parsed.m && parsed.d) return [parsed.y,String(parsed.m).padStart(2,'0'),String(parsed.d).padStart(2,'0')].join('-');
+        }
+        const raw = String(value).trim();
+        if (!raw) return null;
+        if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(raw)) {
+            const [y,m,d] = raw.split('-').map(Number);
+            const dt = new Date(y,m-1,d);
+            if (dt.getFullYear()===y && dt.getMonth()===m-1 && dt.getDate()===d) return [y,String(m).padStart(2,'0'),String(d).padStart(2,'0')].join('-');
+            return null;
+        }
+        const match = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+        if (match) {
+            const d=Number(match[1]),m=Number(match[2]),y=Number(match[3]),dt=new Date(y,m-1,d);
+            if (dt.getFullYear()===y && dt.getMonth()===m-1 && dt.getDate()===d) return [y,String(m).padStart(2,'0'),String(d).padStart(2,'0')].join('-');
+        }
+        return null;
+    }
+
+    async function importMembersFromFile(event) {
+        const input = event.target;
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const resultBox = document.getElementById('memberImportResult');
+        resultBox.style.display = 'block';
+        resultBox.textContent = 'Memeriksa file dan nama member...';
+        try {
+            if (!window.XLSX) throw new Error('Library Excel belum termuat. Periksa koneksi lalu muat ulang halaman.');
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data, {type:'array', cellDates:true});
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet, {defval:'', raw:true});
+            if (!rows.length) throw new Error('File belum berisi data member.');
+            const field = (row, aliases) => {
+                const key = Object.keys(row).find(k => aliases.includes(String(k).trim().toLocaleLowerCase('id-ID')));
+                return key === undefined ? '' : row[key];
+            };
+            const existingNames = new Set(players.map(p => normalizeMemberName(p.name)));
+            const fileNames = new Set();
+            const accepted = [];
+            const duplicates = [];
+            const invalid = [];
+            rows.forEach((row, idx) => {
+                const name = String(field(row,['nama','nama member','nama pemain','name','member name']) ?? '').trim().replace(/\s+/g,' ');
+                if (!name) { invalid.push('Baris ' + (idx+2) + ': nama kosong'); return; }
+                const normalized = normalizeMemberName(name);
+                if (existingNames.has(normalized) || fileNames.has(normalized)) {
+                    duplicates.push(name);
+                    return;
+                }
+                const genderRaw = String(field(row,['gender','jenis kelamin']) || 'L').trim().toUpperCase();
+                const gender = ['L','P'].includes(genderRaw) ? genderRaw : null;
+                const levelRaw = field(row,['level','level member','tingkat']);
+                const levelMap = {'beginner':1,'intermediate':2,'advance':3,'advanced':3,'expert':4};
+                const level = levelRaw === '' ? 2 : (Number.isFinite(Number(levelRaw)) ? Number(levelRaw) : levelMap[String(levelRaw).trim().toLowerCase()]);
+                const birthRaw = field(row,['tanggal lahir','tanggal ulang tahun','ulang tahun','birthdate','birth date']);
+                const joinRaw = field(row,['tanggal join','tanggal bergabung','join date','joindate']);
+                const birthDate = normalizeImportDate(birthRaw);
+                const joinDate = normalizeImportDate(joinRaw);
+                if (!gender || !Number.isInteger(level) || level < 1 || level > 4 ||
+                    (birthRaw !== '' && birthRaw !== null && !birthDate) ||
+                    (joinRaw !== '' && joinRaw !== null && !joinDate)) {
+                    invalid.push('Baris ' + (idx+2) + ' (' + name + '): gender, level, atau format tanggal tidak valid');
+                    return;
+                }
+                fileNames.add(normalized);
+                accepted.push({name,gender,level,birthDate,joinDate:joinDate || todayISO()});
+            });
+            if (!accepted.length) {
+                resultBox.textContent = 'Tidak ada member baru yang diimpor.\nDuplikat dilewati: ' + duplicates.length + (duplicates.length ? '\nNama duplikat: ' + [...new Set(duplicates)].join(', ') : '') + (invalid.length ? '\nData tidak valid: ' + invalid.join('; ') : '');
+                return;
+            }
+            if (!confirm('Siap menambahkan ' + accepted.length + ' member baru.\nNama duplikat akan dilewati: ' + duplicates.length + '\nData tidak valid akan dilewati: ' + invalid.length + '\n\nLanjutkan import?')) return;
+            const originalIds = new Set(players.map(p => String(p.id)));
+            accepted.forEach((p,i) => {
+                players.push({
+                    id: 'import-' + Date.now().toString() + '-' + i + '-' + Math.random().toString(36).slice(2,7),
+                    name:p.name, gender:p.gender, level:p.level,
+                    birthDate:p.birthDate, joinDate:p.joinDate, photo:null,
+                    careerStats:{played:0,wins:0,points:0,out:0,fault:0,errors:0},
+                    status:'active', ready:false, deposit:0,
+                    stats:{played:0,wins:0,points:0,out:0,fault:0}
+                });
+            });
+            const saved = await saveData();
+            if (!saved) {
+                players = players.filter(p => originalIds.has(String(p.id)));
+                resultBox.textContent = 'Penyimpanan gagal. Member import dibatalkan di tampilan. Periksa status sinkronisasi sebelum mencoba kembali.';
+                renderPlayers();
+                return;
+            }
+            renderPlayers();
+            const lines = ['Import selesai.', 'Berhasil ditambahkan: ' + accepted.length, 'Duplikat dilewati: ' + duplicates.length, 'Data tidak valid dilewati: ' + invalid.length];
+            if (duplicates.length) lines.push('Nama duplikat: ' + [...new Set(duplicates)].join(', '));
+            if (invalid.length) lines.push('Periksa: ' + invalid.join('; '));
+            resultBox.textContent = lines.join('\n');
+        } catch (err) {
+            console.error('Import member gagal:', err);
+            resultBox.textContent = 'Import gagal: ' + (err && err.message ? err.message : 'File tidak dapat dibaca.');
+        } finally {
+            input.value = '';
+        }
     }
 
     // --- Fitur Pemain ---
@@ -7193,6 +7328,7 @@ document.addEventListener('click', function(event) {
 });
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 let auraCurrentRole=null;
 function auraShowResetMode(){auraShowLogin('');const p=document.getElementById('auraResetPanel');if(p)p.style.display='block';const f=document.getElementById('auraForgotPassword');if(f)f.style.display='none';const role=document.getElementById('auraAuthRole');if(role)role.closest('label')?.remove();if(role)role.style.display='none';const pw=document.getElementById('auraAuthPassword');if(pw){pw.closest('label')?.remove();pw.style.display='none';}const submit=document.getElementById('auraAuthSubmit');if(submit)submit.style.display='none';const e=document.getElementById('auraAuthError');if(e)e.textContent='Masukkan password baru untuk menyelesaikan reset.';}
