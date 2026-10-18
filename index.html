@@ -3015,7 +3015,7 @@ async function deletePicRole(roleId){
     }
 
     function normalizeMemberName(value) {
-        return String(value ?? '').trim().replace(/\\s+/g, ' ').toLocaleLowerCase('id-ID');
+        return String(value ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
     }
 
     function normalizeImportDate(value) {
@@ -3029,13 +3029,13 @@ async function deletePicRole(roleId){
         }
         const raw = String(value).trim();
         if (!raw) return null;
-        if (/^\\d{4}-\\d{1,2}-\\d{1,2}$/.test(raw)) {
+        if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(raw)) {
             const [y,m,d] = raw.split('-').map(Number);
             const dt = new Date(y,m-1,d);
             if (dt.getFullYear()===y && dt.getMonth()===m-1 && dt.getDate()===d) return [y,String(m).padStart(2,'0'),String(d).padStart(2,'0')].join('-');
             return null;
         }
-        const match = raw.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+        const match = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
         if (match) {
             const d=Number(match[1]),m=Number(match[2]),y=Number(match[3]),dt=new Date(y,m-1,d);
             if (dt.getFullYear()===y && dt.getMonth()===m-1 && dt.getDate()===d) return [y,String(m).padStart(2,'0'),String(d).padStart(2,'0')].join('-');
@@ -3067,7 +3067,7 @@ async function deletePicRole(roleId){
             const duplicates = [];
             const invalid = [];
             rows.forEach((row, idx) => {
-                const name = String(field(row,['nama','nama member','nama pemain','name','member name']) ?? '').trim().replace(/\\s+/g,' ');
+                const name = String(field(row,['nama','nama member','nama pemain','name','member name']) ?? '').trim().replace(/\s+/g,' ');
                 if (!name) { invalid.push('Baris ' + (idx+2) + ': nama kosong'); return; }
                 const normalized = normalizeMemberName(name);
                 if (existingNames.has(normalized) || fileNames.has(normalized)) {
