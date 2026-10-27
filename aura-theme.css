@@ -1,0 +1,163 @@
+/* AURA MANAGER — global theme system */
+:root, html[data-aura-theme="dark"] {
+  --bg-main:#081321;
+  --bg-card:#122338;
+  --primary:#13b8a6;
+  --primary-hover:#2dd4bf;
+  --success:#10b981;
+  --danger:#ef4444;
+  --warning:#f59e0b;
+  --text-main:#f1f5f9;
+  --text-muted:#9aafc3;
+  --border:#294057;
+  --aura-surface-2:#172c43;
+  --aura-input:#0b192a;
+  --aura-shadow:0 12px 32px rgba(0,0,0,.22);
+  color-scheme:dark;
+}
+html, body { background:var(--bg-main) !important; color:var(--text-main); }
+body { transition:background-color .2s ease,color .2s ease; }
+button { transition:background-color .18s ease,color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .18s ease; }
+button:not(.btn-danger):not(.btn-warning):not(.btn-success):not(.mobile-tab-btn):hover { box-shadow:0 5px 16px rgba(19,184,166,.18); }
+input, select, textarea { accent-color:var(--primary); }
+.card, .event-manager > .card, .event-modal-box, .event-modal-content, .modal-content,
+.player-card, .member-card, .event-card, .event-item, .stat-card, .stats-card,
+.finance-card, .court, .team-box, .score-dashboard-shell, .header-menu-dropdown,
+.dropdown-menu, .table-wrapper, .panel, .settings-card, .round-card,
+.rr-card, .match-card, .pic-card, .member-io-bar {
+  border-color:var(--border);
+}
+.card, .event-manager > .card, .player-card, .member-card, .event-card,
+.stat-card, .stats-card, .finance-card, .panel, .settings-card, .round-card,
+.rr-card, .match-card, .pic-card { box-shadow:var(--aura-shadow); }
+.header { border-color:var(--border) !important; }
+.header > h1, .card h2, th { color:var(--primary); }
+.nav-tabs, .main-nav-tabs { border-color:var(--border); }
+.tab-btn.active, .mobile-tab-btn.active { background:var(--primary) !important; color:#04121f !important; }
+.tab-btn:not(.active), .mobile-tab-btn:not(.active) { background:var(--bg-card); color:var(--text-muted); }
+table { color:var(--text-main); }
+th { background:var(--aura-surface-2); }
+td { border-color:var(--border); }
+input, select, textarea { border-color:var(--border); }
+input:focus, select:focus, textarea:focus { outline:2px solid color-mix(in srgb,var(--primary) 42%,transparent); outline-offset:1px; }
+.mobile-bottom-nav { background:color-mix(in srgb,var(--bg-card) 94%,transparent) !important; border-color:color-mix(in srgb,var(--primary) 48%,var(--border)) !important; }
+#auraAuthGate .auth-submit { background:var(--primary); color:#04121f; }
+#auraAuthGate .auth-brand, #auraAuthGate #auraForgotPassword { color:var(--primary); }
+#auraAuthGate input:focus, #auraAuthGate select:focus { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent); }
+#auraThemeToggle { position:absolute; right:43px; top:0; z-index:10; display:inline-flex; align-items:center; justify-content:center; gap:6px; min-width:38px; height:36px; padding:0 10px; margin:0; border:1px solid var(--border); border-radius:10px; background:var(--bg-card); color:var(--text-main); font-size:15px; line-height:1; box-shadow:0 4px 14px rgba(0,0,0,.16); }
+#auraThemeToggle:hover { border-color:var(--primary); transform:translateY(-1px); }
+#auraThemeToggle .theme-toggle-label { font-size:11px; font-weight:700; }
+@media(max-width:600px) { #auraThemeToggle { right:39px; top:0; min-width:34px; height:32px; padding:0 7px; border-radius:9px; } }
+
+/* LIGHT THEME */
+html[data-aura-theme="light"] {
+  --bg-main:#f1f5f9;
+  --bg-card:#ffffff;
+  --primary:#0d9488;
+  --primary-hover:#0f766e;
+  --success:#059669;
+  --danger:#dc2626;
+  --warning:#d97706;
+  --text-main:#172b40;
+  --text-muted:#60758b;
+  --border:#d5e0ea;
+  --aura-surface-2:#e8eff6;
+  --aura-input:#ffffff;
+  --aura-shadow:0 8px 24px rgba(20,45,70,.08);
+  color-scheme:light;
+}
+html[data-aura-theme="light"], html[data-aura-theme="light"] body { background:var(--bg-main) !important; color:var(--text-main) !important; }
+html[data-aura-theme="light"] body { color-scheme:light; }
+html[data-aura-theme="light"] .card,
+html[data-aura-theme="light"] .event-manager > .card,
+html[data-aura-theme="light"] .player-card,
+html[data-aura-theme="light"] .member-card,
+html[data-aura-theme="light"] .event-card,
+html[data-aura-theme="light"] .stat-card,
+html[data-aura-theme="light"] .stats-card,
+html[data-aura-theme="light"] .finance-card,
+html[data-aura-theme="light"] .panel,
+html[data-aura-theme="light"] .settings-card,
+html[data-aura-theme="light"] .round-card,
+html[data-aura-theme="light"] .rr-card,
+html[data-aura-theme="light"] .match-card,
+html[data-aura-theme="light"] .pic-card,
+html[data-aura-theme="light"] .event-modal-box,
+html[data-aura-theme="light"] .modal-content,
+html[data-aura-theme="light"] .score-dashboard-shell {
+  background:var(--bg-card) !important; color:var(--text-main) !important; border-color:var(--border) !important; box-shadow:var(--aura-shadow);
+}
+html[data-aura-theme="light"] .team-box,
+html[data-aura-theme="light"] .header-menu-dropdown,
+html[data-aura-theme="light"] .dropdown-menu,
+html[data-aura-theme="light"] .mobile-bottom-nav,
+html[data-aura-theme="light"] .table-wrapper {
+  background:var(--aura-surface-2) !important; color:var(--text-main) !important; border-color:var(--border) !important;
+}
+html[data-aura-theme="light"] h1,
+html[data-aura-theme="light"] h2,
+html[data-aura-theme="light"] h3,
+html[data-aura-theme="light"] h4,
+html[data-aura-theme="light"] p,
+html[data-aura-theme="light"] label,
+html[data-aura-theme="light"] td,
+html[data-aura-theme="light"] th,
+html[data-aura-theme="light"] li,
+html[data-aura-theme="light"] .tab-content,
+html[data-aura-theme="light"] .card,
+html[data-aura-theme="light"] .event-modal-box { color:var(--text-main); }
+html[data-aura-theme="light"] .text-muted,
+html[data-aura-theme="light"] small,
+html[data-aura-theme="light"] .subtitle { color:var(--text-muted) !important; }
+html[data-aura-theme="light"] input,
+html[data-aura-theme="light"] select,
+html[data-aura-theme="light"] textarea {
+  background:var(--aura-input) !important; color:var(--text-main) !important; border-color:var(--border) !important;
+}
+html[data-aura-theme="light"] input::placeholder,
+html[data-aura-theme="light"] textarea::placeholder { color:#8798a9 !important; }
+html[data-aura-theme="light"] table,
+html[data-aura-theme="light"] th,
+html[data-aura-theme="light"] td { border-color:var(--border) !important; }
+html[data-aura-theme="light"] th { background:var(--aura-surface-2) !important; color:var(--primary) !important; }
+html[data-aura-theme="light"] .tab-btn:not(.active),
+html[data-aura-theme="light"] .mobile-tab-btn:not(.active) { background:var(--bg-card) !important; color:var(--text-muted) !important; border-color:var(--border) !important; }
+html[data-aura-theme="light"] .tab-btn.active,
+html[data-aura-theme="light"] .mobile-tab-btn.active { background:var(--primary) !important; color:#fff !important; }
+html[data-aura-theme="light"] #auraAuthGate { background:radial-gradient(ellipse 70% 50% at 20% 10%,rgba(13,148,136,.12),transparent 60%),linear-gradient(160deg,#edf5fa 0%,#e4eef5 55%,#f8fbfd 100%) !important; }
+html[data-aura-theme="light"] #auraAuthGate .auth-card { background:linear-gradient(145deg,#0d9488,#cde7e6 40%,#ffffff 60%,#60a5fa) !important; }
+html[data-aura-theme="light"] #auraAuthGate .auth-card-inner { background:rgba(255,255,255,.94) !important; }
+html[data-aura-theme="light"] #auraAuthGate .auth-brand,
+html[data-aura-theme="light"] #auraAuthGate h2,
+html[data-aura-theme="light"] #auraAuthGate label { color:#17334b !important; }
+html[data-aura-theme="light"] #auraAuthGate p,
+html[data-aura-theme="light"] #auraAuthGate .auth-note { color:#60758b !important; }
+html[data-aura-theme="light"] #auraAuthGate input,
+html[data-aura-theme="light"] #auraAuthGate select { background:#f8fbfd !important; color:#17334b !important; border-color:#c9d8e5 !important; }
+html[data-aura-theme="light"] #auraAuthGate .auth-submit { background:linear-gradient(180deg,#2dd4bf,#0d9488) !important; color:#052b2b !important; }
+html[data-aura-theme="light"] #auraAccountBar { color:var(--text-main) !important; }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; } }
+
+/* Re-theme legacy inline dark surfaces in light mode while preserving semantic alert colors. */
+html[data-aura-theme="light"] [style*="background:#000"],
+html[data-aura-theme="light"] [style*="background: #000"],
+html[data-aura-theme="light"] [style*="background:#080808"],
+html[data-aura-theme="light"] [style*="background: #080808"],
+html[data-aura-theme="light"] [style*="background:#111"],
+html[data-aura-theme="light"] [style*="background: #111"],
+html[data-aura-theme="light"] [style*="background:#121212"],
+html[data-aura-theme="light"] [style*="background: #121212"],
+html[data-aura-theme="light"] [style*="background:#151515"],
+html[data-aura-theme="light"] [style*="background: #151515"],
+html[data-aura-theme="light"] [style*="background:#181818"],
+html[data-aura-theme="light"] [style*="background: #181818"],
+html[data-aura-theme="light"] [style*="background:#1a1a1a"],
+html[data-aura-theme="light"] [style*="background: #1a1a1a"],
+html[data-aura-theme="light"] [style*="background:#222"],
+html[data-aura-theme="light"] [style*="background: #222"],
+html[data-aura-theme="light"] [style*="background:#222222"],
+html[data-aura-theme="light"] [style*="background: #222222"] {
+  background:var(--aura-surface-2) !important;
+  color:var(--text-main);
+  border-color:var(--border) !important;
+}
