@@ -2406,10 +2406,16 @@ async function deletePicRole(roleId){
             return false;
         }
         markSyncSaving();
-        const MAX_ATTEMPT=4;
+        const MAX_ATTEMPT=10;
+        let lastSaveError=null;
         for(let attempt=0;attempt<MAX_ATTEMPT;attempt++){
             const {data:fresh,error}=await supabaseClient.from('sport_manager_state').select('id,updated_at,players,finance_transactions,finance_settings,rr_settings,active_matches,rr_matches,rr_teams,rr_phase,rr_bracket').eq('id',STATE_ROW_ID).single();
-            if(error||!fresh){await _sleep(150+attempt*100);continue;}
+            if(error||!fresh){
+                lastSaveError=error||new Error('Data server kosong');
+                console.error('Round Mix: gagal membaca state terbaru sebelum simpan',lastSaveError);
+                await _sleep(Math.min(1200,180*(attempt+1))+Math.random()*120);
+                continue;
+            }
             const settings=cloneJSON(fresh.rr_settings||{});
             const reg=getEventRegistryFromSettings(settings);
             const targetId=eventRegistry?.activeEventId;
@@ -2446,15 +2452,24 @@ async function deletePicRole(roleId){
             let q=supabaseClient.from('sport_manager_state').update(patch).eq('id',STATE_ROW_ID);
             q=(fresh.updated_at==null)?q.is('updated_at',null):q.eq('updated_at',fresh.updated_at);
             const {data:updData,error:updErr}=await q.select('id');
+            if(updErr){
+                lastSaveError=updErr;
+                console.error('Round Mix: database menolak update state',updErr);
+            }
             if(!updErr&&updData?.length){
                 players=cloneJSON(view.players);matchesHistory=cloneJSON(view.matchesHistory);activeMatches=cloneJSON(view.activeMatches);financeTransactions=cloneJSON(view.financeTransactions);financeSettings=cloneJSON(view.financeSettings);rrTeams=cloneJSON(view.rrTeams);rrMatches=cloneJSON(view.rrMatches);rrSettings=cloneJSON(view.rrSettings);rrPhase=view.rrPhase;rrBracket=cloneJSON(view.rrBracket);eventRegistry=reg;eventRegistry.activeEventId=ev.id;
                 lastSyncedRow={...fresh,...patch};
                 markSyncSuccess();
                 return true;
             }
-            await _sleep(120+attempt*100);
+            // Jika update tidak mengembalikan baris, timestamp berubah di antara
+            // SELECT dan UPDATE (konflik perangkat lain). Baca ulang dan hitung ulang.
+            await _sleep(Math.min(1400,160*(attempt+1))+Math.random()*180);
         }
-        markSyncError('Perubahan belum tersimpan setelah beberapa kali percobaan. Periksa koneksi lalu ulangi aksi.');
+        console.error('Round Mix: gagal menyimpan setelah retry. Error terakhir:',lastSaveError);
+        markSyncError(lastSaveError
+            ? 'Gagal menyimpan ke database: ' + (lastSaveError.message || 'kesalahan tidak diketahui') + '. Coba lagi setelah koneksi stabil.'
+            : 'Data berubah bersamaan dari perangkat lain sehingga belum tersimpan. Coba ulangi sekali.');
         return false;
     }
 
