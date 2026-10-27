@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AURA MANAGER⚙️</title>
     <link rel="icon" type="image/png" href="logo-favicon.png">
-    <link rel="stylesheet" href="mobile-responsive.css">
+    <link rel="stylesheet" href="mobile-responsive.css?v=aura-mobile-redesign-v2-20261014">
     <script src="mobile-responsive.js" defer></script>
   
 <!-- Font Montserrat untuk Story MVP dan Best Partner -->
@@ -35,7 +35,18 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--bg-main); color: var(--text-main); padding: 20px; }
-        .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+        .header { position:relative; text-align:center; margin-bottom:20px; padding:8px 70px 10px; border-bottom:2px solid var(--border); }
+        .header > img { width:96px !important; margin-bottom:6px !important; }
+        .header > h1 { font-size:clamp(1.05rem,3vw,1.65rem); line-height:1.2; }
+        .header-menu-wrap { position:absolute; top:12px; right:8px; }
+        #auraAccountBar { position:absolute; top:12px; left:8px; right:auto; z-index:5; border:0 !important; background:transparent !important; padding:2px 0 !important; box-shadow:none !important; }
+        @media(max-width:600px) {
+            .header { padding:8px 52px 10px; }
+            .header > img { width:72px !important; margin-bottom:5px !important; }
+            .header > h1 { font-size:1.05rem; }
+            .header-menu-wrap { top:8px; right:4px; }
+            #auraAccountBar { top:8px; left:4px; right:auto; padding:2px 0 !important; font-size:8px; border:0 !important; background:transparent !important; box-shadow:none !important; }
+        }
         .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
         
@@ -135,12 +146,68 @@
         .rotation-stat { background:var(--bg-main); border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center; }
         .rotation-stat .v { display:block; color:var(--primary); font-size:1.15rem; font-weight:900; }
         .rotation-stat .l { display:block; color:var(--text-muted); font-size:.72rem; margin-top:3px; }
-        .attendance-panel { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:20px; }
-        .attendance-header { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
-        .attendance-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:7px; max-height:260px; overflow:auto; }
-        .attendance-player { display:flex; align-items:center; gap:8px; background:var(--bg-main); border:1px solid var(--border); border-radius:8px; padding:8px; cursor:pointer; }
-        .attendance-player.present { border-color:var(--success); background:rgba(16,185,129,.08); }
-        .attendance-player .attendance-name { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:700; }
+        .attendance-panel { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:18px; min-width:0; }
+        .event-participant-toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+        .event-participant-toolbar h2 { font-size:1.05rem; line-height:1.3; }
+        .event-participant-toolbar button { margin:0; padding:9px 12px; border-radius:9px; font-size:.82rem; white-space:nowrap; }
+        .event-participant-table-wrap { width:100%; overflow-x:auto; border:1px solid var(--border); border-radius:10px; }
+        .event-participant-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.84rem; }
+        .event-participant-table th,.event-participant-table td { padding:9px 10px; text-align:left; vertical-align:middle; white-space:nowrap; }
+        .event-participant-table th { font-size:.72rem; text-transform:uppercase; letter-spacing:.035em; color:var(--text-muted); background:rgba(255,255,255,.025); }
+        .event-participant-table td button { margin:0; padding:6px 8px !important; border-radius:7px; font-size:.72rem; }
+        .event-participant-avatar { display:inline-flex; vertical-align:middle; margin-right:7px; }
+        .event-participant-avatar .avatar-img,.event-participant-avatar .avatar-placeholder { width:27px; height:27px; min-width:27px; font-size:.72rem; }
+        .event-participant-toolbar > div { min-width:0; }
+        .event-participant-toolbar-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .event-collapse-btn { display:inline-flex; align-items:center; justify-content:center; flex:0 0 28px; width:28px; height:28px; min-width:28px; padding:0; margin:0; border-radius:7px; border:1px solid var(--border); background:var(--bg-main); color:var(--text-muted); font-size:1rem; line-height:1; font-weight:700; }
+        .event-collapse-btn:hover { color:var(--primary); border-color:var(--primary); }
+/* Keep collapse controls compact on mobile; prevent labels/template text from wrapping into the card. */
+.event-participant-toolbar-actions { flex:0 0 auto; min-width:0; }
+.event-participant-toolbar-actions .event-collapse-btn {
+    position:static; flex:0 0 28px !important; width:28px !important; min-width:28px !important;
+    max-width:28px; height:28px !important; min-height:28px; padding:0 !important;
+    white-space:nowrap; overflow:hidden; word-break:normal; overflow-wrap:normal;
+}
+.rotation-queue-heading { display:flex; align-items:center; justify-content:center; position:relative; min-width:0; padding-right:42px; }
+.rotation-queue-heading .event-collapse-btn {
+    position:absolute; right:0; top:50%; transform:translateY(-50%);
+    display:inline-flex; flex:0 0 30px !important; width:30px !important; min-width:30px !important;
+    max-width:30px; height:30px !important; min-height:30px; padding:0 !important;
+    white-space:nowrap; overflow:hidden; word-break:normal; overflow-wrap:normal;
+}
+.rotation-queue-heading .event-collapse-btn * { display:none !important; }
+        .event-participant-toolbar-actions .event-collapse-btn { width:28px !important; min-width:28px; height:28px; }
+        .rotation-queue-heading { padding-right:34px; }
+        .rotation-queue-heading .event-collapse-btn { right:0; top:50%; transform:translateY(-50%); }
+        .event-participant-content[hidden], .rotation-queue-content[hidden] { display:none !important; }
+        .event-participant-content { margin-top:4px; }
+        /* Rotasi & waiting list: judul dan kolom dirapikan, alignment konsisten */
+        .rotation-queue-heading { display:flex; align-items:center; justify-content:center; position:relative; gap:10px; margin-bottom:14px; }
+        .rotation-queue-heading h2 { text-align:center; margin:0; }
+        .rotation-queue-heading .event-collapse-btn { position:absolute; right:0; }
+        .rotation-queue-card > h2 { text-align:center; margin-bottom:14px; }
+        .rotation-queue-description { color:var(--text-muted); font-size:.84rem; line-height:1.45; text-align:center; margin:0 auto 12px; max-width:680px; }
+        .rotation-queue-table-wrap { width:100%; overflow-x:auto; }
+        .rotation-queue-table { width:100%; table-layout:auto; }
+        .rotation-queue-table thead th { text-align:center; vertical-align:middle; padding:8px 5px; }
+        .rotation-queue-table thead th:nth-child(2) { text-align:left; }
+        .rotation-queue-table tbody td:first-child,
+        .rotation-queue-table tbody td:nth-child(3),
+        .rotation-queue-table tbody td:nth-child(4) { text-align:center; }
+        .rotation-queue-table tbody td:nth-child(2) { text-align:left; }
+        /* Tabel rotasi dibuat ringkas agar tidak menyisakan banyak ruang kosong */
+        #queueList { font-size:.82rem; }
+        #queueList tr { height:auto; }
+        #queueList td { padding:6px 8px; line-height:1.25; }
+        #queueList td:first-child { width:34px; color:var(--text-muted); }
+        #queueList td:nth-child(2) { min-width:0; white-space:nowrap; font-size:.8rem; padding-left:6px; padding-right:6px; }
+        #queueList td:nth-child(2) .rotation-priority { font-size:.62rem; }
+        #queueList td:nth-child(2) { width:1%; }
+        #queueList td:nth-child(3) { width:58px; padding-left:5px; padding-right:5px; }
+        #queueList td:nth-child(4) { width:66px; padding-left:4px; padding-right:4px; white-space:nowrap; }
+        #queueList td:nth-child(4) .rotation-priority { margin-left:2px; }
+        #queueList .rotation-priority { display:inline-block; margin-left:4px; font-size:.65rem; padding:2px 6px; }
+        #queueList td[colspan] { padding:10px 8px; }
         .rotation-priority { font-size:.7rem; padding:2px 7px; border-radius:10px; background:rgba(200,159,76,.12); color:var(--primary); }
         .rotation-priority.high { background:rgba(16,185,129,.12); color:#6ee7b7; }
         .rotation-priority.busy { background:rgba(245,158,11,.12); color:#fcd34d; }
@@ -148,8 +215,23 @@
         .manual-generate-btn { background:var(--bg-main); color:var(--primary); border:1px solid var(--primary); }
         .history-round { color:var(--primary); font-weight:800; font-size:.75rem; }
         @media (max-width:640px) {
-            .rotation-summary { grid-template-columns:repeat(2,1fr); }
-            .attendance-list { grid-template-columns:1fr 1fr; }
+            .rotation-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            #queueList { font-size:.76rem; }
+            #queueList td { padding:5px 4px; }
+            #queueList td:nth-child(2) { font-size:.74rem; padding-left:4px; padding-right:4px; }
+            #queueList td:nth-child(3) { width:50px; padding-left:4px; padding-right:4px; }
+            #queueList td:nth-child(4) { width:58px; padding-left:3px; padding-right:3px; white-space:nowrap; }
+            #queueList td:nth-child(4) .rotation-priority { display:block; width:max-content; max-width:100%; margin:3px auto 0; }
+            #queueList .rotation-priority { margin-left:2px; font-size:.61rem; padding:2px 5px; }
+            .attendance-panel { padding:10px; margin-bottom:14px; border-radius:10px; }
+            .event-participant-toolbar { align-items:stretch; flex-direction:column; gap:9px; }
+            .event-participant-toolbar h2 { font-size:1rem; margin-bottom:3px !important; }
+            .event-participant-toolbar button { width:100%; font-size:.78rem; padding:9px 10px; }
+            .event-participant-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+            .event-participant-table { min-width:650px; font-size:.76rem; }
+            .event-participant-table th,.event-participant-table td { padding:7px 8px; }
+            .event-participant-table td button { font-size:.68rem; padding:6px 7px !important; }
+            .event-participant-avatar .avatar-img,.event-participant-avatar .avatar-placeholder { width:24px; height:24px; min-width:24px; }
         }
 
         /* ================= EVENT / HISTORY MANAGER ================= */
@@ -169,16 +251,19 @@
         .event-status.finished { background:rgba(16,185,129,.15); color:#6ee7b7; }
         .event-status.draft { background:rgba(156,163,175,.15); color:var(--text-muted); }
         .event-empty { text-align:center; padding:45px 20px; color:var(--text-muted); }
-        .event-back { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:15px; }
-        .event-back-title { font-size:1.1rem; color:var(--primary); font-weight:700; }
-        .event-mode-pill { color:var(--text-muted); font-size:.8rem; }
+        .event-back { display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:16px; padding:14px 16px; background:linear-gradient(135deg,rgba(255,255,255,.035),rgba(255,255,255,.012)); border:1px solid var(--border); border-radius:14px; }
+        .event-back > div:first-child { min-width:0; }
+        .event-back-title { font-size:1.05rem; line-height:1.35; color:var(--primary); font-weight:750; overflow-wrap:anywhere; }
+        .event-mode-pill { display:inline-flex; align-items:center; gap:5px; margin-top:5px; color:var(--text-muted); font-size:.76rem; }
+        .event-back > .flex-row { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; flex-shrink:0; }
+        .event-back > .flex-row button { margin:0; min-height:38px; padding:9px 12px; border-radius:9px; font-size:.82rem; font-weight:650; white-space:nowrap; }
         .event-modal { position:fixed; inset:0; z-index:12000; background:rgba(0,0,0,.78); display:flex; align-items:center; justify-content:center; padding:20px; }
         .event-modal-box { width:100%; max-width:460px; background:var(--bg-card); border:1px solid var(--primary); border-radius:12px; padding:20px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
         .event-modal-box h3 { color:var(--primary); margin-bottom:15px; }
         .event-modal-box label { display:block; font-size:.8rem; color:var(--text-muted); margin:10px 0 4px; }
         .event-modal-box input, .event-modal-box select { width:100%; margin:0; }
         .event-modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
-        @media (max-width: 700px) { .event-toolbar { grid-template-columns:1fr 1fr; } .event-toolbar .event-add-btn { grid-column:1/-1; width:100%; } }
+        @media (max-width: 700px) { .event-toolbar { grid-template-columns:1fr 1fr; } .event-toolbar .event-add-btn { grid-column:1/-1; width:100%; } .event-back { align-items:stretch; flex-direction:column; gap:12px; padding:12px; } .event-back-title { font-size:1rem; } .event-back > .flex-row { display:grid; grid-template-columns:1fr 1fr; width:100%; gap:8px; } .event-back > .flex-row button { width:100%; min-width:0; padding:9px 8px; font-size:.76rem; white-space:normal; line-height:1.25; } }
 
         /* ================= TAMPILAN MOBILE (Android/iOS) ================= */
         @media (max-width: 640px) {
@@ -542,9 +627,78 @@
         .pic-toolbar{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin-top:16px}.pic-summary{min-width:130px;background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column}.pic-summary strong{font-size:1.15rem;color:var(--primary)}.pic-summary span{font-size:.75rem;color:var(--text-muted)}.pic-add-btn{margin-left:auto;padding:10px 14px;border:1px solid var(--primary);border-radius:9px;background:var(--primary);color:#111;font-weight:800;cursor:pointer}.pic-card-actions{display:grid;grid-template-columns:1fr auto auto;gap:6px}.pic-edit-btn,.pic-delete-btn{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);font-weight:700;cursor:pointer}.pic-delete-btn{color:#ff6b6b}.pic-editor-modal label{display:block;font-size:.78rem;color:var(--text-muted);margin:9px 0 5px}.pic-editor-modal input,.pic-editor-modal textarea,.pic-editor-modal select{width:100%;margin:0}.pic-editor-modal textarea{resize:vertical}
 .pic-card{background:var(--bg-main);border:1px solid var(--border);border-radius:12px;padding:16px}.pic-card-head{display:flex;align-items:center;gap:12px}.pic-icon{width:42px;height:42px;border-radius:10px;background:rgba(200,159,76,.1);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0}.pic-role{font-weight:800;color:var(--primary);font-size:.95rem}.pic-person{font-weight:700;margin-top:3px}.pic-desc{color:var(--text-muted);font-size:.82rem;line-height:1.5;margin:12px 0}.pic-assign-btn{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);font-weight:700;cursor:pointer}.pic-assign-btn:hover{border-color:var(--primary);color:var(--primary)}.pic-note{margin-top:16px;padding:12px;border:1px dashed var(--border);border-radius:10px;color:var(--text-muted);font-size:.82rem;line-height:1.5}@media(max-width:600px){.pic-grid{grid-template-columns:1fr}}
 .pic-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:10001;padding:18px}.pic-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:100%;max-width:430px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.55)}.pic-modal h3{margin:0 0 6px;color:var(--primary)}.pic-modal p{font-size:.82rem;color:var(--text-muted);margin:0 0 14px}.pic-modal select{width:100%;margin:0 0 14px}.pic-modal-actions{display:flex;gap:8px}.pic-modal-actions button{flex:1}
+
+/* AURA AUTH GATE */
+#auraAuthGate{position:fixed;inset:0;z-index:1000000;display:none;align-items:center;justify-content:center;padding:22px;background:radial-gradient(ellipse at top,rgba(200,159,76,.13),transparent 55%),#050505}#auraAuthGate .auth-card{width:100%;max-width:430px;padding:28px;border:1px solid rgba(200,159,76,.38);border-radius:20px;background:#111;box-shadow:0 25px 90px #000b}#auraAuthGate .auth-brand{color:#c89f4c;font-size:12px;font-weight:900;letter-spacing:3px}#auraAuthGate h2{color:#fff;font-size:27px;margin:10px 0 7px}#auraAuthGate p{color:#aaa;font-size:13px;line-height:1.6}#auraAuthGate label{display:block;color:#ddd;font-size:12px;margin:15px 0 6px}#auraAuthGate input,#auraAuthGate select{width:100%;padding:13px;border:1px solid #393939;border-radius:9px;background:#080808;color:#fff}#auraAuthGate .auth-submit{width:100%;padding:13px;margin-top:18px;border-radius:9px;background:#c89f4c;color:#000;font-weight:900}#auraAuthGate .auth-error{color:#ff8585;font-size:12px;margin-top:12px;min-height:18px}#auraAuthGate .auth-note{font-size:11px;color:#777;margin-top:16px}body.aura-member #tab-finance,body.aura-member [data-admin-only="true"],body.aura-member .admin-only,body.aura-member .aura-write-control{display:none!important}#auraAccountBar{position:absolute;z-index:99990;top:12px;left:8px;right:auto;display:none;align-items:center;padding:2px 0;background:transparent;border:0;border-radius:0;font-size:9px;line-height:1.2;color:#eee;white-space:nowrap;pointer-events:none;box-shadow:none}@media(max-width:600px){#auraAuthGate .auth-card{padding:22px}#auraAccountBar{top:8px;left:4px;right:auto;padding:2px 0;font-size:8px}}
+/* Modern, responsive event history cards */
+.event-manager { max-width:1100px; margin:0 auto; }
+.event-manager > .card { padding:clamp(16px,3vw,28px); border-radius:24px; background:linear-gradient(145deg,rgba(21,23,29,.98),rgba(9,11,15,.98)); border:1px solid rgba(212,169,75,.16); box-shadow:0 16px 42px rgba(0,0,0,.2); }
+.event-toolbar { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; margin:24px 0 20px; }
+.event-toolbar input,.event-toolbar select { width:100%; min-width:0; min-height:52px; margin:0; border-radius:15px; padding:13px 16px; background:#080a0d; border:1px solid #343945; color:var(--text); }
+.event-toolbar .event-add-btn { min-height:54px; border:1px solid #f4ca65; border-radius:15px; background:linear-gradient(135deg,#f8d16c,#c99a3e); color:#17120a; font-weight:850; box-shadow:0 5px 0 rgba(0,0,0,.16); }
+.event-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:16px; }
+.event-card-modern { position:relative; min-width:0; padding:20px; overflow:hidden; border-radius:22px; border:1px solid #2d333f; background:linear-gradient(145deg,rgba(18,22,29,.98),rgba(8,10,14,.98)); box-shadow:0 10px 28px rgba(0,0,0,.18); }
+.event-card-modern:before { content:""; position:absolute; inset:0 auto 0 0; width:3px; background:linear-gradient(180deg,#f2c75e,rgba(242,199,94,0)); opacity:.9; }
+.event-card-modern:hover { border-color:rgba(230,185,83,.55); transform:translateY(-2px); }
+.event-card-top { display:grid; grid-template-columns:58px minmax(0,1fr); gap:14px; align-items:start; }
+.event-card-mark { display:grid; place-items:center; width:58px; height:58px; border-radius:17px; border:1px solid rgba(230,185,83,.7); background:linear-gradient(145deg,rgba(230,185,83,.17),rgba(12,13,17,.8)); font-size:27px; }
+.event-card-heading { min-width:0; }
+.event-card-title { margin:2px 0 9px; color:#f5f5f6; font-size:clamp(1rem,2.4vw,1.2rem); line-height:1.35; font-weight:850; overflow-wrap:anywhere; }
+.event-card-meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; color:var(--text-muted); font-size:.82rem; line-height:1.5; margin:0; }
+.event-meta-separator { color:#cda84f; }
+.event-status { display:inline-flex; align-items:center; gap:7px; padding:6px 11px; border:1px solid transparent; border-radius:999px; font-size:.76rem; line-height:1.2; white-space:nowrap; }
+.event-status i { display:block; width:7px; height:7px; border-radius:50%; background:currentColor; }
+.event-status.ongoing { color:#f6c85e; background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.18); }
+.event-status.finished { color:#54e1a8; background:rgba(16,185,129,.12); border-color:rgba(16,185,129,.18); }
+.event-status.draft { color:#b7c0d0; background:rgba(156,163,175,.1); border-color:rgba(156,163,175,.16); }
+.event-card-summary { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; color:#b2bac8; font-size:.82rem; }
+.event-card-summary span { display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border-radius:10px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.055); }
+.event-card-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; padding-top:14px; border-top:1px solid rgba(255,255,255,.07); }
+.event-card-actions .event-action { min-width:0; min-height:43px; padding:10px 12px; border-radius:12px; border:1px solid #3b4250; background:linear-gradient(180deg,#202530,#151922); color:#e7eaf0; font-weight:750; font-size:.86rem; line-height:1.25; white-space:normal; overflow-wrap:anywhere; }
+.event-card-actions .event-action-detail { border-color:rgba(212,169,75,.25); }
+.event-card-actions .event-action-primary { background:linear-gradient(135deg,#f5cd68,#d7a73f); color:#16120a; border-color:#f5cd68; }
+.event-card-actions .event-action-delete { color:#ff9696; border-color:rgba(239,68,68,.28); background:rgba(127,29,29,.16); }
+@media(min-width:650px) { .event-toolbar { grid-template-columns:minmax(0,1fr) 180px 170px; } .event-toolbar .event-add-btn { grid-column:1/-1; } .event-card-actions { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media(max-width:420px) { .event-manager > .card { padding:14px; border-radius:20px; } .event-card-modern { padding:16px; } .event-card-top { grid-template-columns:48px minmax(0,1fr); gap:11px; } .event-card-mark { width:48px; height:48px; border-radius:14px; font-size:23px; } .event-card-actions .event-action { padding:9px 7px; font-size:.8rem; } }
+
+/* Compact event cards: reduce vertical space, especially on phones */
+.event-manager > .card { padding:clamp(12px,2vw,20px); border-radius:20px; }
+.event-toolbar { gap:9px; margin:16px 0 14px; }
+.event-toolbar input,.event-toolbar select { min-height:44px; padding:10px 13px; border-radius:12px; font-size:.92rem; }
+.event-toolbar .event-add-btn { min-height:46px; border-radius:12px; font-size:.94rem; }
+.event-grid { gap:11px; }
+.event-card-modern { padding:14px 15px; border-radius:17px; }
+.event-card-top { grid-template-columns:42px minmax(0,1fr); gap:10px; }
+.event-card-mark { width:42px; height:42px; border-radius:12px; font-size:20px; }
+.event-card-title { margin:1px 0 5px; font-size:1rem; line-height:1.25; }
+.event-card-meta { gap:4px; font-size:.75rem; line-height:1.35; }
+.event-status { grid-column:2; justify-self:start; margin-top:7px; padding:4px 8px; font-size:.69rem; }
+.event-status i { width:6px; height:6px; }
+.event-card-summary { gap:6px; margin:11px 0; font-size:.73rem; }
+.event-card-summary span { padding:5px 7px; border-radius:8px; }
+.event-card-actions { gap:7px; padding-top:10px; }
+.event-card-actions .event-action { min-height:36px; padding:7px 9px; border-radius:10px; font-size:.78rem; }
+@media(min-width:650px) { .event-card-top { grid-template-columns:46px minmax(0,1fr); gap:11px; } .event-card-mark { width:46px; height:46px; font-size:22px; } }
+@media(max-width:420px) {
+  .event-manager > .card { padding:11px; border-radius:17px; }
+  .event-card-modern { padding:12px; border-radius:15px; }
+  .event-card-top { grid-template-columns:36px minmax(0,1fr); gap:9px; }
+  .event-card-mark { width:36px; height:36px; border-radius:10px; font-size:18px; }
+  .event-card-title { font-size:.94rem; }
+  .event-card-meta { font-size:.7rem; }
+  .event-card-summary { margin:9px 0; gap:5px; }
+  .event-card-actions { gap:6px; padding-top:9px; }
+  .event-card-actions .event-action { min-height:34px; padding:7px 5px; font-size:.74rem; }
+}
 </style>
+
+
+
 </head>
 <body>
+
+
+<div id="auraAuthGate" role="dialog" aria-modal="true"><div class="auth-card"><div class="auth-brand">AURA SPORT MANAGER</div><h2>Selamat datang</h2><p>Login untuk melanjutkan. Admin memiliki akses penuh; member hanya dapat melihat informasi komunitas.</p><form id="auraAuthForm"><label for="auraAuthRole">Masuk sebagai</label><select id="auraAuthRole"><option value="member">Member</option><option value="admin">Admin</option></select><label for="auraAuthEmail">Email</label><input id="auraAuthEmail" type="email" autocomplete="username" required placeholder="nama@email.com"><label for="auraAuthPassword">Password</label><input id="auraAuthPassword" type="password" autocomplete="current-password" required placeholder="Password akun"><button class="auth-submit" id="auraAuthSubmit" type="submit">LOGIN</button><div class="auth-error" id="auraAuthError" role="alert"></div><button type="button" id="auraForgotPassword" class="auth-submit" style="margin-top:8px;background:transparent;border:1px solid #c89f4c;color:#c89f4c" onclick="auraSendPasswordReset()">LUPA PASSWORD</button><div id="auraResetPanel" style="display:none;margin-top:14px"><label for="auraNewPassword">Password baru</label><input id="auraNewPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Minimal 8 karakter"><button type="button" class="auth-submit" onclick="auraUpdatePassword()">SIMPAN PASSWORD BARU</button></div></form><div class="auth-note">Akun member harus diaktifkan oleh pengelola. Pilihan role tidak memberi hak akses dengan sendirinya.</div></div></div><div id="auraAccountBar"><span id="auraAccountLabel"></span></div>
 
     <div id="syncStatusToast" role="status" aria-live="polite"></div>
 
@@ -584,6 +738,7 @@
                 <button onclick="document.getElementById('importFile').click();">📥 Import Backup</button>
                 <button onclick="clearMatchDataOnly(); closeHeaderMenu();" class="btn-warning">🗑️ Reset Pertandingan Saja</button>
                 <button onclick="clearAllData(); closeHeaderMenu();" class="btn-danger">⚠️ Reset Total Aplikasi</button>
+                <button type="button" onclick="closeHeaderMenu(); auraSignOut();" style="color:#ff8585;background:#241313;border:1px solid #5b2929;">🚪 Keluar Akun</button>
             </div>
         </div>
         <img src="logo.png" alt="Logo Aura Sport" style="width: 120px; height: auto; margin-bottom: 10px;">
@@ -661,7 +816,7 @@
         <div class="container">
             <!-- Panel Kiri: Pengaturan, Pemain, Antrean -->
             <div>
-                <div class="card">
+                <div class="card sport-settings-card" style="display:none;" aria-hidden="true">
                     <h2>Pengaturan Olahraga</h2>
                     <div class="flex-row">
                         <select id="sportType" onchange="toggleCustomSport()">
@@ -679,23 +834,22 @@
 
                 <div id="eventAttendancePanel"></div>
 
-                <div class="card">
-                    <h2>🔄 Rotasi & Waiting List</h2>
-                    <div id="rotationSummary"></div>
-                    <p style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted);">Prioritas otomatis berdasarkan jumlah main paling sedikit, level, partner/lawan terakhir, dan pemain yang sedang bermain.</p>
-                    <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>No</th>
-                                    <th>Nama</th>
-                                    <th>Level</th>
-                                    <th>Sudah Main</th>
-                                </tr>
-                            </thead>
-                            <tbody id="queueList"></tbody>
-                        </table>
+                <div class="card rotation-queue-card">
+                    <div class="rotation-queue-heading">
+                        <h2>🔄 Rotasi & Waiting List</h2>
+                        <button class="event-collapse-btn" onclick="toggleEventPanel('rotation')" aria-expanded="${!isEventPanelCollapsed('rotation')}" aria-label="${isEventPanelCollapsed('rotation')?'Tampilkan Rotasi & Waiting List':'Sembunyikan Rotasi & Waiting List'}" title="${isEventPanelCollapsed('rotation')?'Tampilkan':'Sembunyikan'}">${isEventPanelCollapsed('rotation')?'⌄':'⌃'}</button>
                     </div>
+                    <div class="rotation-queue-content" ${isEventPanelCollapsed('rotation')?'hidden':''}>
+                        <div id="rotationSummary"></div>
+                        <p class="rotation-queue-description">Prioritas otomatis berdasarkan jumlah main paling sedikit, level, partner/lawan terakhir, dan pemain yang sedang bermain.</p>
+                        <div class="rotation-queue-table-wrap">
+                            <table class="rotation-queue-table">
+                                <thead><tr><th>No</th><th>Nama</th><th>Level</th><th>Sudah Main</th></tr></thead>
+                                <tbody id="queueList"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
                 </div>
             </div>
 
@@ -723,9 +877,9 @@
 
         <div class="standings-actions">
             <button
-                onclick="exportStandingsToImage()"
-                class="btn-warning">
-                📥 Download
+                onclick="generateBestPartnerStoryCard()"
+                class="btn-success">
+                🤝 Best Partner
             </button>
 
             <button
@@ -735,15 +889,9 @@
             </button>
 
             <button
-                onclick="generateBestPartnerStoryCard()"
+                onclick="generateTopPointStoryCard()"
                 class="btn-success">
-                🤝 Best Partner
-            </button>
-
-            <button
-                onclick="generateBirthdayStoryFlow()"
-                class="btn-success">
-                🎂 Birthday
+                🎯 Top Point
             </button>
         </div>
     </div>
@@ -1284,6 +1432,7 @@ function getDefaultPicDefinitions(){return [
 {id:'operasional',icon:'🏸',title:'Operasional + Perlengkapan',desc:'Cari jadwal, cari lapangan, dan siapin perlengkapan main.'},
 {id:'p3k',icon:'🩹',title:'PIC P3K',desc:'Menyiapkan dan memastikan perlengkapan P3K tersedia saat kegiatan.'},
 {id:'lapangan',icon:'📋',title:'PIC Lapangan',desc:'Mengatur point di samping lapangan dan membantu koordinasi pergantian pemain.'},
+{id:'hostwasit',icon:'🎽',title:'Host / Wasit',desc:'Daftar anggota internal yang dapat dipilih otomatis menjadi wasit untuk satu ronde Round Mix.',multi:true},
 {id:'dokumentasi',icon:'📸',title:'PIC Dokumentasi',desc:'Dokumentasi gameplay, foto keluarga internal maupun mabar.'},
 {id:'hospitality',icon:'🤝',title:'PIC Hospitality',desc:'Menyambut dan menemani orang baru yang datang sendiri saat mabar agar tidak merasa sendirian. Tidak perlu deep talk, cukup basa-basi dan ajak berbaur.'},
 {id:'medsos',icon:'📱',title:'PIC Medsos',desc:'Publikasi hasil dokumentasi ke media sosial.'}
@@ -1295,8 +1444,10 @@ function getPicDefinitions(){
 function ensurePicRegistry(){
     if(!eventRegistry||typeof eventRegistry!=='object') eventRegistry={activeEventId:null,events:[]};
     if(!Array.isArray(eventRegistry.picRoles)||!eventRegistry.picRoles.length) eventRegistry.picRoles=getDefaultPicDefinitions();
+    // Migrasi ringan untuk data lama yang sudah memiliki daftar PIC.
+    if(!eventRegistry.picRoles.some(x=>x.id==='hostwasit')) eventRegistry.picRoles.push({id:'hostwasit',icon:'🎽',title:'Host / Wasit',desc:'Daftar anggota internal yang dapat dipilih otomatis menjadi wasit untuk satu ronde Round Mix.',multi:true});
     if(!eventRegistry.picAssignments||typeof eventRegistry.picAssignments!=='object') eventRegistry.picAssignments={};
-    // Default PIC yang sudah ditentukan user. Hanya diisi jika belum pernah ada assignment.
+    if(!Array.isArray(eventRegistry.picAssignments.hostwasitIds)) eventRegistry.picAssignments.hostwasitIds=[];
     const findMemberId = name => (players||[]).find(p=>String(p.name||'').trim().toLowerCase()===name.toLowerCase())?.id || null;
     if(eventRegistry.picAssignments.ketua===undefined) eventRegistry.picAssignments.ketua=findMemberId('Michael');
     if(eventRegistry.picAssignments.keuangan===undefined) eventRegistry.picAssignments.keuangan=findMemberId('Michael');
@@ -1307,44 +1458,63 @@ function renderPicTab(){
     ensurePicRegistry();
     const el=document.getElementById('picContent'); if(!el)return;
     const defs=getPicDefinitions();
-    const counts={}; defs.forEach(d=>{const id=eventRegistry.picAssignments[d.id];if(id)counts[id]=(counts[id]||0)+1;});
+    const counts={};
+    defs.forEach(d=>{
+      if(d.id==='hostwasit') (eventRegistry.picAssignments.hostwasitIds||[]).forEach(id=>counts[id]=(counts[id]||0)+1);
+      else {const id=eventRegistry.picAssignments[d.id];if(id)counts[id]=(counts[id]||0)+1;}
+    });
     const assignedPeople=Object.entries(counts).map(([id,count])=>({p:(players||[]).find(x=>x.id===id),count})).filter(x=>x.p);
     el.innerHTML=`
       <div class="pic-toolbar">
         <div class="pic-summary"><strong>${defs.length}</strong><span>Posisi PIC</span></div>
         <div class="pic-summary"><strong>${assignedPeople.length}</strong><span>Member menjadi PIC</span></div>
-        <div class="pic-summary"><strong>${defs.filter(d=>eventRegistry.picAssignments[d.id]).length}</strong><span>Posisi terisi</span></div>
+        <div class="pic-summary"><strong>${defs.filter(d=>d.id==='hostwasit'?(eventRegistry.picAssignments.hostwasitIds||[]).length>0:!!eventRegistry.picAssignments[d.id]).length}</strong><span>Posisi terisi</span></div>
         <button class="pic-add-btn" type="button" onclick="openPicEditor()">＋ Tambah Divisi</button>
       </div>
       <div class="pic-grid">
         ${defs.map(d=>{
+          const isMulti=d.id==='hostwasit';
+          const ids=isMulti?(eventRegistry.picAssignments.hostwasitIds||[]):[];
           const id=eventRegistry.picAssignments[d.id];
           const person=(players||[]).find(x=>x.id===id);
+          const displayName=isMulti?ids.map(mid=>(players||[]).find(x=>x.id===mid)?.name).filter(Boolean).join(', '):(person?person.name:'Belum ada PIC');
           return `<div class="pic-card">
-            <div class="pic-card-head"><div class="pic-icon">${picEscape(d.icon)}</div><div><div class="pic-role">${picEscape(d.title)}</div><div class="pic-person">${person?picEscape(person.name):'Belum ada PIC'}</div></div></div>
-            <div class="pic-desc">${picEscape(d.desc)}</div>
+            <div class="pic-card-head"><div class="pic-icon">${picEscape(d.icon)}</div><div><div class="pic-role">${picEscape(d.title)}</div><div class="pic-person">${picEscape(displayName||(isMulti?'Belum ada Host/Wasit terdaftar':'Belum ada PIC'))}</div></div></div>
+            <div class="pic-desc">${picEscape(d.desc)}${isMulti?'<br><strong>Terdaftar: '+ids.length+' orang</strong>':''}</div>
             <div class="pic-card-actions">
-              <button class="pic-assign-btn" type="button" onclick="openPicAssign('${picEscape(d.id)}')">${person?'👤 Ganti PIC':'＋ Assign PIC'}</button>
+              <button class="pic-assign-btn" type="button" onclick="openPicAssign('${picEscape(d.id)}')">${isMulti?'👥 Atur Daftar Wasit':(person?'👤 Ganti PIC':'＋ Assign PIC')}</button>
               <button class="pic-edit-btn" type="button" onclick="openPicEditor('${picEscape(d.id)}')">✏️ Ubah Divisi</button>
               <button class="pic-delete-btn" type="button" onclick="deletePicRole('${picEscape(d.id)}')">🗑️</button>
             </div>
           </div>`;
         }).join('')}
       </div>
-      <div class="pic-note"><strong>Catatan:</strong> Satu orang boleh memegang lebih dari satu PIC. PIC mengambil nama dari Data Member, sehingga tidak membuat data member baru. Mengubah data Member tidak memutus hubungan PIC karena yang disimpan adalah ID member.</div>`;
+      <div class="pic-note"><strong>Catatan:</strong> PIC biasa mengambil nama dari Data Member. Host/Wasit dapat memilih beberapa member sekaligus; sistem Round Mix memilih satu orang untuk setiap ronde secara acak dengan pemerataan giliran.</div>`;
 }
 function openPicAssign(roleId){
     ensurePicRegistry(); const d=getPicDefinitions().find(x=>x.id===roleId); if(!d)return;
-    const current=eventRegistry.picAssignments[roleId]||'';
-    const opts=(players||[]).filter(p=>p&&p.name).sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${picEscape(p.id)}">${picEscape(p.name)}</option>`).join('');
+    const isHostWasit=roleId==='hostwasit';
+    const current=isHostWasit?(eventRegistry.picAssignments.hostwasitIds||[]):[eventRegistry.picAssignments[roleId]||''];
+    const members=(players||[]).filter(p=>p&&p.name).sort((a,b)=>a.name.localeCompare(b.name));
+    const opts=members.map(p=>isHostWasit
+      ? `<label style="display:flex;align-items:center;gap:9px;padding:9px 4px;border-bottom:1px solid var(--border);margin:0"><input type="checkbox" name="hostWasitMember" value="${picEscape(p.id)}" ${current.includes(p.id)?'checked':''} style="width:auto;margin:0"><span>${picEscape(p.name)}</span></label>`
+      : `<option value="${picEscape(p.id)}">${picEscape(p.name)}</option>`).join('');
     const ov=document.createElement('div'); ov.className='pic-modal-overlay'; ov.id='picAssignOverlay';
-    ov.innerHTML=`<div class="pic-modal"><h3>${picEscape(d.icon)} ${picEscape(d.title)}</h3><p>Pilih penanggung jawab dari Data Member. Satu member boleh memegang lebih dari satu PIC.</p><select id="picAssignSelect"><option value="">Belum ada PIC</option>${opts}</select><div class="pic-modal-actions"><button type="button" onclick="closePicAssign()">Batal</button><button type="button" onclick="savePicAssignment('${picEscape(roleId)}')">Simpan</button></div></div>`;
-    document.body.appendChild(ov); const sel=document.getElementById('picAssignSelect'); if(sel)sel.value=current;
+    ov.innerHTML=isHostWasit
+      ? `<div class="pic-modal"><h3>🎽 Daftar Host / Wasit</h3><p>Pilih semua anggota internal yang bisa menjadi wasit. Sistem akan memilih satu orang untuk setiap ronde Round Mix.</p><div style="max-height:48vh;overflow:auto;margin:0 0 14px">${opts||'<p>Belum ada member di Data Member.</p>'}</div><div class="pic-modal-actions"><button type="button" onclick="closePicAssign()">Batal</button><button type="button" onclick="savePicAssignment('${picEscape(roleId)}')">Simpan Daftar</button></div></div>`
+      : `<div class="pic-modal"><h3>${picEscape(d.icon)} ${picEscape(d.title)}</h3><p>Pilih penanggung jawab dari Data Member. Satu member boleh memegang lebih dari satu PIC.</p><select id="picAssignSelect"><option value="">Belum ada PIC</option>${opts}</select><div class="pic-modal-actions"><button type="button" onclick="closePicAssign()">Batal</button><button type="button" onclick="savePicAssignment('${picEscape(roleId)}')">Simpan</button></div></div>`;
+    document.body.appendChild(ov); const sel=document.getElementById('picAssignSelect'); if(sel)sel.value=current[0]||'';
 }
 function closePicAssign(){document.getElementById('picAssignOverlay')?.remove();}
 async function savePicAssignment(roleId){
-    ensurePicRegistry(); const sel=document.getElementById('picAssignSelect'); if(!sel)return;
-    eventRegistry.picAssignments[roleId]=sel.value||null; closePicAssign(); renderPicTab();
+    ensurePicRegistry();
+    if(roleId==='hostwasit'){
+      eventRegistry.picAssignments.hostwasitIds=[...document.querySelectorAll('#picAssignOverlay input[name="hostWasitMember"]:checked')].map(x=>x.value);
+    } else {
+      const sel=document.getElementById('picAssignSelect'); if(!sel)return;
+      eventRegistry.picAssignments[roleId]=sel.value||null;
+    }
+    closePicAssign(); renderPicTab();
     const ok=await saveData(); if(!ok)markSyncError();
 }
 function openPicEditor(roleId=''){
@@ -1398,9 +1568,50 @@ async function deletePicRole(roleId){
     let players = [];
     let matchesHistory = [];
     let activeMatches = [];
+    let roundMixPreview = [];
     let financeTransactions = [];
     let financeSettings = { payPerPlay: 0 };
     let timers = {};
+    // Timer Round Mix dipisahkan dari objek skor/server. Skor boleh di-render atau
+    // disinkronkan ulang tanpa mengubah jam yang berjalan.
+    const roundMixTimerRuntime = Object.create(null);
+
+    function roundMixElapsed(matchId, fallbackTime = 0) {
+        const rt = roundMixTimerRuntime[matchId];
+        if (!rt) return Math.max(0, Number(fallbackTime) || 0);
+        const extra = rt.running && rt.startedAt ? Math.floor((Date.now() - rt.startedAt) / 1000) : 0;
+        return Math.max(0, Number(rt.baseTime || 0) + extra);
+    }
+
+    function syncRoundMixTimerRuntime(match) {
+        if (!match || !match.id) return;
+        const id = match.id;
+        const rt = roundMixTimerRuntime[id];
+        if (rt) {
+            match.time = roundMixElapsed(id, match.time);
+            match.isRunning = !!rt.running;
+            return;
+        }
+        // Pemulihan timer dari data tersimpan: mulai baseline lokal baru, bukan
+        // membiarkan refresh skor membuat ulang interval / memundurkan waktunya.
+        roundMixTimerRuntime[id] = {
+            baseTime: Math.max(0, Number(match.time || 0)),
+            startedAt: match.isRunning ? Date.now() : null,
+            running: !!match.isRunning
+        };
+    }
+
+    function renderRoundMixTimer(matchId) {
+        const match = activeMatches.find(m => m.id === matchId);
+        const rt = roundMixTimerRuntime[matchId];
+        if (!match || !rt) return;
+        match.time = roundMixElapsed(matchId, match.time);
+        match.isRunning = !!rt.running;
+        const mainTimer = document.getElementById(`timer-${matchId}`);
+        if (mainTimer) mainTimer.innerText = formatTime(match.time);
+        const scoreTimer = document.getElementById(`score-dashboard-timer-${matchId}`);
+        if (scoreTimer) scoreTimer.innerText = formatTime(match.time);
+    }
 
     // --- State Round Robin + Knockout ---
     let rrTeams = [];              // { id, name, members: [nama...], stats:{played,win,draw,loss,pf,pa,pts} }
@@ -1425,9 +1636,28 @@ async function deletePicRole(roleId){
         return mode === 'match' ? '🔁 Round Mix' : mode === 'roundrobin' ? '⚔️ Round Robin + Knockout' : '☠️ Round Grup + Knockout';
     }
 
+    // PERBAIKAN BENGKAK DATA: rrSettings yang dimuat dari server membawa kunci __eventRegistry
+    // (seluruh registry). Dulu kunci itu ikut tersalin ke snapshot.rrSettings tiap event, sehingga
+    // setiap simpan membungkus registry di dalam registry (bersarang makin dalam -> beberapa MB).
+    // __eventRegistry hanya boleh ada di rr_settings tingkat atas, TIDAK di dalam snapshot.
+    function stripNestedRegistry(settings) {
+        if (!settings || typeof settings !== 'object' || !('__eventRegistry' in settings)) return settings;
+        const copy = { ...settings };
+        delete copy.__eventRegistry;
+        return copy;
+    }
+
     function getEventRegistryFromSettings(settings) {
         const reg = settings && settings.__eventRegistry;
-        if (reg && Array.isArray(reg.events)) return reg;
+        if (reg && Array.isArray(reg.events)) {
+            // Bersihkan sisa registry bersarang dari data lama; simpan berikutnya otomatis memperkecil data di server.
+            reg.events.forEach(ev => {
+                if (ev && ev.snapshot && ev.snapshot.rrSettings && '__eventRegistry' in ev.snapshot.rrSettings) {
+                    delete ev.snapshot.rrSettings.__eventRegistry;
+                }
+            });
+            return reg;
+        }
         return { activeEventId: null, events: [] };
     }
 
@@ -1507,9 +1737,10 @@ async function deletePicRole(roleId){
             attendance: cloneJSON(ev.attendance || {}),
             matchesHistory: cloneJSON(matchesHistory),
             activeMatches: cloneJSON(activeMatches),
+            roundMixPreview: cloneJSON(roundMixPreview || []),
             rrTeams: cloneJSON(rrTeams),
             rrMatches: cloneJSON(rrMatches),
-            rrSettings: cloneJSON(rrSettings),
+            rrSettings: stripNestedRegistry(cloneJSON(rrSettings)),
             rrPhase,
             rrBracket: cloneJSON(rrBracket)
         };
@@ -1532,11 +1763,14 @@ async function deletePicRole(roleId){
         if (s.attendance && typeof s.attendance === 'object') ev.attendance = cloneJSON(s.attendance);
         matchesHistory = cloneJSON(s.matchesHistory || []);
         activeMatches = cloneJSON(s.activeMatches || []);
+        roundMixPreview = cloneJSON(s.roundMixPreview || []);
         rrTeams = cloneJSON(s.rrTeams || []);
         rrMatches = cloneJSON(s.rrMatches || []);
-        rrSettings = cloneJSON(s.rrSettings || {qualifyCount:4,totalCourts:2});
+        rrSettings = cloneJSON(s.rrSettings || {qualifyCount:4,totalCourts:2,teamSize:2});
         const eventCourtInput = document.getElementById('totalCourts');
+        const eventTeamInput = document.getElementById('playersPerTeam');
         if (eventCourtInput) eventCourtInput.value = Math.max(1, Math.min(10, parseInt(rrSettings.totalCourts) || 2));
+        if (eventTeamInput) eventTeamInput.value = Math.max(1, Math.min(11, parseInt(rrSettings.teamSize) || 2));
         rrPhase = s.rrPhase || 'setup';
         rrBracket = cloneJSON(s.rrBracket || []);
         currentEventMode = ev.mode;
@@ -1545,44 +1779,84 @@ async function deletePicRole(roleId){
 
     function activeEvent() { return eventRegistry.events.find(e => e.id === eventRegistry.activeEventId) || null; }
 
-    function openEventModal(mode) {
+    function openEventModal(mode, eventId = null) {
         const existing = document.getElementById('eventModal');
         if (existing) existing.remove();
-
+        const editingEvent = eventId ? eventRegistry.events.find(e => e.id === eventId && e.mode === mode) : null;
+        if (eventId && !editingEvent) return alert('Pertandingan tidak ditemukan.');
+        const settings = editingEvent?.snapshot?.rrSettings || {};
         const overlay = document.createElement('div');
         overlay.id = 'eventModal';
         overlay.className = 'event-modal';
         overlay.innerHTML = `
             <div class="event-modal-box">
-                <h3>🆕 Tambah Pertandingan</h3>
+                <h3>${editingEvent ? '✏️ Edit Pertandingan' : '🆕 Tambah Pertandingan'}</h3>
                 <div style="color:var(--text-muted); font-size:.82rem; margin-bottom:10px;">${eventModeLabel(mode)}</div>
                 <label>Nama Acara / Pertandingan *</label>
-                <input id="eventNameInput" type="text" placeholder="Contoh: Latihan Rutin Selasa" maxlength="100">
+                <input id="eventNameInput" type="text" placeholder="Contoh: Latihan Rutin Selasa" maxlength="100" value="${escapeHTML(editingEvent?.name || '')}">
                 <label>Tanggal *</label>
-                <input id="eventDateInput" type="date" value="${todayISO()}">
-                <label>Jumlah Lapangan *</label>
-                <input id="eventCourtsInput" type="number" value="2" min="1" max="10" placeholder="Contoh: 2">
-                <div style="font-size:.78rem;color:var(--text-muted);margin-top:-4px;margin-bottom:10px;">Jumlah ini akan menjadi jumlah lapangan saat event dibuka dan saat Generate Ronde.</div>
+                <input id="eventDateInput" type="date" value="${editingEvent?.date || todayISO()}">
+                <div class="event-setup-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <label for="eventCourtsInput">Jumlah Lapangan *</label>
+                        <input id="eventCourtsInput" type="number" value="${Math.max(1, Math.min(10, parseInt(settings.totalCourts) || 2))}" min="1" max="10" placeholder="Contoh: 2" required>
+                    </div>
+                    <div>
+                        <label for="eventTeamSizeInput">Pemain per Tim *</label>
+                        <input id="eventTeamSizeInput" type="number" value="${Math.max(1, Math.min(11, parseInt(settings.teamSize) || 2))}" min="1" max="11" placeholder="Contoh: 2" required>
+                    </div>
+                </div>
+                <div style="font-size:.78rem;color:var(--text-muted);margin-top:-4px;margin-bottom:10px;">Pengaturan ini dipakai untuk ronde berikutnya. Mengubah jumlah lapangan tidak mengubah pertandingan yang sudah dibuat atau sedang berjalan.</div>
                 <div class="event-modal-actions">
                     <button type="button" id="eventCancelBtn" style="background:var(--border); color:#fff;">Batal</button>
-                    <button type="button" id="eventCreateBtn" class="btn-success">Buat Pertandingan</button>
+                    <button type="button" id="eventCreateBtn" class="btn-success">${editingEvent ? 'Simpan Perubahan' : 'Buat Pertandingan'}</button>
                 </div>
             </div>`;
-
         document.body.appendChild(overlay);
-
-        // Pakai addEventListener, bukan inline onclick. Ini lebih aman di GitHub Pages
-        // dan memastikan tombol modal tetap bekerja walaupun HTML di-render ulang.
         document.getElementById('eventCancelBtn').addEventListener('click', closeEventModal);
         document.getElementById('eventCreateBtn').addEventListener('click', () => {
-            createEvent(mode);
+            if (editingEvent) editEventDetails(editingEvent.id, mode);
+            else createEvent(mode);
         });
-
-        overlay.addEventListener('click', e => {
-            if (e.target === overlay) closeEventModal();
-        });
-
+        overlay.addEventListener('click', e => { if (e.target === overlay) closeEventModal(); });
         setTimeout(() => document.getElementById('eventNameInput')?.focus(), 50);
+    }
+
+    async function editEventDetails(eventId, mode) {
+        const ev = eventRegistry.events.find(e => e.id === eventId && e.mode === mode);
+        if (!ev) return alert('Pertandingan tidak ditemukan.');
+        const nameEl = document.getElementById('eventNameInput');
+        const dateEl = document.getElementById('eventDateInput');
+        const courtsEl = document.getElementById('eventCourtsInput');
+        const teamSizeEl = document.getElementById('eventTeamSizeInput');
+        const name = nameEl?.value.trim() || '';
+        const date = dateEl?.value || '';
+        const courts = Number.parseInt(courtsEl?.value, 10);
+        const teamSize = Number.parseInt(teamSizeEl?.value, 10);
+        if (!name) { nameEl?.focus(); return alert('Nama acara / pertandingan wajib diisi.'); }
+        if (!date) { dateEl?.focus(); return alert('Tanggal pertandingan wajib diisi.'); }
+        if (!Number.isFinite(courts) || courts < 1 || courts > 10) { courtsEl?.focus(); return alert('Jumlah lapangan harus antara 1 sampai 10.'); }
+        if (!Number.isFinite(teamSize) || teamSize < 1 || teamSize > 11) { teamSizeEl?.focus(); return alert('Pemain per tim harus antara 1 sampai 11.'); }
+        ev.name = name;
+        ev.date = date;
+        ev.snapshot = ev.snapshot || {};
+        ev.snapshot.rrSettings = { ...(ev.snapshot.rrSettings || {}), totalCourts: courts, teamSize };
+        ev.updatedAt = new Date().toISOString();
+        if (eventRegistry.activeEventId === ev.id) {
+            rrSettings = { ...rrSettings, totalCourts: courts, teamSize };
+            const courtInput = document.getElementById('totalCourts');
+            const teamInput = document.getElementById('playersPerTeam');
+            if (courtInput) courtInput.value = courts;
+            if (teamInput) teamInput.value = teamSize;
+        }
+        closeEventModal();
+        try {
+            await persistStateOnly();
+            init();
+        } catch (err) {
+            console.error('Gagal menyimpan perubahan pertandingan:', err);
+            alert('Perubahan sudah diterapkan di layar, tetapi gagal disimpan: ' + (err?.message || err));
+        }
     }
 
     function closeEventModal() { document.getElementById('eventModal')?.remove(); }
@@ -1591,9 +1865,13 @@ async function deletePicRole(roleId){
         const nameEl = document.getElementById('eventNameInput');
         const dateEl = document.getElementById('eventDateInput');
         const courtsEl = document.getElementById('eventCourtsInput');
+        const teamSizeEl = document.getElementById('eventTeamSizeInput');
         const name = nameEl ? nameEl.value.trim() : '';
         const date = (dateEl && dateEl.value) ? dateEl.value : todayISO();
-        const totalCourts = Math.max(1, Math.min(10, parseInt(courtsEl?.value) || 2));
+        const rawCourts = parseInt(courtsEl?.value);
+        const rawTeamSize = parseInt(teamSizeEl?.value);
+        const totalCourts = Math.max(1, Math.min(10, Number.isFinite(rawCourts) ? rawCourts : 2));
+        const teamSize = Math.max(1, Math.min(11, Number.isFinite(rawTeamSize) ? rawTeamSize : 2));
 
         if (!name) {
             if (nameEl) nameEl.focus();
@@ -1627,7 +1905,8 @@ async function deletePicRole(roleId){
         rrMatches: [],
         rrSettings: {
             qualifyCount: 4,
-            totalCourts: totalCourts
+            totalCourts: totalCourts,
+            teamSize: teamSize
         },
         rrPhase: 'setup',
         rrBracket: []
@@ -1677,17 +1956,38 @@ async function deletePicRole(roleId){
         persistStateOnly().then(() => init());
     }
 
-    function finishCurrentEvent() {
+    async function finishCurrentEvent() {
         const ev = activeEvent();
         if (!ev) return;
-        if (activeMatches.length || rrMatches.some(m=>m.status==='ongoing') || rrBracket.some(r=>r.matches.some(m=>m.status==='ongoing'))) {
-            return alert('Masih ada pertandingan yang sedang berlangsung. Selesaikan dulu match yang aktif.');
+
+        const hasOngoingRR = rrMatches.some(m=>m.status==='ongoing') || rrBracket.some(r=>r.matches.some(m=>m.status==='ongoing'));
+        if (hasOngoingRR) {
+            return alert('Masih ada pertandingan Round Robin/Knockout yang aktif. Selesaikan atau batalkan pertandingan tersebut terlebih dahulu.');
         }
-        if (!confirm(`Tandai "${ev.name}" sebagai selesai?`)) return;
+
+        const activeCount = activeMatches.length;
+        const previewCount = (roundMixPreview || []).length;
+        if (activeCount || previewCount) {
+            const details = [
+                activeCount ? `${activeCount} match Round Mix yang belum selesai` : '',
+                previewCount ? `${previewCount} match preview yang belum dimainkan` : ''
+            ].filter(Boolean).join(' dan ');
+            if (!confirm(`Masih ada ${details}.\n\nJika event diselesaikan sekarang, match tersebut akan dibatalkan tanpa menambah statistik atau biaya main. Lanjutkan?`)) return;
+
+            Object.keys(timers || {}).forEach(id => clearInterval(timers[id]));
+            timers = {};
+            releasePlayersFromMatches(activeMatches);
+            activeMatches = [];
+            roundMixPreview = [];
+            Object.keys(roundMixTimerRuntime || {}).forEach(id => delete roundMixTimerRuntime[id]);
+        } else if (!confirm(`Tandai "${ev.name}" sebagai selesai?`)) {
+            return;
+        }
+
         ev.status = 'finished';
         snapshotCurrentEvent();
         ev.status = 'finished';
-        persistStateOnly();
+        await persistStateOnly();
         backToEventList();
     }
 
@@ -1803,9 +2103,12 @@ async function deletePicRole(roleId){
             const snap=ev.snapshot||{};
             const playersCount=new Set([...(snap.activeMatches||[]).flatMap(m=>[...(m.teamA||[]),...(m.teamB||[])]).map(p=>p.id)]).size;
             const courts=new Set((snap.activeMatches||[]).map(m=>m.courtName)).size || ((snap.rrSettings||{}).totalCourts||0);
-            const statusText=ev.status==='ongoing'?'🟡 Sedang Berlangsung':ev.status==='finished'?'🟢 Selesai':'⚪ Belum Dimulai';
-            const stats=ev.mode==='match' ? `${snap.matchesHistory?.length||0} match selesai` : `${snap.rrMatches?.length||0} fixture`;
-            return `<div class="event-card" onclick="selectEvent('${mode}','${ev.id}')"><div class="event-card-title">${escapeHTML(ev.name)}</div><div class="event-card-meta">${formatEventDate(ev.date)} · ${eventModeLabel(mode)}</div><div style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px;">${playersCount?playersCount+' pemain · ':''}${courts?courts+' lapangan · ':''}${stats}</div><div class="event-card-footer"><span class="event-status ${ev.status}">${statusText}</span><div class="flex-row" style="margin:0;" onclick="event.stopPropagation()">${ev.status==='finished'?`<button onclick="reopenEvent('${ev.id}')" class="btn-warning" style="padding:5px 9px;">🔓 Buka Kembali</button>`:''}<button onclick="deleteEvent('${ev.id}')" class="btn-danger" style="padding:5px 9px;">Hapus</button></div></div></div>`;
+            const statusText=ev.status==='ongoing'?'Sedang Berlangsung':ev.status==='finished'?'Selesai':'Belum Dimulai';
+            const stats=ev.mode==='match' ? (snap.matchesHistory?.length||0)+' match selesai' : (snap.rrMatches?.length||0)+' fixture';
+            return '<article class="event-card event-card-modern" onclick="selectEvent(\''+mode+'\',\''+ev.id+'\')">'+
+                '<div class="event-card-top"><div class="event-card-mark" aria-hidden="true">🏸</div><div class="event-card-heading"><h3 class="event-card-title">'+escapeHTML(ev.name)+'</h3><div class="event-card-meta"><span>▦ '+formatEventDate(ev.date)+'</span><span class="event-meta-separator">·</span><span>↻ '+eventModeLabel(mode)+'</span></div></div><span class="event-status '+ev.status+'"><i></i>'+statusText+'</span></div>'+
+                '<div class="event-card-summary">'+(playersCount?'<span>♟ '+playersCount+' pemain</span>':'')+(courts?'<span>▦ '+courts+' lapangan</span>':'')+'<span>✓ '+stats+'</span></div>'+
+                '<div class="event-card-actions" onclick="event.stopPropagation()"><button onclick="selectEvent(\''+mode+'\',\''+ev.id+'\')" class="event-action event-action-detail">◉ Detail</button><button onclick="openEventModal(\''+mode+'\',\''+ev.id+'\')" class="event-action">✎ Edit</button>'+(ev.status==='finished'?'<button onclick="reopenEvent(\''+ev.id+'\')" class="event-action event-action-primary">↻ Buka Kembali</button>':'')+'<button onclick="deleteEvent(\''+ev.id+'\')" class="event-action event-action-delete">Hapus</button></div></article>';
         }).join('')+'</div>';
     }
 
@@ -1998,8 +2301,10 @@ async function deletePicRole(roleId){
     }
 
     function requestRefresh() {
+        // Gabungkan burst event Realtime supaya semua perangkat tidak berulang kali
+        // mengunduh state JSON besar dalam jeda yang sangat pendek.
         clearTimeout(refreshTimer);
-        refreshTimer = setTimeout(runRefresh, 150);
+        refreshTimer = setTimeout(runRefresh, 800);
     }
 
     async function runRefresh() {
@@ -2029,27 +2334,45 @@ async function deletePicRole(roleId){
                 schema: 'public',
                 table: 'sport_manager_state',
                 filter: `id=eq.${STATE_ROW_ID}`
-            }, () => { requestRefresh(); })
+            }, (payload) => {
+                // Abaikan notifikasi update yang sudah diketahui perangkat ini sendiri.
+                // Jika updated_at tidak tersedia, tetap refresh sebagai fallback aman.
+                const eventUpdatedAt = payload?.new?.updated_at;
+                if (eventUpdatedAt && lastSyncedRow?.updated_at &&
+                    eventUpdatedAt === lastSyncedRow.updated_at) return;
+                requestRefresh();
+            })
             .subscribe();
     }
 
     // Pastikan timer lokal berjalan/berhenti sesuai flag isRunning tiap match
     // (waktu tidak di-tick per detik ke server, hanya base value + status saat start/pause)
     function syncTimers() {
+        // Hentikan interval yang tidak lagi diperlukan, tetapi jangan reset runtime.
         Object.keys(timers).forEach(matchId => {
             const match = activeMatches.find(m => m.id === matchId);
-            if (!match || !match.isRunning) {
+            if (!match || !roundMixTimerRuntime[matchId]?.running) {
                 clearInterval(timers[matchId]);
                 delete timers[matchId];
             }
         });
         activeMatches.forEach(match => {
-            if (match.isRunning && !timers[match.id]) {
-                timers[match.id] = setInterval(() => {
-                    match.time++;
-                    const el = document.getElementById(`timer-${match.id}`);
-                    if (el) el.innerText = formatTime(match.time);
-                }, 1000);
+            syncRoundMixTimerRuntime(match);
+            const rt = roundMixTimerRuntime[match.id];
+            match.time = roundMixElapsed(match.id, match.time);
+            match.isRunning = !!rt.running;
+            if (rt.running && !timers[match.id]) {
+                const matchId = match.id;
+                timers[matchId] = setInterval(() => {
+                    const current = activeMatches.find(m => m.id === matchId);
+                    const runtime = roundMixTimerRuntime[matchId];
+                    if (!current || !runtime || !runtime.running) {
+                        clearInterval(timers[matchId]);
+                        delete timers[matchId];
+                        return;
+                    }
+                    renderRoundMixTimer(matchId);
+                }, 250);
             }
         });
     }
@@ -2313,39 +2636,53 @@ async function deletePicRole(roleId){
             }
             markSyncProgress(35, `Mengirim ${Object.keys(changedCols).length} bagian data untuk disimpan...`);
 
-            // Ambil baris TERBARU dari server: untuk tahu updated_at saat ini (kunci CAS)
-            // dan untuk mengambil nilai kolom yang TIDAK kita ubah (supaya tidak ketinggalan
-            // perubahan HP lain di kolom tsb).
+            // Ambil hanya updated_at sebagai kunci concurrency. SELECT * sebelumnya
+            // mengunduh seluruh baris (termasuk rr_settings.__eventRegistry sekitar 5.9 MB)
+            // pada SETIAP simpan, padahal nilai kolom lain tidak dibutuhkan untuk CAS.
             const { data: fresh, error: fetchErr } = await supabaseClient
-                .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
+                .from('sport_manager_state').select('updated_at').eq('id', STATE_ROW_ID).single();
             if (fetchErr || !fresh) {
                 markSyncProgress(25, `Server lambat merespons; mencoba ulang (${attempt + 1}/${MAX_ATTEMPT})...`);
-                console.error('Gagal ambil data server sebelum menyimpan:', fetchErr);
+                console.error('Gagal mengambil versi data server sebelum menyimpan:', fetchErr);
                 await _sleep(150 + attempt * 100);
                 continue;
             }
 
-            markSyncProgress(65, 'Data terbaru diterima; menyimpan perubahan ke database...');
+            markSyncProgress(65, 'Menyimpan perubahan ke database...');
             const nowIso = new Date().toISOString();
             const patch = { ...changedCols, updated_at: nowIso };
             let q = supabaseClient.from('sport_manager_state').update(patch).eq('id', STATE_ROW_ID);
             q = (fresh.updated_at === null || fresh.updated_at === undefined) ? q.is('updated_at', null) : q.eq('updated_at', fresh.updated_at);
-            const { error: updErr } = await q;
-            if (updErr) lastError = updErr;
+            const saveStartedAt = Date.now();
+            // Minta representasi baris yang benar-benar diperbarui. Tanpa .select(),
+            // PostgREST dapat mengembalikan sukses tanpa error meski CAS tidak cocok
+            // dan tidak ada baris yang berubah.
+            const { data: updatedRows, error: updErr } = await q.select('id,updated_at');
+            const saveElapsedMs = Date.now() - saveStartedAt;
+            if (updErr) {
+                lastError = updErr;
+                console.error('[AURA SAVE] UPDATE gagal', { attempt: attempt + 1, elapsedMs: saveElapsedMs, code: updErr.code, message: updErr.message });
+            }
 
-            if (!updErr) {
-                markSyncProgress(92, 'Database menerima perubahan; menyelesaikan sinkronisasi...');
-                // Berhasil. Kolom yang TIDAK kita ubah diambil nilai terbarunya dari server,
-                // supaya layar HP ini juga ikut tahu perubahan HP lain di kolom tsb.
-                STATE_COLUMNS.forEach(col => { if (!(col in changedCols)) current[col] = fresh[col]; });
-                lastSyncedRow = { ...current, updated_at: nowIso };
-                applyMergedColumnsToState(current);
+            if (!updErr && Array.isArray(updatedRows) && updatedRows.length > 0) {
+                const savedAt = updatedRows[0].updated_at || nowIso;
+                markSyncProgress(92, 'Perubahan tersimpan; menyelesaikan sinkronisasi...');
+                console.info('[AURA SAVE] UPDATE terverifikasi', { elapsedMs: saveElapsedMs, changedColumns: Object.keys(changedCols).length, updatedAt: savedAt });
+                // Hanya tandai kolom yang dikirim sebagai tersimpan. Jangan menganggap
+                // perubahan lokal lain yang terjadi selama request ikut tersimpan.
+                lastSyncedRow = { ...(lastSyncedRow || {}), ...changedCols, updated_at: savedAt };
                 return true;
             }
-            // Gagal (HP lain baru saja menulis di antara kita membaca & menulis) -> ulangi
+
+            if (!updErr && (!Array.isArray(updatedRows) || updatedRows.length === 0)) {
+                console.warn('[AURA SAVE] Tidak ada baris diperbarui; kemungkinan konflik versi updated_at. Mengambil ulang versi server.', { attempt: attempt + 1, elapsedMs: saveElapsedMs });
+            }
+            // Error jaringan / konflik CAS -> ulangi dengan jeda kecil. Batas percobaan
+            // tetap MAX_ATTEMPT; setiap percobaan mencatat durasi agar hang dapat didiagnosis.
             await _sleep(80 + Math.random() * 150 + attempt * 40);
         }
-        console.error('performSaveToSupabase: gagal setelah beberapa kali percobaan.');
+        console.error('[AURA SAVE] Gagal setelah batas percobaan', { attempts: MAX_ATTEMPT, lastError: lastError ? { code: lastError.code, message: lastError.message } : null });
+        markSyncProgress(0, 'Gagal menyimpan. Periksa koneksi lalu coba lagi; perubahan lokal belum terverifikasi tersimpan.');
         return false;
     }
 
@@ -2422,6 +2759,7 @@ async function deletePicRole(roleId){
                 players:cloneJSON(fresh.players||[]),
                 matchesHistory:cloneJSON(s.matchesHistory||[]),
                 activeMatches:cloneJSON(s.activeMatches||[]),
+                roundMixPreview:cloneJSON(s.roundMixPreview||[]),
                 financeTransactions:cloneJSON(fresh.finance_transactions||[]),
                 financeSettings:cloneJSON(fresh.finance_settings||{payPerPlay:0}),
                 rrTeams:cloneJSON(s.rrTeams||[]), rrMatches:cloneJSON(s.rrMatches||[]), rrSettings:cloneJSON(s.rrSettings||{qualifyCount:4,totalCourts:2}), rrPhase:s.rrPhase||'setup', rrBracket:cloneJSON(s.rrBracket||[])
@@ -2435,7 +2773,7 @@ async function deletePicRole(roleId){
             // Jangan menambahkan seluruh Member ke event secara otomatis. Attendance/participant
             // hanya berisi player ID yang memang dipilih untuk event tersebut.
             if(!mutateFn(view)) return false;
-            ev.snapshot={playerStats:{},rotation:{},attendance:cloneJSON(ev.attendance||{}),matchesHistory:cloneJSON(view.matchesHistory),activeMatches:cloneJSON(view.activeMatches),rrTeams:cloneJSON(view.rrTeams),rrMatches:cloneJSON(view.rrMatches),rrSettings:cloneJSON(view.rrSettings),rrPhase:view.rrPhase,rrBracket:cloneJSON(view.rrBracket)};
+            ev.snapshot={playerStats:{},rotation:cloneJSON(ev.snapshot?.rotation||{}),attendance:cloneJSON(ev.attendance||{}),matchesHistory:cloneJSON(view.matchesHistory),activeMatches:cloneJSON(view.activeMatches),roundMixPreview:cloneJSON(view.roundMixPreview||[]),rrTeams:cloneJSON(view.rrTeams),rrMatches:cloneJSON(view.rrMatches),rrSettings:stripNestedRegistry(cloneJSON(view.rrSettings)),rrPhase:view.rrPhase,rrBracket:cloneJSON(view.rrBracket)};
             view.players.forEach(p=>{ev.snapshot.playerStats[p.id]=cloneJSON(p.stats||{});ev.snapshot.rotation[p.id]={lastPartners:[...(p.lastPartners||[])],lastOpponents:[...(p.lastOpponents||[])]};});
             ev.updatedAt=new Date().toISOString();
             ev.status=view.activeMatches.length?'ongoing':(view.matchesHistory.length?'ongoing':'draft');
@@ -2447,7 +2785,7 @@ async function deletePicRole(roleId){
             q=(fresh.updated_at==null)?q.is('updated_at',null):q.eq('updated_at',fresh.updated_at);
             const {data:updData,error:updErr}=await q.select('id');
             if(!updErr&&updData?.length){
-                players=cloneJSON(view.players);matchesHistory=cloneJSON(view.matchesHistory);activeMatches=cloneJSON(view.activeMatches);financeTransactions=cloneJSON(view.financeTransactions);financeSettings=cloneJSON(view.financeSettings);rrTeams=cloneJSON(view.rrTeams);rrMatches=cloneJSON(view.rrMatches);rrSettings=cloneJSON(view.rrSettings);rrPhase=view.rrPhase;rrBracket=cloneJSON(view.rrBracket);eventRegistry=reg;eventRegistry.activeEventId=ev.id;
+                players=cloneJSON(view.players);matchesHistory=cloneJSON(view.matchesHistory);activeMatches=cloneJSON(view.activeMatches);roundMixPreview=cloneJSON(view.roundMixPreview||[]);financeTransactions=cloneJSON(view.financeTransactions);financeSettings=cloneJSON(view.financeSettings);rrTeams=cloneJSON(view.rrTeams);rrMatches=cloneJSON(view.rrMatches);rrSettings=cloneJSON(view.rrSettings);rrPhase=view.rrPhase;rrBracket=cloneJSON(view.rrBracket);eventRegistry=reg;eventRegistry.activeEventId=ev.id;
                 lastSyncedRow={...fresh,...patch};
                 markSyncSuccess();
                 return true;
@@ -2541,9 +2879,37 @@ async function deletePicRole(roleId){
                 // Selaraskan layar lokal hanya kalau ini aksi skor TERAKHIR di antrean HP ini
                 // (supaya klik cepat berulang tidak membuat angka di layar "kedip" mundur).
                 if (pendingScoreOps <= 1 && (!ev || eventRegistry.activeEventId === ev.id)) {
-                    activeMatches = cloneJSON(view.active_matches);
+                    // Waktu berjalan lokal setiap detik, sedangkan server hanya menyimpan
+                    // waktu saat aksi terakhir. Saat update skor selesai, jangan mundurkan
+                    // timer ke snapshot server yang beberapa detik lebih lama.
+                    const localTimes = new Map((activeMatches || []).map(m => {
+                        syncRoundMixTimerRuntime(m);
+                        return [m.id, {
+                            time: roundMixElapsed(m.id, m.time),
+                            isRunning: !!roundMixTimerRuntime[m.id]?.running
+                        }];
+                    }));
+                    const savedMatches = cloneJSON(view.active_matches);
+                    savedMatches.forEach(m => {
+                        const local = localTimes.get(m.id);
+                        if (!local) return;
+                        m.time = Math.max(Number(m.time || 0), local.time);
+                        // Timer runtime adalah sumber waktu lokal; hasil simpan skor tidak
+                        // boleh mengatur ulang status maupun baseline jam.
+                        const rt = roundMixTimerRuntime[m.id];
+                        if (rt) {
+                            rt.baseTime = Math.max(Number(rt.baseTime || 0), Number(m.time || 0) - (rt.running && rt.startedAt ? Math.floor((Date.now() - rt.startedAt) / 1000) : 0));
+                            m.time = roundMixElapsed(m.id, m.time);
+                            m.isRunning = !!rt.running;
+                        } else {
+                            m.isRunning = local.isRunning;
+                        }
+                    });
+                    activeMatches = savedMatches;
                     rrMatches = cloneJSON(view.rr_matches);
                     rrBracket = cloneJSON(view.rr_bracket);
+                    // Pastikan interval timer tetap terpasang setelah array match diganti.
+                    syncTimers();
                 }
                 // Jalur ini menulis sebagian kolom secara manual (di luar performSaveToSupabase),
                 // jadi baseline merge level-kolom (lastSyncedRow) perlu ikut diperbarui untuk
@@ -2805,6 +3171,40 @@ async function deletePicRole(roleId){
         } else requestRefresh();
     }
 
+    // Simpan status panel agar preferensi sembunyi/tampil tidak reset setelah refresh.
+    const AURA_COLLAPSED_PANELS_KEY = "auraCollapsedEventPanels";
+    const auraCollapsedEventPanels = (() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem(AURA_COLLAPSED_PANELS_KEY) || '["rotation","participants"]');
+            return new Set(Array.isArray(saved) ? saved : ["rotation", "participants"]);
+        } catch (_) {
+            return new Set(["rotation", "participants"]);
+        }
+    })();
+    function isEventPanelCollapsed(panel) { return auraCollapsedEventPanels.has(panel); }
+    function saveCollapsedEventPanels() {
+        try { localStorage.setItem(AURA_COLLAPSED_PANELS_KEY, JSON.stringify([...auraCollapsedEventPanels])); } catch (_) {}
+    }
+    function toggleEventPanel(panel) {
+        if (auraCollapsedEventPanels.has(panel)) auraCollapsedEventPanels.delete(panel);
+        else auraCollapsedEventPanels.add(panel);
+        saveCollapsedEventPanels();
+        renderEventAttendance();
+        const heading = document.querySelector(".rotation-queue-heading");
+        if (heading) {
+            const collapsed = isEventPanelCollapsed("rotation");
+            const button = heading.querySelector("button");
+            const content = document.querySelector(".rotation-queue-content");
+            if (button) {
+                button.textContent = collapsed ? "⌄" : "⌃";
+                button.setAttribute("aria-expanded", String(!collapsed));
+                button.setAttribute("aria-label", collapsed ? "Tampilkan Rotasi & Waiting List" : "Sembunyikan Rotasi & Waiting List");
+                button.title = collapsed ? "Tampilkan" : "Sembunyikan";
+            }
+            if (content) content.hidden = collapsed;
+        }
+    }
+
     function renderEventAttendance() {
         const host = document.getElementById('eventAttendancePanel');
         if (!host) return;
@@ -2815,14 +3215,18 @@ async function deletePicRole(roleId){
         const participants = participantIds.map(id => players.find(p=>p.id===id)).filter(Boolean);
         const present = participants.filter(p => !!attendance[p.id]).length;
         host.innerHTML = `
-            <div class="attendance-panel">
+            <div class="attendance-panel event-participant-panel">
                 <div class="event-participant-toolbar">
                     <div>
                         <h2 style="margin-bottom:4px;">👥 Peserta Event</h2>
                         <div style="color:var(--text-muted);font-size:.8rem;">${escapeHTML(ev.name)} · <b style="color:var(--primary);">${present}/${participants.length} hadir</b></div>
                     </div>
-                    <button class="btn-success" onclick="addEventParticipant()">＋ Tambah Member</button>
+                    <div class="event-participant-toolbar-actions">
+                        <button class="event-collapse-btn" onclick="toggleEventPanel('participants')" aria-expanded="${!isEventPanelCollapsed('participants')}" aria-label="${isEventPanelCollapsed('participants')?'Tampilkan Peserta Event':'Sembunyikan Peserta Event'}" title="${isEventPanelCollapsed('participants')?'Tampilkan':'Sembunyikan'}">${isEventPanelCollapsed('participants')?'⌄':'⌃'}</button>
+                        <button class="btn-success" onclick="addEventParticipant()">＋ Tambah Member</button>
+                    </div>
                 </div>
+                <div class="event-participant-content" ${isEventPanelCollapsed('participants')?'hidden':''}>
                 <div class="event-participant-table-wrap">
                 <table class="event-participant-table">
                     <thead><tr><th>#</th><th>Pemain</th><th>Level</th><th>Gender</th><th>Kehadiran</th><th>Main Event</th><th>Aksi</th></tr></thead>
@@ -2843,6 +3247,7 @@ async function deletePicRole(roleId){
                     ${participants.length===0?'<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:18px;">Belum ada peserta. Klik ＋ Tambah Member.</td></tr>':''}
                     </tbody>
                 </table></div>
+                </div>
             </div>`;
     }
 
@@ -3125,11 +3530,10 @@ async function deletePicRole(roleId){
 
     // --- Tampilan UI ---
     function getLevelBadge(level) {
-        level = parseInt(level) || 1;
-        if(level === 4) return '<span class="badge badge-exp">Expert</span>';
-        if(level === 3) return '<span class="badge badge-adv">Advance</span>';
-        if(level === 2) return '<span class="badge badge-int">Intermediate</span>';
-        return '<span class="badge badge-beg">Beginner</span>';
+        level = Math.max(1, Math.min(4, parseInt(level) || 1));
+        const labels = {1:'Beginner', 2:'Intermediate', 3:'Advance', 4:'Expert'};
+        const classes = {1:'badge-beg', 2:'badge-int', 3:'badge-adv', 4:'badge-exp'};
+        return `<span class="badge ${classes[level]}">${labels[level]}</span>`;
     }
 
    function getCareerStats(p) {
@@ -3189,28 +3593,42 @@ async function deletePicRole(roleId){
         const ev = activeEvent();
         const attendance = ev && ev.mode === 'match' ? ensureEventAttendance(ev, true) : {};
         const activeCount = players.filter(p => p.status === 'playing').length;
-        const presentPlayers = players.filter(p => p.status === 'active' && (ev && ev.mode === 'match' ? !!attendance[p.id] : p.ready !== false));
+        // Pemain yang sedang main tetap ditampilkan di daftar rotasi.
+        // Jumlah main hanya berubah saat finishMatch sukses menyimpan hasil pertandingan.
+        const presentPlayers = players.filter(p =>
+            ['active', 'playing'].includes(p.status) &&
+            (ev && ev.mode === 'match' ? !!attendance[p.id] : p.ready !== false)
+        );
         const minPlayed = presentPlayers.length ? Math.min(...presentPlayers.map(p => Number(p.stats?.played || 0))) : 0;
-        const queue = presentPlayers.sort((a,b) => {
-            const d = (a.stats.played||0) - (b.stats.played||0);
+        const queue = [...presentPlayers].sort((a,b) => {
+            const d = Number(a.stats?.played || 0) - Number(b.stats?.played || 0);
             if (d) return d;
+            if ((a.status === 'playing') !== (b.status === 'playing')) return a.status === 'playing' ? 1 : -1;
             return (a.name||'').localeCompare(b.name||'');
         });
+        const waitingCount = queue.filter(p => p.status !== 'playing').length;
         const notReadyCount = players.filter(p => p.status === 'active' && !(ev && ev.mode === 'match' ? !!attendance[p.id] : p.ready !== false)).length;
 
         if (summary) summary.innerHTML = `
             <div class="rotation-summary">
                 <div class="rotation-stat"><span class="v">${currentRoundNumber() || 0}</span><span class="l">Ronde berjalan</span></div>
-                <div class="rotation-stat"><span class="v">${presentPlayers.length}</span><span class="l">Hadir & siap</span></div>
+                <div class="rotation-stat"><span class="v">${presentPlayers.length}</span><span class="l">Total hadir</span></div>
                 <div class="rotation-stat"><span class="v">${activeCount}</span><span class="l">Sedang main</span></div>
                 <div class="rotation-stat"><span class="v">${minPlayed}x</span><span class="l">Main minimum</span></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:.78rem;color:var(--text-muted);">
+                <span>🏸 Sedang main: ${activeCount}</span><span>·</span><span>⏳ Menunggu: ${waitingCount}</span>
             </div>`;
         if (roundBadge) roundBadge.innerHTML = `<span class="round-label">🏸 Ronde ${currentRoundNumber() || 1}</span>`;
 
         tbody.innerHTML = queue.map((p, idx) => {
             const played = Number(p.stats?.played || 0);
+            const isPlaying = p.status === 'playing';
             const priority = played === minPlayed ? '<span class="rotation-priority high">Prioritas</span>' : '<span class="rotation-priority">Normal</span>';
-            return `<tr><td>${idx + 1}</td><td>${escapeHTML(p.name)}</td><td>${getLevelBadge(p.level)}</td><td style="text-align:center;font-weight:bold;color:var(--primary);">${played}x ${priority}</td></tr>`;
+            const playerName = `${isPlaying ? '🏸 ' : ''}${escapeHTML(p.name)}`;
+            const playingStyle = isPlaying ? 'background:rgba(16,185,129,.08);' : '';
+            const statusLabel = isPlaying ? '<span class="rotation-priority busy">Sedang main</span>' : priority;
+            return `<tr style="${playingStyle}"><td>${idx + 1}</td><td>${playerName}</td><td>${getLevelBadge(p.level)}</td><td style="text-align:center;font-weight:bold;color:var(--primary);">${played}x ${statusLabel}</td></tr>`;
         }).join('') + (notReadyCount > 0 ? `<tr><td colspan="4" style="text-align:center;color:var(--warning);font-size:.85rem;padding-top:10px;">⏳ ${notReadyCount} pemain aktif belum hadir di event ini</td></tr>` : '') + (queue.length === 0 ? `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px;">Belum ada pemain siap.</td></tr>` : '');
     }
 
@@ -3283,44 +3701,134 @@ async function deletePicRole(roleId){
         });
     }
 
-    // Cari pembagian tim yang levelnya paling seimbang.
-    // Rule 4 level:
-    // Level 1 = Beginner
-    // Level 2 = Intermediate
-    // Level 3 = Advance
-    // Level 4 = Expert
-    //
-    // Target utama: selisih total level Tim A dan Tim B <= 1.
-    // Contoh valid: 1+3 vs 2+2, 4+1 vs 3+2, 2+2 vs 1+3.
-    // Contoh tidak valid: 4+3 vs 1+2.
-    function findBalancedTeams(group, teamSize) {
-        if(!Array.isArray(group) || group.length !== teamSize * 2) return null;
+    // Skor level Aura Match mengikuti skala member yang ada: Beginner=1, Intermediate=2, Advance=3, Expert=4.
+    function levelScore(player) {
+        return Math.max(1, Math.min(4, parseInt(player?.level) || 1));
+    }
 
+    function evaluateMatchBalance(group, teamSize) {
+        if (!Array.isArray(group) || group.length !== teamSize * 2) return null;
         let best = null;
-        let bestDiff = Infinity;
-
-        // Untuk match kecil (yang paling umum 2v2), cek semua kombinasi.
-        // Untuk match besar, random sampling menjaga performa tetap ringan.
-        const maxAttempts = group.length <= 10 ? 800 : 1200;
-
-        for(let attempt = 0; attempt < maxAttempts; attempt++) {
-            const shuffled = shuffleArray(group);
-            const teamA = shuffled.slice(0, teamSize);
-            const teamB = shuffled.slice(teamSize);
-
-            const scoreA = teamA.reduce((sum, p) => sum + (parseInt(p.level) || 1), 0);
-            const scoreB = teamB.reduce((sum, p) => sum + (parseInt(p.level) || 1), 0);
-            const diff = Math.abs(scoreA - scoreB);
-
-            if(diff < bestDiff) {
-                bestDiff = diff;
-                best = { teamA, teamB, scoreA, scoreB, diff };
-
-                if(diff <= 1) return best;
+        const splits = [];
+        if (teamSize === 2) {
+            // Ketiga pembagian unik untuk pertandingan ganda.
+            splits.push([[group[0],group[1]],[group[2],group[3]]]);
+            splits.push([[group[0],group[2]],[group[1],group[3]]]);
+            splits.push([[group[0],group[3]],[group[1],group[2]]]);
+        } else {
+            const maxAttempts = group.length <= 10 ? 800 : 1200;
+            for (let i=0;i<maxAttempts;i++) {
+                const shuffled=shuffleArray(group);
+                splits.push([shuffled.slice(0,teamSize),shuffled.slice(teamSize)]);
             }
         }
-
+        for (const [teamA,teamB] of splits) {
+            const scoreA=teamA.reduce((sum,p)=>sum+levelScore(p),0);
+            const scoreB=teamB.reduce((sum,p)=>sum+levelScore(p),0);
+            const diff=Math.abs(scoreA-scoreB);
+            const levels=group.map(levelScore);
+            const widestGap=Math.max(...levels)-Math.min(...levels);
+            let extremeGap=false;
+            for(let i=0;i<levels.length;i++) for(let j=i+1;j<levels.length;j++) {
+                if(Math.abs(levels[i]-levels[j])>=4) extremeGap=true;
+            }
+            const badness=(diff*10)+(Math.max(0,widestGap-2)*5)+(extremeGap?100:0);
+            if(!best || badness<best.badness) best={teamA,teamB,scoreA,scoreB,diff,badness,widestGap,extremeGap};
+        }
         return best;
+    }
+
+    function findBalancedTeams(group, teamSize) {
+        return evaluateMatchBalance(group, teamSize);
+    }
+
+    function getPlayerConsecutiveRounds(playerId, view) {
+        const rounds = new Map();
+        [...(view.matchesHistory||[]), ...(view.activeMatches||[])].forEach(m => {
+            const r=Number(m.round||0);
+            if(!r) return;
+            if([...(m.teamA||[]),...(m.teamB||[])].some(p=>p.id===playerId)) rounds.set(r,true);
+        });
+        const ordered=[...rounds.keys()].sort((a,b)=>b-a);
+        if(!ordered.length) return 0;
+        let count=0, expected=ordered[0];
+        for(const r of ordered) {
+            if(r!==expected) break;
+            count++; expected--;
+        }
+        return count;
+    }
+
+    function pickRoundMixReferee(roundNumber) {
+        ensurePicRegistry();
+        const ids=[...new Set(eventRegistry.picAssignments.hostwasitIds||[])].filter(id=>(players||[]).some(p=>p.id===id));
+        if(!ids.length) return null;
+        const ev=activeEvent();
+        const history=[...(matchesHistory||[]),...(activeMatches||[])].filter(m=>Number(m.round||0)<Number(roundNumber||0)&&m.roundWasitId);
+        const counts=Object.fromEntries(ids.map(id=>[id,0]));
+        const byRound=new Map();
+        history.forEach(m=>{const round=Number(m.round||0);if(!byRound.has(round))byRound.set(round,m.roundWasitId);});
+        byRound.forEach(id=>{if(Object.prototype.hasOwnProperty.call(counts,id))counts[id]++;});
+        const minCount=Math.min(...ids.map(id=>counts[id]));
+        const eligible=ids.filter(id=>counts[id]===minCount);
+        const id=eligible[Math.floor(Math.random()*eligible.length)];
+        const person=(players||[]).find(p=>p.id===id);
+        return {roundWasitId:id,roundWasitName:person?.name||'Wasit belum tersedia'};
+    }
+
+    function roundMixPlayersInRound(roundNumber) {
+        return [...new Set((activeMatches||[]).filter(m=>Number(m.round||0)===Number(roundNumber)).flatMap(m=>[...(m.teamA||[]),...(m.teamB||[])].map(p=>p.id)))];
+    }
+
+    function roundMixNeedsTemporaryReferee(roundNumber) {
+        const roundMatches=(activeMatches||[]).filter(m=>Number(m.round||0)===Number(roundNumber));
+        if(!roundMatches.length) return false;
+        const primary=roundMatches.find(m=>m.roundWasitId||m.roundWasitName);
+        if(!primary) return false;
+        const playingIds=new Set(roundMatches.flatMap(m=>[...(m.teamA||[]),...(m.teamB||[])].map(p=>p.id)));
+        return playingIds.has(primary.roundWasitId);
+    }
+
+    function openTemporaryRefereePicker(roundNumber) {
+        const roundMatches=(activeMatches||[]).filter(m=>Number(m.round||0)===Number(roundNumber));
+        const primary=roundMatches.find(m=>m.roundWasitId||m.roundWasitName);
+        if(!primary) return;
+        const playingIds=new Set(roundMatches.flatMap(m=>[...(m.teamA||[]),...(m.teamB||[])].map(p=>p.id)));
+        const candidates=(players||[]).filter(p=>p&&p.name&&!playingIds.has(p.id)&&p.id!==primary.roundWasitId);
+        if(!candidates.length) {
+            alert('Tidak ada anggota yang sedang tidak bermain di ronde ini. Wasit sementara hanya bisa dipilih dari anggota yang tidak bermain pada ronde tersebut. Tambahkan/siapkan anggota cadangan terlebih dahulu.');
+            return;
+        }
+        const existing=roundMatches.find(m=>m.roundWasitTempId)?.roundWasitTempId||'';
+        const opts=candidates.sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${picEscape(p.id)}">${picEscape(p.name)}</option>`).join('');
+        const ov=document.createElement('div'); ov.className='pic-modal-overlay'; ov.id='roundTempRefereeOverlay';
+        ov.innerHTML=`<div class="pic-modal"><h3>🎽 Wasit Sementara · Ronde ${Number(roundNumber)}</h3>
+          <p>Wasit utama <strong>${picEscape(primary.roundWasitName||'')}</strong> ikut bermain pada ronde ini. Pilih anggota yang tidak bermain di ronde ini untuk menggantikan tugas wasit sementara.</p>
+          <label for="roundTempRefereeSelect">Pilih pengganti</label>
+          <select id="roundTempRefereeSelect"><option value="">-- Pilih anggota --</option>${opts}</select>
+          <div class="pic-modal-actions"><button type="button" onclick="document.getElementById('roundTempRefereeOverlay')?.remove()">Batal</button><button type="button" onclick="saveTemporaryReferee(${Number(roundNumber)})">Simpan Wasit Sementara</button></div></div>`;
+        document.body.appendChild(ov);
+        const sel=document.getElementById('roundTempRefereeSelect'); if(sel)sel.value=existing;
+    }
+
+    async function saveTemporaryReferee(roundNumber) {
+        const sel=document.getElementById('roundTempRefereeSelect');
+        const id=sel?.value;
+        if(!id) { alert('Pilih anggota untuk menjadi wasit sementara.'); return; }
+        const person=(players||[]).find(p=>p.id===id);
+        if(!person) { alert('Anggota tidak ditemukan. Silakan buka ulang pilihan wasit.'); return; }
+        const playingIds=new Set((activeMatches||[]).filter(m=>Number(m.round||0)===Number(roundNumber)).flatMap(m=>[...(m.teamA||[]),...(m.teamB||[])].map(p=>p.id)));
+        if(playingIds.has(id)) { alert('Wasit sementara harus anggota yang tidak bermain di ronde ini.'); return; }
+        const ok=await safeRoundMixMutation(view=>{
+            const roundMatches=(view.activeMatches||[]).filter(m=>Number(m.round||0)===Number(roundNumber));
+            if(!roundMatches.length) return false;
+            roundMatches.forEach(m=>{m.roundWasitTempId=id;m.roundWasitTempName=person.name;});
+            return true;
+        });
+        if(!ok) { markSyncError(); return; }
+        document.getElementById('roundTempRefereeOverlay')?.remove();
+        renderCourts();
+        markSyncSuccess(`${person.name} ditetapkan sebagai wasit sementara untuk Ronde ${roundNumber}.`);
     }
 
     function buildGeneratedMatchesForView(view, teamSize, maxCourts) {
@@ -3370,6 +3878,7 @@ async function deletePicRole(roleId){
         const generatedMatches = [];
         const rounds = [...(view.activeMatches || []), ...(view.matchesHistory || [])].map(m => Number(m.round || 0));
         const round = rounds.length ? Math.max(...rounds) + 1 : 1;
+        const roundReferee = pickRoundMixReferee(round);
 
         for (let c = 0; c < needed; c++) {
             if (work.length < requiredPlayersPerMatch) break;
@@ -3379,23 +3888,40 @@ async function deletePicRole(roleId){
                 ? tierPlayers
                 : work.slice(0, Math.max(requiredPlayersPerMatch, tierPlayers.length));
 
-            let bestGroup = null, bestTeams = null, bestScore = Infinity;
-            for (let attempt = 0; attempt < 180; attempt++) {
-                const group = shuffleArray(candidatePool).slice(0, requiredPlayersPerMatch);
-                const balanced = findBalancedTeams(group, teamSize);
-                if (!balanced || balanced.diff > 1) continue;
-                const partnerRepeats = localPartnerRepeats(balanced.teamA) + localPartnerRepeats(balanced.teamB);
-                const opponentRepeats = localOpponentRepeats(balanced.teamA, balanced.teamB);
-                const playedPenalty = group.reduce((sum,p) => sum + Number(p.stats?.played || 0), 0);
-                const score = partnerRepeats * 80 + opponentRepeats * 50 + playedPenalty * .05 + balanced.diff * 5 + Math.random();
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestGroup = group;
-                    bestTeams = balanced;
-                    if (partnerRepeats === 0 && opponentRepeats === 0 && balanced.diff === 0) break;
+            const pools = [
+                work.filter(p=>Number(p.stats?.played||0)===minPlayed),
+                work.filter(p=>Number(p.stats?.played||0)<=minPlayed+1),
+                work.filter(p=>getPlayerConsecutiveRounds(p.id,view)<1)
+            ];
+            let bestGroup=null,bestTeams=null,bestBadness=Infinity,bestRepeatScore=Infinity;
+            const tried=new Set();
+            for(let tierIndex=0;tierIndex<pools.length;tierIndex++){
+                const pool=pools[tierIndex];
+                if(pool.length<requiredPlayersPerMatch) continue;
+                let localGroup=null,localTeams=null,localBadness=Infinity,localRepeats=Infinity;
+                for(let attempt=0;attempt<500;attempt++){
+                    const group=shuffleArray(pool).slice(0,requiredPlayersPerMatch);
+                    if(new Set(group.map(p=>p.id)).size!==requiredPlayersPerMatch) continue;
+                    if(group.some(p=>getPlayerConsecutiveRounds(p.id,view)>=1)) continue;
+                    const key=group.map(p=>p.id).sort().join('|');
+                    if(tried.has(key)) continue;
+                    tried.add(key);
+                    const balanced=findBalancedTeams(group,teamSize);
+                    if(!balanced) continue;
+                    const repeats=localPartnerRepeats(balanced.teamA)+localPartnerRepeats(balanced.teamB)+localOpponentRepeats(balanced.teamA,balanced.teamB);
+                    if(balanced.badness<localBadness || (balanced.badness===localBadness && repeats<localRepeats)){
+                        localGroup=group;localTeams=balanced;localBadness=balanced.badness;localRepeats=repeats;
+                    }
                 }
+                if(!localGroup) continue;
+                // Fallback dipakai hanya jika lebih seimbang daripada hasil sebelumnya.
+                if(!bestGroup || localBadness<bestBadness || (localBadness===bestBadness && tierIndex<2 && localRepeats<bestRepeatScore)){
+                    bestGroup=localGroup;bestTeams=localTeams;bestBadness=localBadness;bestRepeatScore=localRepeats;
+                }
+                if(bestBadness<20) break;
+                if(tierIndex===2) break;
             }
-            if (!bestGroup || !bestTeams) break;
+            if (!bestGroup || !bestTeams) break;            if (!bestGroup || !bestTeams) break;
 
             const { teamA, teamB } = bestTeams;
             work.splice(0, work.length, ...work.filter(p => !bestGroup.some(g => g.id === p.id)));
@@ -3405,14 +3931,15 @@ async function deletePicRole(roleId){
                 courtName: `Lapangan ${c + 1}`,
                 teamA: teamA.map(p => ({...cloneJSON(p), matchPoints:0, matchOuts:0, matchFaults:0})),
                 teamB: teamB.map(p => ({...cloneJSON(p), matchPoints:0, matchOuts:0, matchFaults:0})),
-                scoreA:0, scoreB:0, time:0, isRunning:false
+                scoreA:0, scoreB:0, time:0, isRunning:false,
+                ...(roundReferee || {})
             };
             generatedMatches.push(match);
             bestGroup.forEach(p => { const ref = view.players.find(x => x.id === p.id); if (ref) ref.status = 'playing'; });
             localRecordPartners(teamA); localRecordPartners(teamB); localRecordOpponents(teamA, teamB);
         }
 
-        if (!generatedMatches.length) return { matches: [], reason: 'Belum bisa membuat kombinasi level yang seimbang. Selisih total level tim maksimal 1. Coba tambah pemain dari level yang sesuai.' };
+        if (!generatedMatches.length) return { matches: [], reason: 'Belum bisa membuat kombinasi pertandingan yang valid. Coba tambah pemain yang hadir atau sesuaikan level.' };
         return { matches: generatedMatches, reason: '' };
     }
 
@@ -3432,6 +3959,13 @@ async function deletePicRole(roleId){
             const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
             if (!result.matches.length) return false;
             view.activeMatches.push(...result.matches);
+            view.roundMixPreview = [];
+            {
+                const pv = cloneJSON(view);
+                (pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
+                const pr = buildGeneratedMatchesForView(pv, teamSize, maxCourts);
+                view.roundMixPreview = pr.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
+            }
             rebuildRotationForView(view);
             return true;
         });
@@ -3490,7 +4024,8 @@ async function deletePicRole(roleId){
             return false;
         };
 
-        // Update lokal dulu supaya tombol terasa instan.
+        // Update lokal dulu supaya tombol terasa instan, sekaligus ambil waktu
+        // terbaru agar mutasi skor tidak menimpa timer server dengan nilai lama.
         const localMatch = activeMatches.find(m => m.id === matchId);
         if(localMatch) {
             const p = localMatch[team] && localMatch[team][playerIdx];
@@ -3501,14 +4036,20 @@ async function deletePicRole(roleId){
                 return;
             }
         }
+        const elapsedTime = Number(localMatch?.time || 0);
+        const wasRunning = !!localMatch?.isRunning;
 
-        // Simpan perubahan di atas data TERBARU server. queueScoreOp akan
-        // menggabungkan klik-klik cepat menjadi satu transaksi.
+        // Simpan skor bersama waktu/status timer terkini dari layar ini.
         queueScoreOp(row => {
             const m = (row.active_matches || []).find(x => x.id === matchId);
             if(!m) return false;
             const p = m[team] && m[team][playerIdx];
-            return applyScoreChange(m, p);
+            const changed = applyScoreChange(m, p);
+            if (changed) {
+                m.time = Math.max(Number(m.time || 0), elapsedTime);
+                if (localMatch) m.isRunning = wasRunning;
+            }
+            return changed;
         });
     }
 
@@ -3624,6 +4165,15 @@ async function deletePicRole(roleId){
                 (view.players||[]).forEach(p=>{ if(p.status==='playing') p.status='active'; });
                 view.activeMatches.forEach(m=>[...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{const ref=view.players.find(p=>p.id===mp.id);if(ref)ref.status='playing';}));
                 rebuildRotationForView(view);
+                // Perubahan ronde aktif membatalkan preview lama; hitung ulang dari komposisi terbaru.
+                const courtsNow=parseInt(document.getElementById('totalCourts')?.value)||1;
+                if(view.activeMatches.length) {
+                    view.roundMixPreview=[];
+                    const pv=cloneJSON(view);
+                    (pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
+                    const previewResult=buildGeneratedMatchesForView(pv,parseInt(document.getElementById('playersPerTeam')?.value)||2,Math.max(1,courtsNow));
+                    view.roundMixPreview=previewResult.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
+                }
                 return true;
             }).then(ok=>{ if(!ok) requestRefresh(); renderCourts(); renderQueue(); if(window.scoreDashboardOpen) renderScoreDashboard(matchId); });
         });
@@ -3717,28 +4267,37 @@ async function deletePicRole(roleId){
     async function toggleTimer(matchId) {
         const match = activeMatches.find(m => m.id === matchId);
         if(!match) return;
-        const nextRunning = !match.isRunning;
-        const nextTime = Number(match.time || 0);
-        if(nextRunning) {
-            match.isRunning = true;
-            timers[matchId] = setInterval(() => {
-                match.time++;
-                const mainTimer = document.getElementById(`timer-${matchId}`); if (mainTimer) mainTimer.innerText = formatTime(match.time);
-                const scoreTimer = document.getElementById(`score-dashboard-timer-${matchId}`); if (scoreTimer) scoreTimer.innerText = formatTime(match.time);
-            }, 1000);
+        syncRoundMixTimerRuntime(match);
+        const runtime = roundMixTimerRuntime[matchId];
+        const nextRunning = !runtime.running;
+        if (nextRunning) {
+            runtime.baseTime = roundMixElapsed(matchId, match.time);
+            runtime.startedAt = Date.now();
+            runtime.running = true;
         } else {
-            match.isRunning = false;
-            clearInterval(timers[matchId]);
+            runtime.baseTime = roundMixElapsed(matchId, match.time);
+            runtime.startedAt = null;
+            runtime.running = false;
         }
+        match.time = runtime.baseTime;
+        match.isRunning = nextRunning;
+        if (!nextRunning) {
+            clearInterval(timers[matchId]);
+            delete timers[matchId];
+        } else {
+            syncTimers();
+        }
+        renderRoundMixTimer(matchId);
         renderScoreDashboard(matchId);
+        const savedTime = Number(match.time || 0);
         const ok = await safeRoundMixMutation(view => {
-            const serverMatch=view.activeMatches.find(m=>m.id===matchId);
-            if(!serverMatch) return false;
-            serverMatch.isRunning=nextRunning;
-            if(!nextRunning) serverMatch.time=Math.max(Number(serverMatch.time||0), nextTime);
+            const serverMatch = view.activeMatches.find(m => m.id === matchId);
+            if (!serverMatch) return false;
+            serverMatch.isRunning = nextRunning;
+            serverMatch.time = savedTime;
             return true;
         });
-        if(!ok) requestRefresh();
+        if (!ok) requestRefresh();
     }
 
     function formatTime(seconds) {
@@ -3773,10 +4332,13 @@ async function deletePicRole(roleId){
             const match = view.activeMatches.find(m => m.id === matchId);
             if (!match) return false;
 
+            // Skor 0-0 berarti match belum dimulai: boleh ditutup, tetapi tidak masuk histori/statistik.
+            const unplayedZeroScore = Number(match.scoreA || 0) === 0 && Number(match.scoreB || 0) === 0;
+            const countAsPlayed = !isSkip && !unplayedZeroScore;
             const winner = match.scoreA > match.scoreB ? 'A' : (match.scoreB > match.scoreA ? 'B' : 'Draw');
             const fee = parseInt(view.financeSettings.payPerPlay) || 0;
 
-            if (!isSkip) {
+            if (countAsPlayed) {
                 const update = (mp, team) => {
                     const ref = view.players.find(x => x.id === mp.id);
                     if (!ref) return;
@@ -3826,11 +4388,22 @@ async function deletePicRole(roleId){
             // dari data yang BARU saja dihitung. Tidak perlu request kedua.
             if (view.activeMatches.length === 0) {
                 rebuildRotationForView(view);
-                const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
-                if (result.matches.length) {
-                    view.activeMatches.push(...result.matches);
-                    generatedNextRound = result.matches.length;
+                if((view.roundMixPreview||[]).length){
+                    view.activeMatches=view.roundMixPreview.map((m,i)=>({...cloneJSON(m),isPreview:false,isRunning:false,time:0,scoreA:0,scoreB:0,courtName:`Lapangan ${i+1}`}));
+                    view.roundMixPreview=[];
+                    view.activeMatches.forEach(m=>[...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{const p=view.players.find(x=>x.id===mp.id);if(p)p.status='playing';}));
+                    generatedNextRound=view.activeMatches.length;
+                    const pv=cloneJSON(view);(pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
+                    const pr=buildGeneratedMatchesForView(pv,teamSize,maxCourts);
+                    view.roundMixPreview=pr.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
                     rebuildRotationForView(view);
+                } else {
+                    const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
+                    if (result.matches.length) {
+                        view.activeMatches.push(...result.matches);
+                        generatedNextRound = result.matches.length;
+                        rebuildRotationForView(view);
+                    }
                 }
             } else {
                 rebuildRotationForView(view);
@@ -3878,8 +4451,14 @@ async function deletePicRole(roleId){
     }
 
     function closeScoreDashboard() {
+        // Pilihan pengguna: keluar dari dashboard Update Skor otomatis pause.
+        const closingMatchId = window.scoreDashboardMatchId;
+        const closingMatch = closingMatchId ? activeMatches.find(m => m.id === closingMatchId) : null;
+        if (closingMatch && roundMixTimerRuntime[closingMatchId]?.running) {
+            // toggleTimer menangkap waktu saat ini, menghentikan timer, lalu menyimpan pause.
+            toggleTimer(closingMatchId);
+        }
         window.scoreDashboardOpen = false;
-        window.scoreDashboardMatchId = null;
         window.scoreDashboardMatchId = null;
 
         const dashboard = document.getElementById('scoreDashboard');
@@ -3998,17 +4577,37 @@ async function deletePicRole(roleId){
         }
     }
 
+    async function editRoundMixPreviewPlayer(matchId,teamKey,playerIndex){
+        const preview=roundMixPreview.find(m=>m.id===matchId);
+        if(!preview||!['teamA','teamB'].includes(teamKey))return;
+        const current=preview[teamKey][playerIndex],ev=activeEvent(),attendance=(ev&&ev.attendance)||{};
+        const candidates=players.filter(p=>attendance[p.id]&&['active','playing'].includes(p.status));
+        const chosen=prompt(`Pilih nomor pemain pengganti untuk ${current?.name||'slot'}:\n\n${candidates.map((p,i)=>`${i+1}. ${p.name} - ${({1:'Beginner',2:'Intermediate',3:'Advance',4:'Expert'})[levelScore(p)]}`).join('\n')}`,String(Math.max(1,candidates.findIndex(p=>p.id===current?.id)+1)));
+        if(chosen===null)return;
+        const idx=parseInt(chosen,10)-1;
+        if(!Number.isInteger(idx)||idx<0||idx>=candidates.length){alert('Pilihan pemain tidak valid.');return;}
+        const selected=candidates[idx];
+        if([...(preview.teamA||[]),...(preview.teamB||[])].some(p=>p.id===selected.id&&p.id!==current?.id)){alert('Pemain sudah ada di ronde preview.');return;}
+        if(getPlayerConsecutiveRounds(selected.id,{matchesHistory,activeMatches})>=2&&!([...(preview.teamA||[]),...(preview.teamB||[])].some(p=>p.id===selected.id))){alert('Pemain ini sudah bermain 2 ronde berturut-turut.');return;}
+        const ok=await safeRoundMixMutation(view=>{
+            const m=(view.roundMixPreview||[]).find(x=>x.id===matchId);if(!m)return false;
+            const old=m[teamKey][playerIndex];
+            if([...(m.teamA||[]),...(m.teamB||[])].some(p=>p.id===selected.id&&p.id!==old?.id))return false;
+            m[teamKey][playerIndex]={...cloneJSON(view.players.find(p=>p.id===selected.id)||selected),matchPoints:0,matchOuts:0,matchFaults:0};
+            m.isManuallyEdited=true;return true;
+        });
+        if(ok)renderCourts();
+    }
+
    function renderCourts() {
     const container = document.getElementById('courtsContainer');
     if (!container) return;
 
-    if (!activeMatches.length) {
-        container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Tidak ada pertandingan yang sedang berjalan.</p>';
-        if (window.scoreDashboardOpen) closeScoreDashboard();
-        return;
-    }
+    // Tetap render container walaupun tidak ada match aktif, karena preview ronde
+    // berikutnya bisa tetap tersimpan dan perlu terlihat setelah refresh/sinkronisasi.
+    if (!activeMatches.length && window.scoreDashboardOpen) closeScoreDashboard();
 
-    container.innerHTML = activeMatches.map(match => {
+    container.innerHTML = activeMatches.length ? activeMatches.map(match => {
         const teamA = (match.teamA || []).map(p => p.name).join(' / ');
         const teamB = (match.teamB || []).map(p => p.name).join(' / ');
         return `
@@ -4019,6 +4618,8 @@ async function deletePicRole(roleId){
                         <div style="color:var(--text-muted);font-size:.78rem;margin-top:3px;">
                             ${match.isRunning ? '● Sedang Main' : 'Ⅱ Paused'}
                         </div>
+                        ${match.roundWasitName ? `<div style="color:var(--primary);font-size:.78rem;font-weight:800;margin-top:5px;">🎽 Wasit Ronde ${match.round}: ${picEscape(match.roundWasitTempName || match.roundWasitName)}${match.roundWasitTempName ? ' · Sementara' : ''}</div>` : ''}
+                        ${match.roundWasitName && roundMixNeedsTemporaryReferee(match.round) ? `<button type="button" onclick="openTemporaryRefereePicker(${Number(match.round)})" style="margin-top:7px;padding:7px 10px;border-radius:8px;border:1px solid var(--primary);background:transparent;color:var(--primary);font-weight:800;cursor:pointer;">${match.roundWasitTempName ? '🔁 Ganti Wasit Sementara' : '👤 Pilih Wasit Sementara'}</button>` : ''}
                     </div>
                     <div style="font-size:.78rem;color:var(--text-muted);">${formatTime(match.time || 0)}</div>
                 </div>
@@ -4069,8 +4670,31 @@ async function deletePicRole(roleId){
                 </div>
             </div>
         `;
-    }).join('');
-
+    }).join('') : '';
+    if (!activeMatches.length && !(roundMixPreview && roundMixPreview.length)) {
+        container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Tidak ada pertandingan yang sedang berjalan.</p>';
+    }
+    // Satu kartu tambahan untuk pertandingan yang akan dimainkan berikutnya.
+    // Match aktif tetap mengikuti jumlah lapangan; kartu ini hanya menampilkan
+    // pertandingan pertama dari preview ronde berikutnya.
+    if(roundMixPreview && roundMixPreview.length){
+        const preview = roundMixPreview[0];
+        const A=preview.teamA||[], B=preview.teamB||[];
+        const bal=evaluateMatchBalance([...A,...B],A.length||2);
+        const label=bal&&bal.badness<20?'Seimbang':'Kurang seimbang';
+        container.innerHTML+=`<div class="court" style="padding:16px;opacity:.92;border:1px dashed var(--primary);margin-top:14px;background:linear-gradient(145deg,rgba(200,159,76,.08),var(--bg-card));">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+            <b style="color:var(--primary);">⏭️ NEXT RONDE · PERTANDINGAN SELANJUTNYA</b>
+            <span class="badge ${bal&&bal.badness<20?'badge-adv':'badge-beg'}">${label}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:14px;">
+            <div style="text-align:center;min-width:0;"><b style="color:var(--text-muted);font-size:.75rem;">TIM A</b>${A.map((p,i)=>`<div style="margin-top:7px;overflow-wrap:anywhere;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamA',${i})" title="Edit pemain" style="border:0;background:transparent;color:var(--primary);cursor:pointer;padding:2px 4px;">✏️</button></div>`).join('')}</div>
+            <b style="color:var(--primary);">VS</b>
+            <div style="text-align:center;min-width:0;"><b style="color:var(--text-muted);font-size:.75rem;">TIM B</b>${B.map((p,i)=>`<div style="margin-top:7px;overflow-wrap:anywhere;">${escapeHTML(p.name)} · ${getLevelBadge(p.level)} <button onclick="editRoundMixPreviewPlayer('${preview.id}','teamB',${i})" title="Edit pemain" style="border:0;background:transparent;color:var(--primary);cursor:pointer;padding:2px 4px;">✏️</button></div>`).join('')}</div>
+        </div>
+        <div style="font-size:.78rem;color:var(--text-muted);margin-top:9px;text-align:center;">Susunan pemain untuk ronde berikutnya · Belum dimulai</div>
+        </div>`;
+    }
     if (window.scoreDashboardOpen && window.scoreDashboardMatchId) {
         renderScoreDashboard(window.scoreDashboardMatchId);
     }
@@ -4878,7 +5502,7 @@ function togglePlayerActions(button) {
     }
 
     function exportData() {
-        const data = { players, matchesHistory, activeMatches, financeTransactions, financeSettings, rrTeams, rrMatches, rrSettings, rrPhase, rrBracket };
+        const data = { players, matchesHistory, activeMatches, roundMixPreview, financeTransactions, financeSettings, rrTeams, rrMatches, rrSettings, rrPhase, rrBracket };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -4897,6 +5521,7 @@ function togglePlayerActions(button) {
                 if(data.players) players = data.players;
                 if(data.matchesHistory) matchesHistory = data.matchesHistory;
                 if(data.activeMatches) activeMatches = data.activeMatches;
+                if(data.roundMixPreview) roundMixPreview = data.roundMixPreview;
                 if(data.financeTransactions) financeTransactions = data.financeTransactions;
                 if(data.financeSettings) financeSettings = data.financeSettings;
                 if(data.rrTeams) rrTeams = data.rrTeams;
@@ -4925,15 +5550,198 @@ function togglePlayerActions(button) {
 
     // ================= STORY INSTAGRAM: MVP & BEST PARTNER =================
 
-    // MVP = pemain dengan jumlah kemenangan terbanyak (sudah main minimal 1x), tie-break win rate tertinggi
+    // MVP: jumlah kemenangan tertinggi, lalu jumlah match terbanyak; jika masih seri, total poin menjadi penentu.
     function computeMVP() {
-        const candidates = players.filter(p => p.stats.played > 0);
+        const candidates = players.filter(p => Number(p.stats?.played || 0) > 0);
         if(candidates.length === 0) return null;
         return [...candidates].sort((a, b) => {
-            if(b.stats.wins !== a.stats.wins) return b.stats.wins - a.stats.wins;
-            const wrA = a.stats.wins / a.stats.played, wrB = b.stats.wins / b.stats.played;
-            return wrB - wrA;
+            const winsDiff = Number(b.stats?.wins || 0) - Number(a.stats?.wins || 0);
+            if(winsDiff !== 0) return winsDiff;
+            const playedDiff = Number(b.stats?.played || 0) - Number(a.stats?.played || 0);
+            if(playedDiff !== 0) return playedDiff;
+            return Number(b.stats?.points || 0) - Number(a.stats?.points || 0);
         })[0];
+    }
+
+    // Top Point: poin bersih = Point - Fault - Out.
+    function computeTopPoint() {
+        const candidates = players.filter(p => Number(p.stats?.played || 0) > 0);
+        if(candidates.length === 0) return null;
+        return [...candidates].sort((a, b) => {
+            const netA = Number(a.stats?.points || 0) - Number(a.stats?.fault || 0) - Number(a.stats?.out || 0);
+            const netB = Number(b.stats?.points || 0) - Number(b.stats?.fault || 0) - Number(b.stats?.out || 0);
+            if(netB !== netA) return netB - netA;
+            if(Number(b.stats?.points || 0) !== Number(a.stats?.points || 0)) return Number(b.stats?.points || 0) - Number(a.stats?.points || 0);
+            return Number(b.stats?.wins || 0) - Number(a.stats?.wins || 0);
+        })[0];
+    }
+
+    // Buat story Top Point yang bisa diunduh, tanpa mengunduh tabel klasemen.
+    async function generateTopPointStoryCard() {
+        const player = computeTopPoint();
+        if (!player) {
+            alert('Belum ada data pertandingan untuk menentukan Top Point.');
+            return;
+        }
+
+        await ensureStoryFonts();
+        const stats = player.stats || {};
+        const points = Number(stats.points || 0);
+        const fault = Number(stats.fault || 0);
+        const out = Number(stats.out || 0);
+        const net = points - fault - out;
+        const W = 1080, H = 1920;
+        const canvas = document.createElement('canvas');
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext('2d');
+        const GOLD = '#e5bd55', GOLD2 = '#f9df8b', WHITE = '#fffaf0', MUTED = '#c6bda8';
+
+        // Visual mengikuti template MVP: background hitam-emas, watermark, frame foto, dan panel statistik.
+        ctx.fillStyle = '#030303'; ctx.fillRect(0, 0, W, H);
+        const bg = ctx.createRadialGradient(540, 780, 40, 540, 780, 1050);
+        bg.addColorStop(0, '#33220b'); bg.addColorStop(.45, '#100c06'); bg.addColorStop(1, '#020202');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        for (let i = 0; i < 18; i++) {
+            ctx.strokeStyle = i % 3 === 0 ? 'rgba(245,190,65,.28)' : 'rgba(210,160,50,.10)';
+            ctx.lineWidth = i % 3 === 0 ? 5 : 2;
+            ctx.beginPath(); ctx.moveTo(-160 + i * 48, 0); ctx.lineTo(-620 + i * 48, 600); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(1250 + i * 35, 1260); ctx.lineTo(720 + i * 35, 1920); ctx.stroke();
+        }
+        ctx.restore();
+        drawWatermark(ctx, W, H, 'AURA');
+
+        // Logo Aura di tengah paling atas, nama event tepat di bawahnya.
+        const ev = typeof activeEvent === 'function' ? activeEvent() : null;
+        const eventTitle = String(ev?.name || 'AURA SPORTS CLUB').trim().toUpperCase();
+        const logoImg = await loadImageEl('logo.png');
+        let logoBottom = 145;
+        if (logoImg) {
+            const lw = 112, lh = lw * logoImg.height / logoImg.width;
+            const lx = (W - lw) / 2, ly = 28;
+            ctx.save(); ctx.shadowColor = 'rgba(244,194,65,.6)'; ctx.shadowBlur = 18;
+            ctx.drawImage(logoImg, lx, ly, lw, lh); ctx.restore();
+            logoBottom = ly + lh;
+        }
+        ctx.textAlign = 'center'; ctx.fillStyle = GOLD2;
+        let eventFont = 31;
+        ctx.font = '800 ' + eventFont + 'px Montserrat, Arial, sans-serif';
+        while (ctx.measureText(eventTitle).width > 850 && eventFont > 20) {
+            eventFont--; ctx.font = '800 ' + eventFont + 'px Montserrat, Arial, sans-serif';
+        }
+        const eventY = Math.max(logoBottom + 42, 190);
+        ctx.fillText(eventTitle, W/2, eventY, 850);
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+        const eventLineW = Math.min(600, ctx.measureText(eventTitle).width);
+        ctx.beginPath(); ctx.moveTo((W-eventLineW)/2, eventY+18); ctx.lineTo((W+eventLineW)/2, eventY+18); ctx.stroke();
+
+        // Judul dan subjudul Top Point; kata-kata dapat disesuaikan kemudian.
+        ctx.textAlign = 'center';
+        ctx.save(); ctx.shadowColor = 'rgba(255,185,35,.65)'; ctx.shadowBlur = 26;
+        ctx.fillStyle = GOLD2; ctx.font = '900 150px "Permanent Marker", Impact, sans-serif';
+        ctx.fillText('TOP POINT', 540, 445); ctx.restore();
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(315, 463); ctx.lineTo(760, 420); ctx.stroke();
+        ctx.fillStyle = GOLD2; ctx.font = '800 31px Montserrat, Arial, sans-serif';
+        ctx.fillText('MOST VALUABLE POINTS', 540, 515);
+
+        // Frame foto mengikuti layout portrait pada story MVP.
+        const fx = 170, fy = 570, fw = 740, fh = 650;
+        const photo = player.photo ? await loadImageEl(player.photo) : null;
+        ctx.save();
+        ctx.shadowColor = 'rgba(255,190,55,.65)'; ctx.shadowBlur = 28;
+        ctx.strokeStyle = GOLD2; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(fx+55,fy); ctx.lineTo(fx+fw-55,fy); ctx.lineTo(fx+fw,fy+55);
+        ctx.lineTo(fx+fw,fy+fh-55); ctx.lineTo(fx+fw-55,fy+fh); ctx.lineTo(fx+55,fy+fh);
+        ctx.lineTo(fx,fy+fh-55); ctx.lineTo(fx,fy+55); ctx.closePath(); ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.beginPath(); ctx.moveTo(fx+58,fy+12); ctx.lineTo(fx+fw-58,fy+12); ctx.lineTo(fx+fw-12,fy+58);
+        ctx.lineTo(fx+fw-12,fy+fh-58); ctx.lineTo(fx+fw-58,fy+fh-12); ctx.lineTo(fx+58,fy+fh-12);
+        ctx.lineTo(fx+12,fy+fh-58); ctx.lineTo(fx+12,fy+58); ctx.closePath(); ctx.clip();
+        if (photo) {
+            const scale = Math.max((fw-28)/photo.width, (fh-28)/photo.height);
+            const pw = photo.width*scale, ph = photo.height*scale;
+            ctx.drawImage(photo, fx+14+(fw-28-pw)/2, fy+14+(fh-28-ph)/2, pw, ph);
+            const shade = ctx.createLinearGradient(0,fy+fh*.45,0,fy+fh);
+            shade.addColorStop(0,'rgba(0,0,0,0)'); shade.addColorStop(1,'rgba(0,0,0,.7)');
+            ctx.fillStyle=shade; ctx.fillRect(fx,fy,fw,fh);
+        } else {
+            const pg = ctx.createRadialGradient(540,850,30,540,900,500);
+            pg.addColorStop(0,'#4b3514'); pg.addColorStop(1,'#070707');
+            ctx.fillStyle=pg; ctx.fillRect(fx,fy,fw,fh);
+            ctx.fillStyle='rgba(255,255,255,.22)'; ctx.font='900 170px Montserrat,Arial,sans-serif';
+            ctx.textAlign='center'; ctx.fillText(String(player.name||'P').trim().charAt(0).toUpperCase(),540,980);
+        }
+        ctx.restore();
+
+        // Nameplate dan nilai Top Point.
+        const plateY = 1160;
+        ctx.fillStyle = '#050505'; ctx.strokeStyle = GOLD2; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(220,plateY); ctx.lineTo(860,plateY); ctx.lineTo(820,plateY+95);
+        ctx.lineTo(260,plateY+95); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.textAlign='center'; ctx.fillStyle=WHITE;
+        let nameFont=58; ctx.font='900 '+nameFont+'px Montserrat,Arial,sans-serif';
+        while(ctx.measureText(String(player.name||'PLAYER').toUpperCase()).width>560 && nameFont>28){nameFont--;ctx.font='900 '+nameFont+'px Montserrat,Arial,sans-serif';}
+        ctx.fillText(String(player.name||'PLAYER').toUpperCase(),540,plateY+62,560);
+        ctx.fillStyle=GOLD2; ctx.font='800 30px Montserrat,Arial,sans-serif';
+        ctx.fillText('TOP POINT',540,1305);
+
+        // Statistik ringkas dengan bentuk dan warna yang sama seperti MVP.
+        const sx=150, sy=1350, sw=780, sh=150, seg=sw/2;
+        ctx.fillStyle='rgba(0,0,0,.72)'; ctx.strokeStyle=GOLD; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.moveTo(sx+22,sy);ctx.lineTo(sx+sw-22,sy);ctx.lineTo(sx+sw,sy+22);
+        ctx.lineTo(sx+sw,sy+sh-22);ctx.lineTo(sx+sw-22,sy+sh);ctx.lineTo(sx+22,sy+sh);
+        ctx.lineTo(sx,sy+sh-22);ctx.lineTo(sx,sy+22);ctx.closePath();ctx.fill();ctx.stroke();
+        const statItems = [['POINT',String(points)],['FAULT+OUT',String(fault + out)]];
+        statItems.forEach((item,i)=>{
+            const cx=sx+seg*i+seg/2;
+            if(i>0){ctx.strokeStyle='rgba(229,189,85,.7)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx+seg*i,sy+20);ctx.lineTo(sx+seg*i,sy+sh-20);ctx.stroke();}
+            ctx.fillStyle=GOLD2;ctx.font='900 43px Montserrat,Arial,sans-serif';ctx.textAlign='center';ctx.fillText(item[1],cx,sy+68);
+            ctx.fillStyle=MUTED;ctx.font='600 22px Montserrat,Arial,sans-serif';ctx.fillText(item[0],cx,sy+112);
+        });
+        ctx.textAlign='center'; ctx.fillStyle=GOLD2; ctx.font='italic 29px Georgia,serif';
+        ctx.fillText('NET POINT',540,1570);
+        ctx.save(); ctx.shadowColor='rgba(255,185,35,.5)'; ctx.shadowBlur=18;
+        ctx.font='900 76px Montserrat,Arial,sans-serif'; ctx.fillText(String(net),540,1650); ctx.restore();
+
+        // Instagram handle dan ikon dipusatkan sebagai satu grup; garis samping mengikuti lebar grup.
+        ctx.save();
+        const igText='aurasportclub.id', igFont='600 25px Montserrat,Arial,sans-serif';
+        ctx.font=igFont;
+        const igIcon=30, igGap=12, igTextW=ctx.measureText(igText).width;
+        const igGroupW=igIcon+igGap+igTextW, igX=(W-igGroupW)/2, igY=1708;
+        ctx.strokeStyle=GOLD2; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.roundRect(igX,igY,igIcon,30,8); ctx.stroke();
+        ctx.beginPath(); ctx.arc(igX+15,igY+15,7,0,Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(igX+23,igY+7,2,0,Math.PI*2); ctx.fillStyle=GOLD2; ctx.fill();
+        ctx.textAlign='left'; ctx.fillStyle=WHITE; ctx.font=igFont;
+        ctx.fillText(igText,igX+igIcon+igGap,igY+22);
+        ctx.strokeStyle=GOLD; ctx.lineWidth=2;
+        const lineY=1725, lineGap=28, lineStart=270, lineEnd=810;
+        ctx.beginPath();
+        if(igX-lineGap>lineStart){ctx.moveTo(lineStart,lineY);ctx.lineTo(igX-lineGap,lineY);}
+        if(igX+igGroupW+lineGap<lineEnd){ctx.moveTo(igX+igGroupW+lineGap,lineY);ctx.lineTo(lineEnd,lineY);}
+        ctx.stroke();
+        ctx.restore();
+
+        const sponsorLogo = await loadImageEl('marinee-logo.png');
+        ctx.textAlign='center'; ctx.fillStyle='rgba(0,0,0,.92)'; ctx.strokeStyle=GOLD2; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.roundRect(260,1760,560,145,18); ctx.fill(); ctx.stroke();
+        ctx.fillStyle=GOLD2; ctx.font='700 17px Montserrat,Arial,sans-serif';
+        ctx.fillText('OFFICIAL SPONSOR',540,1788);
+        if (sponsorLogo) {
+            const maxW=440, maxH=100, scale=Math.min(maxW/sponsorLogo.width,maxH/sponsorLogo.height);
+            const swLogo=sponsorLogo.width*scale, shLogo=sponsorLogo.height*scale;
+            ctx.drawImage(sponsorLogo,540-swLogo/2,1796,swLogo,shLogo);
+        } else {
+            ctx.font='italic 38px Georgia,serif'; ctx.fillText('Marinee',540,1855);
+        }
+
+        const link = document.createElement('a');
+        link.download = `AuraSportsClub_TopPoint_${String(player.name || 'Player').replace(/[^a-z0-9_-]+/gi, '_')}_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
     }
 
     // Best Partner = pasangan (tim berisi 2 pemain) yang menang telak dengan selisih skor terbesar
@@ -4951,7 +5759,9 @@ function togglePlayerActions(button) {
             }
         });
         if(!best) return null;
-        return best.players.map(mp => players.find(p => p.id === mp.id) || mp);
+        const result = best.players.map(mp => players.find(p => p.id === mp.id) || mp);
+        result.margin = best.margin;
+        return result;
     }
 
     function loadImageEl(src) {
@@ -5179,143 +5989,169 @@ function togglePlayerActions(button) {
 
     async function generateMVPStoryCard() {
         const mvp = computeMVP();
-        if(!mvp) {
+        if (!mvp) {
             alert('Belum ada data pertandingan selesai untuk dibuatkan story MVP. Selesaikan minimal 1 match dulu.');
             return;
         }
         await ensureStoryFonts();
-
         const W = 1080, H = 1920;
         const canvas = document.createElement('canvas');
         canvas.width = W; canvas.height = H;
         const ctx = canvas.getContext('2d');
+        const GOLD = '#e5bd55', GOLD2 = '#f9df8b', WHITE = '#fffaf0', MUTED = '#c6bda8';
 
-        const GOLD = '#c89f4c', GOLD_LIGHT = '#e0b865', WHITE = '#ffffff', MUTED = '#9ca3af';
-
-        // Background gelap + vignette emas lembut
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, W, H);
-        const glow = ctx.createRadialGradient(W*0.65, H*0.32, 60, W*0.65, H*0.32, 800);
-        glow.addColorStop(0, 'rgba(200,159,76,0.16)');
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow;
-        ctx.fillRect(0, 0, W, H);
-
+        // Background premium: black, subtle gold glow and diagonal metallic strokes.
+        ctx.fillStyle = '#030303'; ctx.fillRect(0, 0, W, H);
+        const bg = ctx.createRadialGradient(540, 780, 40, 540, 780, 1050);
+        bg.addColorStop(0, '#33220b'); bg.addColorStop(.45, '#100c06'); bg.addColorStop(1, '#020202');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        for (let i = 0; i < 18; i++) {
+            ctx.strokeStyle = i % 3 === 0 ? 'rgba(245,190,65,.28)' : 'rgba(210,160,50,.10)';
+            ctx.lineWidth = i % 3 === 0 ? 5 : 2;
+            ctx.beginPath(); ctx.moveTo(-160 + i * 48, 0); ctx.lineTo(-620 + i * 48, 600); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(1250 + i * 35, 1260); ctx.lineTo(720 + i * 35, 1920); ctx.stroke();
+        }
+        ctx.restore();
         drawWatermark(ctx, W, H, 'AURA');
 
-        // Aksen garis diagonal emas pojok kiri-atas & kanan-bawah
+        // Logo Aura di tengah paling atas, nama event tepat di bawahnya.
+        const ev = typeof activeEvent === 'function' ? activeEvent() : null;
+        const eventTitle = String(ev?.name || 'AURA SPORTS CLUB').trim().toUpperCase();
+        const logoImg = await loadImageEl('logo.png');
+        let logoBottom = 145;
+        if (logoImg) {
+            const lw = 112, lh = lw * logoImg.height / logoImg.width;
+            const lx = (W - lw) / 2, ly = 28;
+            ctx.save(); ctx.shadowColor = 'rgba(244,194,65,.6)'; ctx.shadowBlur = 18;
+            ctx.drawImage(logoImg, lx, ly, lw, lh); ctx.restore();
+            logoBottom = ly + lh;
+        }
+        ctx.textAlign = 'center'; ctx.fillStyle = GOLD2;
+        let eventFont = 31;
+        ctx.font = '800 ' + eventFont + 'px Montserrat, Arial, sans-serif';
+        while (ctx.measureText(eventTitle).width > 850 && eventFont > 20) {
+            eventFont--; ctx.font = '800 ' + eventFont + 'px Montserrat, Arial, sans-serif';
+        }
+        const eventY = Math.max(logoBottom + 42, 190);
+        ctx.fillText(eventTitle, W/2, eventY, 850);
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
+        const eventLineW = Math.min(600, ctx.measureText(eventTitle).width);
+        ctx.beginPath(); ctx.moveTo((W-eventLineW)/2, eventY+18); ctx.lineTo((W+eventLineW)/2, eventY+18); ctx.stroke();
+
+        // Sponsor is intentionally reserved for the bottom center.
+        // Use the supplied original asset when it is added to the repository; do not fake the logo.
+        const sponsorLogo = await loadImageEl('marinee-logo.png');
+
+
+        // Large title block modeled on the approved reference.
+        ctx.textAlign = 'center';
+        ctx.save(); ctx.shadowColor = 'rgba(255,185,35,.65)'; ctx.shadowBlur = 26;
+        ctx.fillStyle = GOLD2; ctx.font = '900 188px "Permanent Marker", Impact, sans-serif';
+        ctx.fillText('MVP', 540, 445); ctx.restore();
+        ctx.strokeStyle = GOLD; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(315, 463); ctx.lineTo(760, 420); ctx.stroke();
+        ctx.fillStyle = GOLD2; ctx.font = '800 31px Montserrat, Arial, sans-serif';
+        ctx.fillText('M O S T   V A L U A B L E   P L A Y E R', 540, 515);
+
+        // Big centered portrait frame, avoiding the old split layout and empty bottom area.
+        const fx = 170, fy = 570, fw = 740, fh = 710;
+        const photo = mvp.photo ? await loadImageEl(mvp.photo) : null;
         ctx.save();
-        ctx.strokeStyle = 'rgba(200,159,76,0.5)';
-        for(let i=0;i<4;i++){
-            ctx.lineWidth = 6 - i;
-            ctx.globalAlpha = 0.35 - i*0.06;
-            ctx.beginPath(); ctx.moveTo(-40 + i*55, 260); ctx.lineTo(260, -40 + i*55); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(W+40 - i*55, H-260); ctx.lineTo(W-260, H+40 - i*55); ctx.stroke();
+        ctx.shadowColor = 'rgba(255,190,55,.65)'; ctx.shadowBlur = 28;
+        ctx.strokeStyle = GOLD2; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(fx+55,fy); ctx.lineTo(fx+fw-55,fy); ctx.lineTo(fx+fw,fy+55);
+        ctx.lineTo(fx+fw,fy+fh-55); ctx.lineTo(fx+fw-55,fy+fh); ctx.lineTo(fx+55,fy+fh);
+        ctx.lineTo(fx,fy+fh-55); ctx.lineTo(fx,fy+55); ctx.closePath(); ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.beginPath(); ctx.moveTo(fx+58,fy+12); ctx.lineTo(fx+fw-58,fy+12); ctx.lineTo(fx+fw-12,fy+58);
+        ctx.lineTo(fx+fw-12,fy+fh-58); ctx.lineTo(fx+fw-58,fy+fh-12); ctx.lineTo(fx+58,fy+fh-12);
+        ctx.lineTo(fx+12,fy+fh-58); ctx.lineTo(fx+12,fy+58); ctx.closePath(); ctx.clip();
+        if (photo) {
+            const scale = Math.max((fw-28)/photo.width, (fh-28)/photo.height);
+            const pw = photo.width*scale, ph = photo.height*scale;
+            ctx.drawImage(photo, fx+14+(fw-28-pw)/2, fy+14+(fh-28-ph)/2, pw, ph);
+            const shade = ctx.createLinearGradient(0,fy+fh*.45,0,fy+fh);
+            shade.addColorStop(0,'rgba(0,0,0,0)'); shade.addColorStop(1,'rgba(0,0,0,.7)');
+            ctx.fillStyle=shade; ctx.fillRect(fx,fy,fw,fh);
+        } else {
+            const pg = ctx.createRadialGradient(540,850,30,540,900,500);
+            pg.addColorStop(0,'#4b3514'); pg.addColorStop(1,'#070707');
+            ctx.fillStyle=pg; ctx.fillRect(fx,fy,fw,fh);
+            ctx.fillStyle='rgba(255,255,255,.22)'; ctx.font='900 170px Montserrat,Arial,sans-serif';
+            ctx.textAlign='center'; ctx.fillText(String(mvp.name||'M').trim().charAt(0).toUpperCase(),540,980);
         }
         ctx.restore();
 
-        // Shuttlecock dekoratif pojok
-        drawShuttlecock(ctx, W-110, 140, 130, 200, 0.14);
-        drawShuttlecock(ctx, 90, H-150, 150, 18, 0.12);
+        // Nameplate overlays the lower edge of the portrait.
+        const plateY = 1210;
+        ctx.fillStyle = '#050505'; ctx.strokeStyle = GOLD2; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(220,plateY); ctx.lineTo(860,plateY); ctx.lineTo(820,plateY+95);
+        ctx.lineTo(260,plateY+95); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.textAlign='center'; ctx.fillStyle=WHITE;
+        let nameFont=58; ctx.font='900 '+nameFont+'px Montserrat,Arial,sans-serif';
+        while(ctx.measureText(String(mvp.name).toUpperCase()).width>560 && nameFont>28){nameFont--;ctx.font='900 '+nameFont+'px Montserrat,Arial,sans-serif';}
+        ctx.fillText(String(mvp.name).toUpperCase(),540,plateY+64,560);
+        ctx.fillStyle=GOLD2; ctx.font='800 34px Montserrat,Arial,sans-serif';
+        ctx.fillText('M V P',540,1358);
 
-        // ==== HEADER: logo + judul ====
-        let y = 95;
-        const logoImg = await loadImageEl('logo.png');
-        if(logoImg) {
-            const logoW = 120, logoH = logoW * (logoImg.height / logoImg.width);
-            ctx.drawImage(logoImg, W/2 - logoW/2, y, logoW, logoH);
-            y += logoH + 26;
-        } else { y += 20; }
-
-        ctx.textAlign = 'center';
-        ctx.fillStyle = GOLD;
-        ctx.font = '700 46px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('A U R A   S P O R T S   C L U B', W/2, y);
-        y += 42;
-        ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(W/2-95, y); ctx.lineTo(W/2+95, y); ctx.stroke();
-        drawStatIcon(ctx, 'shuttle', W/2, y, 24, GOLD);
-        y += 42;
-        ctx.fillStyle = MUTED;
-        ctx.font = '500 24px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('B A D M I N T O N   S E S S I O N', W/2, y);
-        y += 70;
-
-        // ==== FOTO MVP (bingkai heksagon, kiri) ====
-        const frameX = 60, frameY = y, frameW = 460, frameH = 640;
-        await drawHexPhotoFrame(ctx, frameX, frameY, frameW, frameH, mvp.photo, mvp.name);
-        drawCrown(ctx, frameX + 25, frameY - 5, 90, GOLD);
-
-        // ==== TEKS MVP (kanan) ====
-        const rightX = frameX + frameW + 55;
-        const rightCenter = rightX + (W - 60 - rightX) / 2;
-        let ry = frameY + 40;
-
-        drawCrown(ctx, rightCenter - 130, ry, 55, GOLD_LIGHT);
-        ry += 60;
-        ctx.textAlign = 'center';
-        ctx.fillStyle = GOLD;
-        ctx.font = '110px "Permanent Marker", Oswald, sans-serif';
-        ctx.save();
-        ctx.shadowColor = 'rgba(200,159,76,0.4)';
-        ctx.shadowBlur = 20;
-        ctx.fillText('MVP', rightCenter, ry + 90);
-        ctx.restore();
-        ry += 130;
-
-        ctx.fillStyle = WHITE;
-        ctx.font = '700 30px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('PLAYER OF THE DAY', rightCenter, ry);
-        ry += 35;
-        ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(rightCenter-135, ry); ctx.lineTo(rightCenter+135, ry); ctx.stroke();
-        ry += 68;
-
-        ctx.fillStyle = WHITE;
-        ctx.font = '700 48px Oswald, Segoe UI, sans-serif';
-        ctx.fillText(mvp.name.toUpperCase(), rightCenter, ry);
-        ry += 30;
-        ctx.strokeStyle = 'rgba(200,159,76,0.5)'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(rightCenter-100, ry); ctx.lineTo(rightCenter+100, ry); ctx.stroke();
-        ry += 90;
-
-        const wr = mvp.stats.played > 0 ? Math.round((mvp.stats.wins / mvp.stats.played) * 100) : 0;
-        const stats = [['shuttle','MATCHES', mvp.stats.played], ['trophy','WINS', mvp.stats.wins], ['target','WIN RATE', wr + '%']];
-        const segW = (W - 60 - rightX) / 3;
-        stats.forEach(([icon, label, val], i) => {
-            const cx = rightX + segW*i + segW/2;
-            drawStatIcon(ctx, icon, cx, ry, 34, GOLD);
-            ctx.fillStyle = GOLD;
-            ctx.font = '700 42px Oswald, Segoe UI, sans-serif';
-            ctx.fillText(String(val), cx, ry + 65);
-            ctx.fillStyle = MUTED;
-            ctx.font = '500 20px Oswald, Segoe UI, sans-serif';
-            ctx.fillText(label, cx, ry + 95);
-            if(i < 2) {
-                ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(rightX+segW*(i+1), ry-25); ctx.lineTo(rightX+segW*(i+1), ry+95); ctx.stroke();
-            }
+        // Compact stats panel across the poster width.
+        const wr = mvp.stats.played > 0 ? Math.round(mvp.stats.wins / mvp.stats.played * 100) : 0;
+        const stats=[['MATCH',String(mvp.stats.played)],['WIN',String(mvp.stats.wins)],['WIN RATE',wr+'%']];
+        const sx=150, sy=1410, sw=780, sh=150, seg=sw/3;
+        ctx.fillStyle='rgba(0,0,0,.72)'; ctx.strokeStyle=GOLD; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.moveTo(sx+22,sy);ctx.lineTo(sx+sw-22,sy);ctx.lineTo(sx+sw,sy+22);
+        ctx.lineTo(sx+sw,sy+sh-22);ctx.lineTo(sx+sw-22,sy+sh);ctx.lineTo(sx+22,sy+sh);
+        ctx.lineTo(sx,sy+sh-22);ctx.lineTo(sx,sy+22);ctx.closePath();ctx.fill();ctx.stroke();
+        stats.forEach((s,i)=>{
+            const cx=sx+seg*i+seg/2;
+            if(i>0){ctx.strokeStyle='rgba(229,189,85,.7)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx+seg*i,sy+20);ctx.lineTo(sx+seg*i,sy+sh-20);ctx.stroke();}
+            drawStatIcon(ctx,i===0?'shuttle':i===1?'trophy':'target',cx,sy+42,34,GOLD2);
+            ctx.fillStyle=WHITE;ctx.font='600 22px Montserrat,Arial,sans-serif';ctx.textAlign='center';ctx.fillText(s[0],cx,sy+82);
+            ctx.fillStyle=GOLD2;ctx.font='900 43px Montserrat,Arial,sans-serif';ctx.fillText(s[1],cx,sy+128);
         });
+        ctx.textAlign='center'; ctx.fillStyle=GOLD2; ctx.font='italic 29px Georgia,serif';
+        ctx.fillText('“Bukan hanya soal menang,',540,1635);
+        ctx.fillText('tapi tentang memberi yang terbaik.”',540,1674);
+        // Instagram handle dan ikon dipusatkan sebagai satu grup; garis samping mengikuti lebar grup.
+        ctx.save();
+        const igText='aurasportclub.id', igFont='600 25px Montserrat,Arial,sans-serif';
+        ctx.font=igFont;
+        const igIcon=30, igGap=12, igTextW=ctx.measureText(igText).width;
+        const igGroupW=igIcon+igGap+igTextW, igX=(W-igGroupW)/2, igY=1713;
+        ctx.strokeStyle=GOLD2; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.roundRect(igX,igY,igIcon,30,8); ctx.stroke();
+        ctx.beginPath(); ctx.arc(igX+15,igY+15,7,0,Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(igX+23,igY+7,2,0,Math.PI*2); ctx.fillStyle=GOLD2; ctx.fill();
+        ctx.textAlign='left'; ctx.fillStyle=WHITE; ctx.font=igFont;
+        ctx.fillText(igText,igX+igIcon+igGap,igY+22);
+        ctx.strokeStyle=GOLD; ctx.lineWidth=2;
+        const lineY=1730, lineGap=28, lineStart=270, lineEnd=810;
+        ctx.beginPath();
+        if(igX-lineGap>lineStart){ctx.moveTo(lineStart,lineY);ctx.lineTo(igX-lineGap,lineY);}
+        if(igX+igGroupW+lineGap<lineEnd){ctx.moveTo(igX+igGroupW+lineGap,lineY);ctx.lineTo(lineEnd,lineY);}
+        ctx.stroke();
+        ctx.restore();
 
-        // ==== Ilustrasi net lapangan di bawah ====
-        drawCourtNet(ctx, W, frameY + frameH + 130, 0.5);
-
-        // ==== Footer ====
-        const footerY = H - 130;
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-        ctx.beginPath(); ctx.moveTo(W/2-90, footerY-35); ctx.lineTo(W/2+90, footerY-35); ctx.stroke();
-        ctx.fillStyle = GOLD;
-        ctx.font = '700 28px Oswald, Segoe UI, sans-serif';
-        ctx.fillText('AURA WEEKEND PLAY M-3', W/2, footerY);
-        ctx.fillStyle = MUTED;
-        ctx.font = '500 20px Oswald, Segoe UI, sans-serif';
-        const todayStr = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
-        ctx.fillText(`${todayStr}  •  BADMINTON SESSION`, W/2, footerY + 32);
-
-        const link = document.createElement('a');
-        link.download = `AuraSportsClub_MVP_${Date.now()}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+        // Sponsor lockup centered at the very bottom, with strong visibility.
+        ctx.textAlign='center';
+        ctx.fillStyle='rgba(0,0,0,.92)';
+        ctx.strokeStyle=GOLD2; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.roundRect(260,1760,560,145,18); ctx.fill(); ctx.stroke();
+        ctx.fillStyle=GOLD2;
+        ctx.font='700 17px Montserrat,Arial,sans-serif';
+        ctx.fillText('OFFICIAL SPONSOR',540,1788);
+        if (sponsorLogo) {
+            const maxW=440, maxH=100, scale=Math.min(maxW/sponsorLogo.width,maxH/sponsorLogo.height);
+            const sw=sponsorLogo.width*scale, sh=sponsorLogo.height*scale;
+            ctx.drawImage(sponsorLogo,540-sw/2,1796,sw,sh);
+        } else {
+            ctx.font='italic 38px Georgia,serif'; ctx.fillText('Marinee',540,1855);
+        }
+        const link=document.createElement('a');
+        link.download='AuraSportsClub_MVP_'+Date.now()+'.png';
+        link.href=canvas.toDataURL('image/png');link.click();
     }
 
     // Ikon jabat tangan sederhana (vector) untuk judul Best Partner
@@ -5433,6 +6269,9 @@ async function generateBestPartnerStoryCard() {
     const GOLD_LIGHT = '#f4d88b';
     const WHITE = '#ffffff';
     const MUTED = '#b7b7bd';
+    const currentEvent = typeof activeEvent === 'function' ? activeEvent() : null;
+    const eventDisplayName = String(currentEvent?.name || 'AURA SPORTS CLUB').trim().toUpperCase();
+    const eventDisplaySize = eventDisplayName.length > 38 ? 17 : eventDisplayName.length > 28 ? 20 : 24;
 
     const p1 = bestPartner[0];
     const p2 = bestPartner[1];
@@ -5588,7 +6427,7 @@ async function generateBestPartnerStoryCard() {
     drawText('AURA SPORTS CLUB', W / 2, 270, 43, 900, GOLD);
 
     drawGoldLine(310, 310, 770, 310);
-    drawText('BADMINTON SESSION', W / 2, 355, 24, 700, MUTED);
+    drawText(eventDisplayName, W / 2, 355, eventDisplaySize, 700, MUTED);
 
     // ==========================================
     // JUDUL BEST PARTNER
@@ -5736,12 +6575,12 @@ async function generateBestPartnerStoryCard() {
     ctx.restore();
 
     // ==========================================
-    // STATISTIK MATCH / WIN / WIN RATE
+    // PANEL SELISIH SKOR — SATU KOLOM
     // ==========================================
-    const statsX = 120;
-    const statsY = 1480;
-    const statsW = 840;
-    const statsH = 175;
+    const statsW = 600;
+    const statsH = 150;
+    const statsX = (W - statsW) / 2;
+    const statsY = 1490;
 
     ctx.save();
 
@@ -5753,22 +6592,10 @@ async function generateBestPartnerStoryCard() {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Garis pemisah
-    drawGoldLine(400, statsY + 32, 400, statsY + statsH - 32, 0.75);
-    drawGoldLine(680, statsY + 32, 680, statsY + statsH - 32, 0.75);
-
     ctx.restore();
 
-    const statItems = [
-        { x: 260, value: String(totalMatch), label: 'MATCH' },
-        { x: 540, value: String(totalWin), label: 'WIN' },
-        { x: 820, value: `${winRate}%`, label: 'WIN RATE' }
-    ];
-
-    statItems.forEach(item => {
-        drawText(item.value, item.x, statsY + 92, 62, 900, GOLD_LIGHT);
-        drawText(item.label, item.x, statsY + 135, 23, 700, MUTED);
-    });
+    drawText(`+${bestPartner.margin || 0}`, W / 2, statsY + 82, 58, 900, GOLD_LIGHT);
+    drawText('SELISIH SKOR', W / 2, statsY + 120, 22, 800, MUTED);
 
     // ==========================================
     // QUOTE
@@ -5784,17 +6611,25 @@ async function generateBestPartnerStoryCard() {
     );
 
     // ==========================================
-    // FOOTER
+    // FOOTER — SPONSOR MARINEE
     // ==========================================
-    drawGoldLine(220, 1810, 430, 1810);
-    drawGoldLine(650, 1810, 860, 1810);
+    drawGoldLine(150, 1810, 340, 1810);
+    drawGoldLine(740, 1810, 930, 1810);
 
-    drawShuttlecock(ctx, W / 2, 1800, 42, 20, 0.9);
+    drawText('SPONSOR', W / 2, 1808, 18, 700, MUTED);
 
-    drawText(
-        'AURA SPORT MANAGER',
-        W / 2, 1850, 22, 700, WHITE
-    );
+    // Gunakan logo Marinee asli dari repository; tidak menampilkan ikon kok.
+    const marineeSponsorLogo = await loadImageEl('marinee-logo.png');
+    if (marineeSponsorLogo) {
+        const maxLogoW = 350;
+        const maxLogoH = 72;
+        const logoScale = Math.min(maxLogoW / marineeSponsorLogo.width, maxLogoH / marineeSponsorLogo.height);
+        const logoW = marineeSponsorLogo.width * logoScale;
+        const logoH = marineeSponsorLogo.height * logoScale;
+        ctx.drawImage(marineeSponsorLogo, (W - logoW) / 2, 1828, logoW, logoH);
+    } else {
+        drawText('MARINEE', W / 2, 1860, 28, 900, GOLD_LIGHT);
+    }
 
     // ==========================================
     // DOWNLOAD
@@ -6324,6 +7159,13 @@ async function generateBestPartnerStoryCard() {
 
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+        const { data: authData } = await supabaseClient.auth.getSession();
+        if (new URLSearchParams(location.search).get('resetPassword') === '1' || location.hash.includes('type=recovery')) { auraShowResetMode(); if (splash) splash.remove(); appBooted = false; return; }
+        if (!authData?.session) { auraShowLogin(); if (splash) splash.remove(); appBooted = false; return; }
+        const access = await auraResolveAccess(authData.session);
+        if (!access) { await supabaseClient.auth.signOut(); auraShowLogin('Akun belum terdaftar sebagai member/admin.'); if (splash) splash.remove(); appBooted = false; return; }
+        auraApplyRole(access);
+
         const startedAt = Date.now();
         try {
             await loadState();
@@ -6368,6 +7210,19 @@ document.addEventListener('click', function(event) {
     const wrap = document.querySelector('.header-menu-wrap');
     if (wrap && !wrap.contains(event.target)) closeHeaderMenu();
 });
+</script>
+
+<script>
+let auraCurrentRole=null;
+function auraShowResetMode(){auraShowLogin('');const p=document.getElementById('auraResetPanel');if(p)p.style.display='block';const f=document.getElementById('auraForgotPassword');if(f)f.style.display='none';const role=document.getElementById('auraAuthRole');if(role)role.closest('label')?.remove();if(role)role.style.display='none';const pw=document.getElementById('auraAuthPassword');if(pw){pw.closest('label')?.remove();pw.style.display='none';}const submit=document.getElementById('auraAuthSubmit');if(submit)submit.style.display='none';const e=document.getElementById('auraAuthError');if(e)e.textContent='Masukkan password baru untuk menyelesaikan reset.';}
+async function auraSendPasswordReset(){const email=document.getElementById('auraAuthEmail').value.trim().toLowerCase(),err=document.getElementById('auraAuthError'),btn=document.getElementById('auraForgotPassword');if(!email){err.textContent='Masukkan email terlebih dahulu.';document.getElementById('auraAuthEmail').focus();return;}btn.disabled=true;err.textContent='Mengirim email reset...';try{const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname+'?resetPassword=1'});if(error)throw error;err.textContent='Jika email terdaftar, tautan reset password akan dikirim. Periksa Inbox/Spam.';}catch(e){err.textContent=e.message||'Gagal mengirim email reset.';}finally{btn.disabled=false;}}
+async function auraUpdatePassword(){const password=document.getElementById('auraNewPassword').value,err=document.getElementById('auraAuthError');if(password.length<8){err.textContent='Password minimal 8 karakter.';return;}try{const {error}=await supabaseClient.auth.updateUser({password});if(error)throw error;err.textContent='Password berhasil diperbarui. Silakan login.';await supabaseClient.auth.signOut();setTimeout(()=>location.href=location.origin+location.pathname,900);}catch(e){err.textContent=e.message||'Gagal memperbarui password.';}}
+function auraShowLogin(message=''){const g=document.getElementById('auraAuthGate');if(g)g.style.display='flex';const b=document.getElementById('auraAccountBar');if(b)b.style.display='none';const e=document.getElementById('auraAuthError');if(e)e.textContent=message;document.body.style.overflow='hidden';}
+function auraHideLogin(){const g=document.getElementById('auraAuthGate');if(g)g.style.display='none';document.body.style.overflow='';}
+async function auraResolveAccess(session){if(!session?.user?.id)return null;const {data:admin,error}=await supabaseClient.rpc('is_aura_admin');if(!error&&admin===true)return'admin';const {data:member,error:me}=await supabaseClient.from('aura_members').select('user_id,active').eq('user_id',session.user.id).eq('active',true).maybeSingle();if(!me&&member)return'member';return null;}
+function auraApplyRole(role){auraCurrentRole=role;document.body.classList.toggle('aura-member',role==='member');document.body.classList.toggle('aura-admin',role==='admin');const bar=document.getElementById('auraAccountBar'),label=document.getElementById('auraAccountLabel');if(label)label.textContent=(role==='admin'?'ADMIN':'MEMBER')+' 🟢 Aktif';if(bar)bar.style.display='flex';if(role==='member'){document.querySelectorAll('#tab-finance,[data-admin-only="true"],.admin-only').forEach(el=>el.style.display='none');document.querySelectorAll('button,input,select,textarea').forEach(el=>{if(el.closest('#auraAuthGate')||el.closest('#auraAccountBar')||el.classList.contains('tab-btn')||el.classList.contains('mobile-tab-btn')||el.type==='search'||el.dataset.memberAllowed==='true')return;el.classList.add('aura-write-control');});}auraHideLogin();}
+async function auraSignOut(){try{await supabaseClient.auth.signOut();}finally{location.reload();}}
+document.getElementById('auraAuthForm')?.addEventListener('submit',async e=>{e.preventDefault();const b=document.getElementById('auraAuthSubmit'),err=document.getElementById('auraAuthError');b.disabled=true;b.textContent='MEMERIKSA...';err.textContent='';const email=document.getElementById('auraAuthEmail').value.trim().toLowerCase(),password=document.getElementById('auraAuthPassword').value,requested=document.getElementById('auraAuthRole').value;try{const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});if(error)throw error;const role=await auraResolveAccess(data.session);if(!role){await supabaseClient.auth.signOut();throw Error('Akun belum terdaftar. Hubungi admin untuk mengaktifkan akses member.');}if(role!==requested){await supabaseClient.auth.signOut();throw Error('Role akun adalah '+role.toUpperCase()+'. Pilih role yang sesuai.');}location.reload();}catch(x){err.textContent=x?.message||'Login gagal.';}finally{b.disabled=false;b.textContent='LOGIN';}});
 </script>
 </body>
 </html>
