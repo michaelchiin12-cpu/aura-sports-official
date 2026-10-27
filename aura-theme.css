@@ -1,5 +1,5 @@
 /* AURA MANAGER — global theme system */
-:root {
+:root, html[data-aura-theme="dark"] {
   --bg-main:#081321;
   --bg-card:#122338;
   --primary:#13b8a6;
@@ -137,3 +137,27 @@ html[data-aura-theme="light"] #auraAuthGate select { background:#f8fbfd !importa
 html[data-aura-theme="light"] #auraAuthGate .auth-submit { background:linear-gradient(180deg,#2dd4bf,#0d9488) !important; color:#052b2b !important; }
 html[data-aura-theme="light"] #auraAccountBar { color:var(--text-main) !important; }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; } }
+
+/* Re-theme legacy inline dark surfaces in light mode while preserving semantic alert colors. */
+html[data-aura-theme="light"] [style*="background:#000"],
+html[data-aura-theme="light"] [style*="background: #000"],
+html[data-aura-theme="light"] [style*="background:#080808"],
+html[data-aura-theme="light"] [style*="background: #080808"],
+html[data-aura-theme="light"] [style*="background:#111"],
+html[data-aura-theme="light"] [style*="background: #111"],
+html[data-aura-theme="light"] [style*="background:#121212"],
+html[data-aura-theme="light"] [style*="background: #121212"],
+html[data-aura-theme="light"] [style*="background:#151515"],
+html[data-aura-theme="light"] [style*="background: #151515"],
+html[data-aura-theme="light"] [style*="background:#181818"],
+html[data-aura-theme="light"] [style*="background: #181818"],
+html[data-aura-theme="light"] [style*="background:#1a1a1a"],
+html[data-aura-theme="light"] [style*="background: #1a1a1a"],
+html[data-aura-theme="light"] [style*="background:#222"],
+html[data-aura-theme="light"] [style*="background: #222"],
+html[data-aura-theme="light"] [style*="background:#222222"],
+html[data-aura-theme="light"] [style*="background: #222222"] {
+  background:var(--aura-surface-2) !important;
+  color:var(--text-main);
+  border-color:var(--border) !important;
+}
