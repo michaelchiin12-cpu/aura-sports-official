@@ -17,6 +17,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
     <!-- Supabase JS client - untuk penyimpanan data bersama + sinkronisasi realtime antar pengguna -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <style>
         :root {
             /* Tema Warna: Hitam, Emas, dan Putih menyesuaikan Logo */
@@ -793,6 +794,14 @@
                 <input type="file" id="playerPhoto" accept="image/*" style="flex:1 1 100%;">
                 <button type="submit" id="playerFormSubmitBtn">+ Tambah Member</button>
             </form>
+
+            <div class="member-io-bar" style="display:flex; flex-wrap:wrap; gap:8px; margin:14px 0;">
+                <button type="button" data-member-allowed="true" onclick="downloadMemberTemplate()" style="background:var(--border); color:#fff;">📄 Template Excel</button>
+                <button type="button" data-member-allowed="true" onclick="exportMembersToExcel()" style="background:var(--border); color:#fff;">⬇️ Download Member</button>
+                <button type="button" onclick="document.getElementById('memberImportFile').click()" class="btn-success">⬆️ Upload Member (Excel/CSV)</button>
+                <input type="file" id="memberImportFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleMemberImportFile(this)">
+            </div>
+            <div style="font-size:.78rem; color:var(--text-muted); margin-bottom:10px;">Kolom Excel: Nama, Level, Tanggal Join, Tanggal Lahir (opsional: Jenis Kelamin L/P). Unduh "Template Excel" untuk contoh format.</div>
 
             <div id="playersList" class="member-card-grid"></div>
         </div>
@@ -3051,6 +3060,218 @@ async function deletePicRole(roleId){
         
         document.getElementById('playerForm').reset();
         saveData();
+    }
+
+
+    // ============================================================================
+    // IMPORT / EXPORT MEMBER (Excel .xlsx / .csv)
+    // Hanya MENAMBAH member baru ke array `players` lalu memanggil saveData() SEKALI
+    // (jalur simpan per-kolom yang sama dengan tambah member biasa). Member yang sudah
+    // ada tidak diubah/dihapus; nama yang sama (tanpa membedakan huruf besar/kecil) dilewati.
+    // ============================================================================
+    const MEMBER_LEVEL_LABEL = { 1: 'Beginner', 2: 'Intermediate', 3: 'Advance', 4: 'Expert' };
+
+    function memberXlsxReady() {
+        if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat. Cek koneksi internet lalu coba lagi.'); return false; }
+        return true;
+    }
+
+    function memberHeaderKey(h) {
+        const k = String(h || '').toLowerCase().replace(/[^a-z]/g, '');
+        if (['nama', 'name', 'namamember', 'namapemain'].includes(k)) return 'name';
+        if (['level', 'tingkat'].includes(k)) return 'level';
+        if (['tanggaljoin', 'tgljoin', 'join', 'joindate', 'tanggalbergabung', 'bergabung'].includes(k)) return 'joinDate';
+        if (['tanggallahir', 'tgllahir', 'lahir', 'birthdate', 'birthday', 'dob'].includes(k)) return 'birthDate';
+        if (['jeniskelamin', 'gender', 'jk', 'kelamin'].includes(k)) return 'gender';
+        return null;
+    }
+
+    function parseMemberLevel(v) {
+        const t = String(v ?? '').trim().toLowerCase();
+        if (t === '') return 2; // default Intermediate
+        if (['1', 'beginner', 'pemula'].includes(t)) return 1;
+        if (['2', 'intermediate', 'menengah'].includes(t)) return 2;
+        if (['3', 'advance', 'advanced'].includes(t)) return 3;
+        if (['4', 'expert', 'pro'].includes(t)) return 4;
+        return null;
+    }
+
+    function parseMemberGender(v) {
+        const t = String(v ?? '').trim().toLowerCase();
+        if (t === '') return 'L';
+        if (['l', 'laki', 'laki-laki', 'lakilaki', 'pria', 'male', 'm'].includes(t)) return 'L';
+        if (['p', 'perempuan', 'wanita', 'female', 'f'].includes(t)) return 'P';
+        return null;
+    }
+
+    // Mengembalikan 'YYYY-MM-DD', '' (kosong), atau null (tidak valid). Aman zona waktu.
+    function parseMemberDate(v) {
+        if (v === null || v === undefined || v === '') return '';
+        const pad = n => String(n).padStart(2, '0');
+        const ok = (y, m, d) => {
+            const dt = new Date(Date.UTC(y, m - 1, d));
+            return y >= 1900 && y <= 2100 && dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d ? `${y}-${pad(m)}-${pad(d)}` : null;
+        };
+        if (typeof v === 'number') {
+            const c = XLSX.SSF.parse_date_code(v);
+            return c ? ok(c.y, c.m, c.d) : null;
+        }
+        if (v instanceof Date) return ok(v.getFullYear(), v.getMonth() + 1, v.getDate());
+        const t = String(v).trim();
+        if (!t) return '';
+        let m = t.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/);
+        if (m) return ok(+m[1], +m[2], +m[3]);
+        m = t.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/); // dd/mm/yyyy (format Indonesia)
+        if (m) return ok(+m[3], +m[2], +m[1]);
+        return null;
+    }
+
+    function downloadMemberTemplate() {
+        if (!memberXlsxReady()) return;
+        const rows = [
+            ['Nama', 'Level', 'Tanggal Join', 'Tanggal Lahir', 'Jenis Kelamin'],
+            ['Contoh Andi', 'Intermediate', '2026-01-15', '1995-08-17', 'L'],
+            ['Contoh Sari', 'Beginner', '2026-02-01', '', 'P']
+        ];
+        const guide = [
+            ['Panduan pengisian'],
+            ['Nama', 'Wajib diisi. Nama yang sudah ada di database dilewati.'],
+            ['Level', 'Beginner / Intermediate / Advance / Expert (atau angka 1-4). Kosong = Intermediate.'],
+            ['Tanggal Join', 'Format YYYY-MM-DD atau DD/MM/YYYY. Kosong = tanggal hari ini.'],
+            ['Tanggal Lahir', 'Format YYYY-MM-DD atau DD/MM/YYYY. Boleh kosong.'],
+            ['Jenis Kelamin', 'L atau P. Kosong = L.'],
+            ['Catatan', 'Hapus 2 baris contoh sebelum upload. Foto diunggah manual dari kartu member.']
+        ];
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{ wch: 26 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+        XLSX.utils.book_append_sheet(wb, ws, 'Member');
+        const wg = XLSX.utils.aoa_to_sheet(guide);
+        wg['!cols'] = [{ wch: 16 }, { wch: 80 }];
+        XLSX.utils.book_append_sheet(wb, wg, 'Panduan');
+        XLSX.writeFile(wb, 'template-member-aura.xlsx');
+    }
+
+    function exportMembersToExcel() {
+        if (!memberXlsxReady()) return;
+        if (!players.length) { alert('Belum ada member untuk diunduh.'); return; }
+        const rows = [['Nama', 'Level', 'Tanggal Join', 'Tanggal Lahir', 'Jenis Kelamin']];
+        players.forEach(p => rows.push([
+            p.name, MEMBER_LEVEL_LABEL[p.level] || 'Intermediate', p.joinDate || '', p.birthDate || '', p.gender || ''
+        ]));
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{ wch: 26 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+        XLSX.utils.book_append_sheet(wb, ws, 'Member');
+        XLSX.writeFile(wb, `member-aura-${todayISO()}.xlsx`);
+    }
+
+    let pendingMemberImport = [];
+
+    async function handleMemberImportFile(input) {
+        const file = input.files && input.files[0];
+        input.value = '';
+        if (!file || !memberXlsxReady()) return;
+        let matrix;
+        try {
+            const buf = await file.arrayBuffer();
+            const wb = XLSX.read(buf, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            matrix = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+        } catch (err) {
+            console.error(err);
+            alert('File tidak bisa dibaca. Pastikan formatnya .xlsx, .xls, atau .csv.');
+            return;
+        }
+        const headerIdx = matrix.findIndex(r => r.some(c => memberHeaderKey(c) === 'name'));
+        if (headerIdx < 0) { alert('Kolom "Nama" tidak ditemukan. Gunakan Template Excel sebagai acuan.'); return; }
+        const keys = matrix[headerIdx].map(memberHeaderKey);
+
+        const existing = new Set(players.map(p => p.name.trim().toLowerCase()));
+        const seen = new Set();
+        const valid = [], skipped = [], errors = [];
+        matrix.slice(headerIdx + 1).forEach((row, i) => {
+            const line = headerIdx + 2 + i;
+            const rec = {};
+            keys.forEach((k, ci) => { if (k && rec[k] === undefined) rec[k] = row[ci]; });
+            const name = String(rec.name ?? '').trim();
+            if (!name && row.every(c => String(c).trim() === '')) return; // baris kosong
+            if (!name) { errors.push(`Baris ${line}: nama kosong`); return; }
+            const lower = name.toLowerCase();
+            if (existing.has(lower)) { skipped.push(`Baris ${line}: ${name} (sudah ada)`); return; }
+            if (seen.has(lower)) { skipped.push(`Baris ${line}: ${name} (dobel di file)`); return; }
+            const level = parseMemberLevel(rec.level);
+            if (level === null) { errors.push(`Baris ${line}: level "${rec.level}" tidak dikenal (${name})`); return; }
+            const gender = parseMemberGender(rec.gender);
+            if (gender === null) { errors.push(`Baris ${line}: jenis kelamin "${rec.gender}" harus L/P (${name})`); return; }
+            const joinDate = parseMemberDate(rec.joinDate);
+            if (joinDate === null) { errors.push(`Baris ${line}: tanggal join tidak valid (${name})`); return; }
+            const birthDate = parseMemberDate(rec.birthDate);
+            if (birthDate === null) { errors.push(`Baris ${line}: tanggal lahir tidak valid (${name})`); return; }
+            seen.add(lower);
+            valid.push({ name, level, gender, joinDate: joinDate || todayISO(), birthDate: birthDate || null });
+        });
+        pendingMemberImport = valid;
+        showMemberImportPreview(valid, skipped, errors);
+    }
+
+    function showMemberImportPreview(valid, skipped, errors) {
+        document.getElementById('memberImportModal')?.remove();
+        const list = arr => arr.slice(0, 8).map(x => `<div>• ${escapeHTML(x)}</div>`).join('') + (arr.length > 8 ? `<div>… dan ${arr.length - 8} lainnya</div>` : '');
+        const overlay = document.createElement('div');
+        overlay.id = 'memberImportModal';
+        overlay.className = 'event-modal';
+        overlay.innerHTML = `
+            <div class="event-modal-box">
+                <h3>⬆️ Upload Member</h3>
+                <div style="font-size:.9rem; margin-bottom:8px;">
+                    <b style="color:var(--success, #22c55e)">${valid.length}</b> member baru siap ditambahkan ·
+                    ${skipped.length} dilewati · <span style="color:#ef4444">${errors.length} error</span>
+                </div>
+                ${valid.length ? `<div style="font-size:.8rem; color:var(--text-muted); margin-bottom:8px;">Contoh: ${valid.slice(0, 5).map(v => escapeHTML(v.name)).join(', ')}${valid.length > 5 ? ', …' : ''}</div>` : ''}
+                ${skipped.length ? `<div style="font-size:.78rem; color:var(--text-muted); margin-bottom:8px;"><b>Dilewati:</b>${list(skipped)}</div>` : ''}
+                ${errors.length ? `<div style="font-size:.78rem; color:#ef4444; margin-bottom:8px;"><b>Error (tidak ditambahkan):</b>${list(errors)}</div>` : ''}
+                <div class="event-modal-actions">
+                    <button type="button" id="memberImportCancel" style="background:var(--border); color:#fff;">Batal</button>
+                    <button type="button" id="memberImportConfirm" class="btn-success" ${valid.length ? '' : 'disabled'}>Tambahkan ${valid.length} Member</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        const close = () => { overlay.remove(); pendingMemberImport = []; };
+        document.getElementById('memberImportCancel').addEventListener('click', close);
+        document.getElementById('memberImportConfirm').addEventListener('click', async () => {
+            const btn = document.getElementById('memberImportConfirm');
+            btn.disabled = true; btn.innerText = 'Menyimpan...';
+            confirmMemberImport();
+            overlay.remove();
+        });
+    }
+
+    function confirmMemberImport() {
+        const batch = pendingMemberImport; pendingMemberImport = [];
+        if (!batch.length) return;
+        const base = Date.now();
+        // cek ulang nama saat konfirmasi (data bisa berubah dari device lain sejak file dibaca)
+        const existing = new Set(players.map(p => p.name.trim().toLowerCase()));
+        let added = 0;
+        batch.forEach((m, i) => {
+            if (existing.has(m.name.toLowerCase())) return;
+            players.push({
+                id: String(base + i),
+                name: m.name, gender: m.gender, level: m.level,
+                birthDate: m.birthDate,
+                joinDate: m.joinDate,
+                photo: null,
+                careerStats: { played:0, wins:0, points:0, out:0, fault:0, errors:0 },
+                status: 'active',
+                ready: false,
+                deposit: 0,
+                stats: { played: 0, wins: 0, points: 0, out: 0, fault: 0 }
+            });
+            added++;
+        });
+        saveData();
+        alert(`${added} member berhasil ditambahkan.`);
     }
 
     // Unggah foto pemain ke Supabase Storage (bucket: player-photos) dan kembalikan URL publiknya.
