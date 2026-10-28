@@ -8,9 +8,9 @@
     <script>
     /* UKURAN TAMPILAN OTOMATIS (HP 360-430px): skala dihitung dari lebar layar. Pilihan manual lewat menu ⋮ -> "Ukuran Tampilan". */
     (function(){
-      var MODES={auto:null,small:0.84,medium:0.92,large:1};
+      var MODES={auto:null,small:0.78,medium:0.86,large:1};
       function mode(){try{var m=localStorage.getItem('auraUiScale');return MODES.hasOwnProperty(m)?m:'auto'}catch(e){return 'auto'}}
-      function autoScale(w){return w<=340?0.84:w<=360?0.88:w<=400?0.92:w<=430?0.95:1}
+      function autoScale(w){return w<=340?0.8:w<=360?0.84:w<=400?0.88:w<=430?0.9:1}
       function apply(){
         var w=Math.min(window.innerWidth||999,screen.width||999),m=mode(),v=(w>768)?1:(MODES[m]==null?autoScale(w):MODES[m]);
         document.documentElement.style.setProperty('--ui-scale',String(v));
@@ -28,7 +28,7 @@
       document.addEventListener('DOMContentLoaded',apply);
     })();
     </script>
-    <link rel="stylesheet" href="mobile-responsive.css?v=aura-mobile-redesign-v2-20261014">
+    <link rel="stylesheet" href="mobile-responsive.css?v=aura-mobile-compact-20261028">
     <script src="mobile-responsive.js" defer></script>
   
 <!-- Font Montserrat untuk Story MVP dan Best Partner -->
@@ -836,6 +836,42 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   body{zoom:var(--ui-scale,1)}
   .mobile-bottom-nav .mobile-tab-btn{font-size:max(9px,.58rem)!important}
 }
+/* --- Mode kompak HP: kartu, judul, dan tombol lebih kecil --- */
+@media(max-width:768px){
+  .card,.attendance-panel,.event-manager>.card{padding:12px!important;border-radius:14px!important}
+  h1{font-size:1.05rem!important}
+  h2,.card h2,.attendance-panel h2,.event-participant-toolbar h2{font-size:.95rem!important;line-height:1.3!important;color:#f1f7ff!important;margin-bottom:3px!important}
+  h3{font-size:.88rem!important}
+  .attendance-panel{background:var(--glass)!important;border:1px solid var(--glass-border)!important}
+  button{font-size:.78rem}
+  .history-card{padding:12px!important}
+  .history-icon{width:30px!important;height:30px!important;font-size:.8rem!important;border-radius:9px!important}
+  .history-subtitle{font-size:.7rem!important}
+  .history-search{padding:0 10px!important;margin-bottom:10px!important}
+  .history-search input{min-height:34px!important;font-size:.78rem!important}
+  #historyList{gap:8px!important}
+  .history-match-card{padding:9px 11px 8px!important;border-radius:12px!important}
+  .history-match-header{margin-bottom:7px!important}
+  .history-date{font-size:.62rem!important;padding:2px 8px!important}
+  .history-court{font-size:.7rem!important;gap:5px!important}
+  .history-round{font-size:.58rem!important;padding:2px 7px!important}
+  .history-match-body{gap:5px!important}
+  .history-team{padding:6px 8px!important;border-radius:9px!important;gap:2px!important}
+  .history-team-label{font-size:.54rem!important;letter-spacing:1px!important}
+  .history-team-name{font-size:.72rem!important;line-height:1.25!important}
+  .history-score{gap:3px!important}
+  .history-score-number{font-size:1.15rem!important;min-width:18px!important}
+  .history-score-divider{font-size:.8rem!important}
+  .history-meta{margin-top:7px!important;gap:5px!important}
+  .history-meta span{font-size:.6rem!important;padding:2px 8px!important}
+  .history-actions{margin-top:7px!important;padding-top:7px!important;gap:6px!important}
+  .history-actions button{padding:4px 10px!important;font-size:.64rem!important;border-radius:7px!important;min-height:0!important;line-height:1.2!important;width:auto!important;flex:0 0 auto!important}
+  .history-empty{padding:20px 12px!important}
+  .event-participant-toolbar{justify-content:space-between!important;text-align:left!important}
+  .event-participant-toolbar>div:first-child{flex:1 1 100%;text-align:left}
+  .event-participant-toolbar-actions{width:100%}
+  .event-participant-toolbar-actions .btn-success{flex:1}
+}
 body:has(#scoreDashboard.show) .mobile-bottom-nav{display:none!important}
 .mobile-bottom-nav{background:linear-gradient(160deg,rgba(20,38,62,.92),rgba(7,16,30,.96))!important;border-color:rgba(125,180,230,.35)!important}
 @media(max-width:768px){.mobile-bottom-nav{grid-template-columns:repeat(6,minmax(0,1fr))!important}.mobile-tab-btn.active{background:linear-gradient(180deg,#38bdf8,#0ea5e9)!important;color:#04121f!important}}
@@ -995,7 +1031,7 @@ body:has(#scoreDashboard.show) .mobile-bottom-nav{display:none!important}
                 <div class="card rotation-queue-card">
                     <div class="rotation-queue-heading">
                         <h2>🔄 Rotasi & Waiting List</h2>
-                        <button class="event-collapse-btn" onclick="toggleEventPanel('rotation')" aria-expanded="${!isEventPanelCollapsed('rotation')}" aria-label="${isEventPanelCollapsed('rotation')?'Tampilkan Rotasi & Waiting List':'Sembunyikan Rotasi & Waiting List'}" title="${isEventPanelCollapsed('rotation')?'Tampilkan':'Sembunyikan'}">${isEventPanelCollapsed('rotation')?'⌄':'⌃'}</button>
+                        <button class="event-collapse-btn" onclick="toggleEventPanel('rotation')" aria-expanded="true" aria-label="Sembunyikan Rotasi &amp; Waiting List" title="Sembunyikan">⌃</button>
                     </div>
                     <div class="rotation-queue-content" ${isEventPanelCollapsed('rotation')?'hidden':''}>
                         <div id="rotationSummary"></div>
@@ -3555,6 +3591,22 @@ async function deletePicRole(roleId){
     function saveCollapsedEventPanels() {
         try { localStorage.setItem(AURA_COLLAPSED_PANELS_KEY, JSON.stringify([...auraCollapsedEventPanels])); } catch (_) {}
     }
+    // Sinkronkan tombol & isi panel Rotasi dengan status lipat tersimpan (dulu tombol ini berisi teks template mentah).
+    function syncRotationPanelState() {
+        const heading = document.querySelector(".rotation-queue-heading");
+        if (!heading) return;
+        const collapsed = isEventPanelCollapsed("rotation");
+        const button = heading.querySelector("button");
+        const content = document.querySelector(".rotation-queue-content");
+        if (button) {
+            button.textContent = collapsed ? "⌄" : "⌃";
+            button.setAttribute("aria-expanded", String(!collapsed));
+            button.setAttribute("aria-label", collapsed ? "Tampilkan Rotasi & Waiting List" : "Sembunyikan Rotasi & Waiting List");
+            button.title = collapsed ? "Tampilkan" : "Sembunyikan";
+        }
+        if (content) content.hidden = collapsed;
+    }
+
     function toggleEventPanel(panel) {
         if (auraCollapsedEventPanels.has(panel)) auraCollapsedEventPanels.delete(panel);
         else auraCollapsedEventPanels.add(panel);
@@ -3576,6 +3628,7 @@ async function deletePicRole(roleId){
     }
 
     function renderEventAttendance() {
+        try { syncRotationPanelState(); } catch (e) {}
         const host = document.getElementById('eventAttendancePanel');
         if (!host) return;
         const ev = activeEvent();
