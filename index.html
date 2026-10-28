@@ -776,6 +776,37 @@ table tr:hover td{background:rgba(56,189,248,.05)}
 .history-empty-text{margin-top:4px;font-size:.82rem;color:var(--text-muted)}
 button[onclick^="finishMatch("],button[onclick^="rrFinishMatch("],button[onclick^="koFinishMatch("]{background:linear-gradient(180deg,#38bdf8,#0284c7)!important;color:#04121f!important;border:1px solid rgba(125,211,252,.7)!important;box-shadow:0 8px 22px rgba(14,165,233,.35)}
 button[onclick^="skipMatch("]{background:rgba(255,255,255,.04)!important;border:1px solid var(--glass-border)!important;color:var(--text-muted)!important}
+/* --- Riwayat Pemain: kartu pertandingan (desktop + HP) --- */
+#historyList{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr))}
+#historyList>.history-empty{grid-column:1/-1}
+.history-match-card{position:relative;display:flex!important;flex-direction:column;gap:0;min-width:0;padding:14px 16px 12px!important;margin:0!important;border-radius:16px!important;border:1px solid var(--glass-border)!important;background:linear-gradient(160deg,rgba(20,38,62,.7),rgba(8,17,30,.85))!important;box-shadow:0 8px 24px rgba(0,0,0,.28);overflow:hidden;transition:border-color .2s,transform .15s}
+.history-match-card:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,#38bdf8,#2dd4bf)}
+.history-match-card:hover{border-color:rgba(56,189,248,.5)!important;transform:translateY(-1px)}
+.history-match-header{display:flex!important;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px!important;padding:0!important;border:0!important}
+.history-date{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);color:var(--text-muted);font-size:.74rem;font-weight:600;white-space:nowrap}
+.history-court{display:flex!important;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;color:#e8f6ff;font-size:.82rem;font-weight:800;text-align:right}
+.history-round{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.35);color:#7dd3fc;font-size:.68rem!important;font-weight:800;letter-spacing:.4px}
+.history-match-body{display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:stretch;gap:10px;margin:0!important;padding:0!important}
+.history-team{display:flex!important;flex-direction:column;justify-content:center;gap:4px;min-width:0;padding:10px 12px!important;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid rgba(125,180,230,.14);text-align:left!important}
+.history-team-b{text-align:right!important;align-items:flex-end}
+.history-team-label{font-size:.64rem!important;font-weight:800;letter-spacing:1.4px;color:var(--text-muted)}
+.history-team-name{font-size:.92rem!important;font-weight:700;line-height:1.35;color:#e8f1fb;overflow-wrap:anywhere}
+.history-team.winner{background:linear-gradient(160deg,rgba(45,212,191,.16),rgba(56,189,248,.08))!important;border-color:rgba(45,212,191,.55)!important;box-shadow:0 0 18px rgba(45,212,191,.12)}
+.history-team.winner .history-team-label{color:#5eead4}
+.history-team.winner .history-team-name{color:#fff}
+.history-score{display:flex!important;align-items:center;justify-content:center;gap:6px;padding:0 4px!important}
+.history-score-number{min-width:30px;text-align:center;font-size:1.7rem!important;font-weight:900;line-height:1;color:#8fa6c0;font-variant-numeric:tabular-nums}
+.history-score-number.winner{color:#5eead4!important;text-shadow:0 0 14px rgba(45,212,191,.45)}
+.history-score-divider{font-size:1.1rem!important;font-weight:800;color:#4b6685}
+.history-meta{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.history-meta span{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(125,180,230,.16);color:var(--text-muted);font-size:.72rem;font-weight:600}
+.history-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(125,180,230,.14)}
+.history-actions button{padding:7px 14px;border-radius:9px;font-size:.78rem;font-weight:700;cursor:pointer}
+.history-btn-edit{background:rgba(56,189,248,.12)!important;border:1px solid rgba(56,189,248,.4)!important;color:#bfe9ff!important}
+.history-btn-edit:hover{background:rgba(56,189,248,.22)!important}
+.history-btn-del{background:rgba(239,68,68,.1)!important;border:1px solid rgba(248,113,113,.4)!important;color:#fca5a5!important}
+.history-btn-del:hover{background:rgba(239,68,68,.22)!important}
+@media(max-width:480px){#historyList{grid-template-columns:1fr}.history-match-body{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px}.history-team{padding:8px!important}.history-team-name{font-size:.8rem!important}.history-score-number{font-size:1.4rem!important;min-width:22px}}
 body:has(#scoreDashboard.show) .mobile-bottom-nav{display:none!important}
 .mobile-bottom-nav{background:linear-gradient(160deg,rgba(20,38,62,.92),rgba(7,16,30,.96))!important;border-color:rgba(125,180,230,.35)!important}
 @media(max-width:768px){.mobile-bottom-nav{grid-template-columns:repeat(6,minmax(0,1fr))!important}.mobile-tab-btn.active{background:linear-gradient(180deg,#38bdf8,#0ea5e9)!important;color:#04121f!important}}
@@ -5480,9 +5511,9 @@ function togglePlayerActions(button) {
     function historyActionMenu(matchId) {
         const safeId = String(matchId).replace(/'/g, "\\'");
         return `
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
-                <button onclick="editHistoryMatch('${safeId}')" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-main);color:var(--text);font-weight:700;cursor:pointer;">✏️ Edit</button>
-                <button onclick="deleteHistoryMatch('${safeId}')" style="padding:8px 12px;border:1px solid #7f1d1d;border-radius:8px;background:transparent;color:#ef4444;font-weight:700;cursor:pointer;">🗑️ Hapus</button>
+            <div class="history-actions">
+                <button class="history-btn-edit" onclick="editHistoryMatch('${safeId}')">✏️ Edit</button>
+                <button class="history-btn-del" onclick="deleteHistoryMatch('${safeId}')">🗑️ Hapus</button>
             </div>`;
     }
 
@@ -5563,7 +5594,7 @@ function togglePlayerActions(button) {
                     ">
 
                         <div class="history-team-label">
-                            TIM A
+                            TIM A${teamAWinner ? ' 🏆' : ''}
                         </div>
 
                         <div class="history-team-name">
@@ -5605,7 +5636,7 @@ function togglePlayerActions(button) {
                     ">
 
                         <div class="history-team-label">
-                            TIM B
+                            TIM B${teamBWinner ? ' 🏆' : ''}
                         </div>
 
                         <div class="history-team-name">
@@ -5616,8 +5647,7 @@ function togglePlayerActions(button) {
 
                 </div>
 
-                <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;color:var(--text-muted);font-size:.75rem;margin-top:10px;">
-                    ${m.round ? `<span>🏸 Ronde ${m.round}</span>` : ''}
+                <div class="history-meta">
                     ${m.time ? `<span>⏱ ${formatTime(m.time)}</span>` : ''}
                     <span>⚠️ Error ${[...(m.teamA||[]),...(m.teamB||[])].reduce((n,p)=>n+Number(p.matchOuts||0)+Number(p.matchFaults||0),0)}</span>
                 </div>
