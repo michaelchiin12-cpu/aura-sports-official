@@ -2931,8 +2931,12 @@ async function deletePicRole(roleId){
     // Mutasi atomik Round Mix: seluruh perubahan penting (rotasi, attendance, generate,
     // swap, finish, statistik, history, finance) dihitung ulang dari event TERBARU di server.
     // Ini mencegah device B menimpa perubahan device A dengan snapshot lama.
+    // Alasan gagal terakhir dari mutasi Round Mix (dipakai agar alert menjelaskan penyebab sebenarnya).
+    let lastRoundMixFailReason = '';
     async function safeRoundMixMutationCore(mutateFn, options = {}) {
+        lastRoundMixFailReason = '';
         if (!stateLoaded || !supabaseClient) {
+            lastRoundMixFailReason = 'Data awal belum selesai dimuat dari server / koneksi database belum tersedia. Refresh halaman lalu coba lagi.';
             markSyncError('Data awal belum siap atau koneksi database belum tersedia.');
             return false;
         }
@@ -2940,13 +2944,13 @@ async function deletePicRole(roleId){
         const MAX_ATTEMPT=4;
         for(let attempt=0;attempt<MAX_ATTEMPT;attempt++){
             const {data:fresh,error}=await supabaseClient.from('sport_manager_state').select('id,updated_at,players,finance_transactions,finance_settings,rr_settings,active_matches,rr_matches,rr_teams,rr_phase,rr_bracket').eq('id',STATE_ROW_ID).single();
-            if(error||!fresh){await _sleep(150+attempt*100);continue;}
+            if(error||!fresh){lastRoundMixFailReason='Gagal mengambil data dari server (koneksi lambat/terputus). Coba lagi.';await _sleep(150+attempt*100);continue;}
             const settings=cloneJSON(fresh.rr_settings||{});
             const reg=getEventRegistryFromSettings(settings);
             const targetId=eventRegistry?.activeEventId;
             const ev=targetId?reg.events.find(e=>e.id===targetId):null;
-            if(!ev) return false;
-            if(ev.mode!=='match') return false;
+            if(!ev){lastRoundMixFailReason='Pertandingan yang sedang dibuka belum ada di server (belum tersimpan, atau sudah dihapus dari device lain). Kembali ke Daftar Pertandingan, buka ulang pertandingannya, lalu coba lagi.';return false;}
+            if(ev.mode!=='match'){lastRoundMixFailReason='Pertandingan ini bukan Round Mix.';return false;}
             const s=ev.snapshot||{};
             const view={
                 event:ev,
@@ -2966,7 +2970,9 @@ async function deletePicRole(roleId){
             if(s.attendance) ev.attendance=cloneJSON(s.attendance);
             // Jangan menambahkan seluruh Member ke event secara otomatis. Attendance/participant
             // hanya berisi player ID yang memang dipilih untuk event tersebut.
-            if(!mutateFn(view)) return false;
+            let mutated=false;
+            try{ mutated=mutateFn(view); }catch(err){ console.error('mutateFn error:',err); lastRoundMixFailReason='Terjadi error saat menyusun ronde: '+(err&&err.message?err.message:err); return false; }
+            if(!mutated) return false;
             ev.snapshot={playerStats:{},rotation:cloneJSON(ev.snapshot?.rotation||{}),attendance:cloneJSON(ev.attendance||{}),matchesHistory:cloneJSON(view.matchesHistory),activeMatches:cloneJSON(view.activeMatches),roundMixPreview:cloneJSON(view.roundMixPreview||[]),rrTeams:cloneJSON(view.rrTeams),rrMatches:cloneJSON(view.rrMatches),rrSettings:stripNestedRegistry(cloneJSON(view.rrSettings)),rrPhase:view.rrPhase,rrBracket:cloneJSON(view.rrBracket)};
             view.players.forEach(p=>{ev.snapshot.playerStats[p.id]=cloneJSON(p.stats||{});ev.snapshot.rotation[p.id]={lastPartners:[...(p.lastPartners||[])],lastOpponents:[...(p.lastOpponents||[])]};});
             ev.updatedAt=new Date().toISOString();
@@ -2986,6 +2992,7 @@ async function deletePicRole(roleId){
             }
             await _sleep(120+attempt*100);
         }
+        if(!lastRoundMixFailReason) lastRoundMixFailReason='Perubahan belum tersimpan setelah beberapa kali percobaan karena banyak perubahan bersamaan di device lain. Tunggu sebentar lalu klik lagi.';
         markSyncError('Perubahan belum tersimpan setelah beberapa kali percobaan. Periksa koneksi lalu ulangi aksi.');
         return false;
     }
@@ -4174,7 +4181,11 @@ async function deletePicRole(roleId){
         });
         const ordered=[...rounds.keys()].sort((a,b)=>b-a);
         if(!ordered.length) return 0;
-        let count=0, expected=ordered[0];
+        // PERBAIKAN: hitung beruntun dari ronde TERAKHIR event (bukan dari ronde terakhir pemain itu sendiri).
+        // Sebelumnya semua pemain yang pernah main dianggap "main beruntun" sehingga ronde berikutnya gagal dibuat.
+        const allRounds=[...(view.matchesHistory||[]), ...(view.activeMatches||[])].map(m=>Number(m.round||0)).filter(Boolean);
+        const latestRound=allRounds.length?Math.max(...allRounds):ordered[0];
+        let count=0, expected=latestRound;
         for(const r of ordered) {
             if(r!==expected) break;
             count++; expected--;
@@ -4314,10 +4325,17 @@ async function deletePicRole(roleId){
             const pools = [
                 work.filter(p=>Number(p.stats?.played||0)===minPlayed),
                 work.filter(p=>Number(p.stats?.played||0)<=minPlayed+1),
-                work.filter(p=>getPlayerConsecutiveRounds(p.id,view)<1)
+                work.filter(p=>getPlayerConsecutiveRounds(p.id,view)<1),
+                // cadangan terakhir: pemain dengan jumlah main paling sedikit (undian bila sama), tepat sebanyak pemain per match
+                shuffleArray(work).sort((a,b)=>Number(a.stats?.played||0)-Number(b.stats?.played||0)).slice(0,requiredPlayersPerMatch)
             ];
             let bestGroup=null,bestTeams=null,bestBadness=Infinity,bestRepeatScore=Infinity;
             const tried=new Set();
+            // Tahap 1 (ketat): utamakan pemain yang TIDAK main di ronde sebelumnya.
+            // Tahap 2 (longgar): kalau pemain yang istirahat tidak cukup, boleh pemain yang main di ronde sebelumnya
+            // (tetap diurutkan dari yang paling sedikit main) supaya ronde tetap bisa dibuat.
+            for(const strictRest of [true,false]){
+            if(strictRest===false){ if(bestGroup) break; tried.clear(); }
             for(let tierIndex=0;tierIndex<pools.length;tierIndex++){
                 const pool=pools[tierIndex];
                 if(pool.length<requiredPlayersPerMatch) continue;
@@ -4325,7 +4343,7 @@ async function deletePicRole(roleId){
                 for(let attempt=0;attempt<500;attempt++){
                     const group=shuffleArray(pool).slice(0,requiredPlayersPerMatch);
                     if(new Set(group.map(p=>p.id)).size!==requiredPlayersPerMatch) continue;
-                    if(group.some(p=>getPlayerConsecutiveRounds(p.id,view)>=1)) continue;
+                    if(strictRest && group.some(p=>getPlayerConsecutiveRounds(p.id,view)>=1)) continue;
                     const key=group.map(p=>p.id).sort().join('|');
                     if(tried.has(key)) continue;
                     tried.add(key);
@@ -4344,7 +4362,8 @@ async function deletePicRole(roleId){
                 if(bestBadness<20) break;
                 if(tierIndex===2) break;
             }
-            if (!bestGroup || !bestTeams) break;            if (!bestGroup || !bestTeams) break;
+            }
+            if (!bestGroup || !bestTeams) break;
 
             const { teamA, teamB } = bestTeams;
             work.splice(0, work.length, ...work.filter(p => !bestGroup.some(g => g.id === p.id)));
@@ -4380,7 +4399,23 @@ async function deletePicRole(roleId){
         ensureEventAttendance(ev, true);
         const ok = await safeRoundMixMutation(view => {
             const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
-            if (!result.matches.length) return false;
+            if (!result.matches.length) {
+                const att = (view.event && view.event.attendance) || {};
+                const joined = (view.players || []).filter(p => p.id in att);
+                const hadir = joined.filter(p => att[p.id]);
+                const playing = hadir.filter(p => p.status === 'playing').length;
+                const other = hadir.filter(p => p.status !== 'active' && p.status !== 'playing').length;
+                const need = teamSize * 2;
+                let msg = result.reason || 'Tidak ada match yang bisa dibuat.';
+                msg += `\n\nPeserta event: ${joined.length} · Hadir: ${hadir.length} · Siap main (aktif): ${hadir.length - playing - other}`;
+                if (playing) msg += ` · Berstatus "Sedang main": ${playing}`;
+                if (other) msg += ` · Status lain/nonaktif: ${other}`;
+                if (!hadir.length) msg += '\n\nTandai pemain "Hadir" di panel Peserta Event dulu.';
+                else if (playing) msg += '\n\nSelesaikan atau batalkan match yang sedang berjalan agar pemain kembali siap main.';
+                else if (hadir.length < need) msg += `\n\nButuh minimal ${need} pemain hadir untuk 1 lapangan.`;
+                lastRoundMixFailReason = msg;
+                return false;
+            }
             view.activeMatches.push(...result.matches);
             view.roundMixPreview = [];
             {
@@ -4393,7 +4428,7 @@ async function deletePicRole(roleId){
             return true;
         });
         if (!ok) {
-            if (!options.auto) alert('Gagal membuat / menyimpan ronde baru. Pastikan pemain hadir dan kombinasi level memungkinkan, lalu coba lagi.');
+            if (!options.auto) alert(lastRoundMixFailReason ? ('Gagal membuat ronde baru.\n\n' + lastRoundMixFailReason) : 'Gagal membuat / menyimpan ronde baru. Pastikan pemain hadir dan kombinasi level memungkinkan, lalu coba lagi.');
             return false;
         }
         return true;
