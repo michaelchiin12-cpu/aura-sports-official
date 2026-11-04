@@ -2431,6 +2431,74 @@ async function deletePicRole(roleId){
 
     function columnsEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 
+    // ============================================================================
+    // MERGE 3-ARAH (base = terakhir sinkron, local = salinan HP ini, server = terbaru di server)
+    // ----------------------------------------------------------------------------
+    // Masalah lama: kolom rr_settings memuat SELURUH registry event (skor, hadir, riwayat, dll).
+    // Kalau HP A hanya mengubah satu hal kecil lalu menyimpan, seluruh registry versi HP A
+    // (yang bisa basi) menimpa perubahan HP B -> match/skor/hadir "hilang".
+    // Sekarang: bagian yang TIDAK kita ubah diambil dari server; bagian yang kita ubah dipakai
+    // milik kita; bila keduanya mengubah bagian yang sama, digabung sampai level terdalam
+    // (objek per kunci, daftar ber-id per id).
+    // ============================================================================
+    function _m3eq(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+    function _m3obj(x) { return x !== null && typeof x === 'object' && !Array.isArray(x); }
+    function _m3ids(a) { return Array.isArray(a) && a.every(x => _m3obj(x) && x.id !== undefined && x.id !== null); }
+
+    const _M3_COUNTERS = new Set(['a', 'b', 'scoreA', 'scoreB', 'matchPoints']);
+    function merge3(b, l, s, key) {
+        if (_m3eq(l, b)) return s;          // kita tidak mengubah -> ikut server
+        if (_m3eq(s, b)) return l;          // server tidak berubah -> pakai milik kita
+        if (_m3eq(l, s)) return l;
+        // Penghitung skor (a/b): dua HP sama-sama menambah -> jumlahkan selisihnya, jangan saling timpa.
+        if (_M3_COUNTERS.has(key) && typeof l === 'number' && typeof s === 'number' && typeof b === 'number') {
+            return Math.max(0, s + (l - b));
+        }
+        // Penanda waktu / jam pertandingan: ambil yang terbaru / terbesar.
+        if ((key === 'updatedAt' || key === 'time') && ((typeof l === 'number' && typeof s === 'number') || (typeof l === 'string' && typeof s === 'string'))) {
+            return l > s ? l : s;
+        }
+        if (_m3obj(l) && _m3obj(s)) {
+            const base = _m3obj(b) ? b : {};
+            const out = {};
+            const keys = new Set([...Object.keys(l), ...Object.keys(s)]);
+            keys.forEach(k => {
+                const v = merge3(base[k], l[k], s[k], k);
+                if (v !== undefined) out[k] = v;
+            });
+            return out;
+        }
+        if (Array.isArray(l) && Array.isArray(s) && _m3ids(l) && _m3ids(s) && (b === undefined || b === null || _m3ids(b))) {
+            return mergeArrById(Array.isArray(b) ? b : [], l, s);
+        }
+        return l; // konflik pada nilai tunggal: pakai milik kita (aksi terakhir user di HP ini)
+    }
+
+    function mergeArrById(b, l, s) {
+        const bm = new Map(b.map(x => [x.id, x]));
+        const lm = new Map(l.map(x => [x.id, x]));
+        const sm = new Map(s.map(x => [x.id, x]));
+        const out = [];
+        s.forEach(si => {
+            const bi = bm.get(si.id), li = lm.get(si.id);
+            if (li === undefined) {
+                // tidak ada di lokal: dihapus oleh kita (jika ada di base) atau baru ditambah server
+                if (bi !== undefined && _m3eq(si, bi)) return;   // kita hapus & server tidak mengubahnya -> hapus
+                out.push(si);                                      // ditambah server / server mengubahnya -> pertahankan
+            } else {
+                const m = merge3(bi, li, si);
+                if (m !== undefined) out.push(m);
+            }
+        });
+        l.forEach(li => {
+            if (sm.has(li.id)) return;
+            const bi = bm.get(li.id);
+            if (bi === undefined) out.push(li);                    // baru kita tambah
+            else if (!_m3eq(li, bi)) out.push(li);                 // dihapus di server tetapi kita ubah -> pertahankan
+        });
+        return out;
+    }
+
     // Terapkan isi kolom (gabungan hasil kita + kolom lain yang baru diambil dari server)
     // ke variabel state lokal. Kalau ada pertandingan yang sedang dibuka di HP ini,
     // tampilannya diisi ulang dari snapshot event tsb (bukan dari kolom cermin teratas),
@@ -2830,11 +2898,11 @@ async function deletePicRole(roleId){
             }
             markSyncProgress(35, `Mengirim ${Object.keys(changedCols).length} bagian data untuk disimpan...`);
 
-            // Ambil hanya updated_at sebagai kunci concurrency. SELECT * sebelumnya
-            // mengunduh seluruh baris (termasuk rr_settings.__eventRegistry sekitar 5.9 MB)
-            // pada SETIAP simpan, padahal nilai kolom lain tidak dibutuhkan untuk CAS.
+            // Ambil updated_at (kunci concurrency) + HANYA kolom yang akan kita tulis, supaya bisa
+            // digabung 3-arah dengan versi server terbaru (lihat merge3) dan tidak menimpa HP lain.
+            const freshCols = ['updated_at'].concat(Object.keys(changedCols)).join(',');
             const { data: fresh, error: fetchErr } = await supabaseClient
-                .from('sport_manager_state').select('updated_at').eq('id', STATE_ROW_ID).single();
+                .from('sport_manager_state').select(freshCols).eq('id', STATE_ROW_ID).single();
             if (fetchErr || !fresh) {
                 markSyncProgress(25, `Server lambat merespons; mencoba ulang (${attempt + 1}/${MAX_ATTEMPT})...`);
                 console.error('Gagal mengambil versi data server sebelum menyimpan:', fetchErr);
@@ -2842,9 +2910,22 @@ async function deletePicRole(roleId){
                 continue;
             }
 
+            // Gabungkan: bagian yang tidak kita ubah ikut server, bagian yang kita ubah dipakai milik kita.
+            const mergedCols = {};
+            Object.keys(changedCols).forEach(col => {
+                const base = lastSyncedRow ? lastSyncedRow[col] : undefined;
+                let m = merge3(base, changedCols[col], fresh[col]);
+                if (m === undefined) m = changedCols[col];
+                mergedCols[col] = m;
+            });
+            if (mergedCols.rr_settings && mergedCols.rr_settings.__eventRegistry && changedCols.rr_settings && changedCols.rr_settings.__eventRegistry) {
+                // Event yang sedang dibuka bersifat per-HP; selalu pakai milik HP ini.
+                mergedCols.rr_settings.__eventRegistry.activeEventId = changedCols.rr_settings.__eventRegistry.activeEventId;
+            }
+
             markSyncProgress(65, 'Menyimpan perubahan ke database...');
             const nowIso = new Date().toISOString();
-            const patch = { ...changedCols, updated_at: nowIso };
+            const patch = { ...mergedCols, updated_at: nowIso };
             let q = supabaseClient.from('sport_manager_state').update(patch).eq('id', STATE_ROW_ID);
             q = (fresh.updated_at === null || fresh.updated_at === undefined) ? q.is('updated_at', null) : q.eq('updated_at', fresh.updated_at);
             const saveStartedAt = Date.now();
@@ -2862,9 +2943,21 @@ async function deletePicRole(roleId){
                 const savedAt = updatedRows[0].updated_at || nowIso;
                 markSyncProgress(92, 'Perubahan tersimpan; menyelesaikan sinkronisasi...');
                 console.info('[AURA SAVE] UPDATE terverifikasi', { elapsedMs: saveElapsedMs, changedColumns: Object.keys(changedCols).length, updatedAt: savedAt });
-                // Hanya tandai kolom yang dikirim sebagai tersimpan. Jangan menganggap
-                // perubahan lokal lain yang terjadi selama request ikut tersimpan.
-                lastSyncedRow = { ...(lastSyncedRow || {}), ...changedCols, updated_at: savedAt };
+                // Apakah server menambahkan sesuatu yang belum ada di layar HP ini?
+                const serverContributed = Object.keys(mergedCols).some(col => !columnsEqual(mergedCols[col], changedCols[col]));
+                const idleNow = pendingScoreOps === 0 && !savePending;
+                if (serverContributed && idleNow) {
+                    // Serap hasil gabungan ke layar HP ini; baseline = hasil gabungan (konsisten dengan layar).
+                    const adopted = { ...current, ...mergedCols };
+                    lastSyncedRow = { ...adopted, updated_at: savedAt };
+                    applyMergedColumnsToState(adopted);
+                    try { init(); } catch (e) { console.error('init setelah merge gagal', e); }
+                } else {
+                    // Baseline = apa yang HP ini kirim (sama dengan layar). Bagian tambahan dari server
+                    // dianggap "ditambah server" pada simpan berikutnya, lalu ditarik lewat refresh.
+                    lastSyncedRow = { ...(lastSyncedRow || {}), ...changedCols, updated_at: savedAt };
+                    if (serverContributed) requestRefresh();
+                }
                 return true;
             }
 
@@ -2941,7 +3034,7 @@ async function deletePicRole(roleId){
             return false;
         }
         markSyncSaving();
-        const MAX_ATTEMPT=4;
+        const MAX_ATTEMPT=10;
         for(let attempt=0;attempt<MAX_ATTEMPT;attempt++){
             const {data:fresh,error}=await supabaseClient.from('sport_manager_state').select('id,updated_at,players,finance_transactions,finance_settings,rr_settings,active_matches,rr_matches,rr_teams,rr_phase,rr_bracket').eq('id',STATE_ROW_ID).single();
             if(error||!fresh){lastRoundMixFailReason='Gagal mengambil data dari server (koneksi lambat/terputus). Coba lagi.';await _sleep(150+attempt*100);continue;}
@@ -2990,7 +3083,7 @@ async function deletePicRole(roleId){
                 markSyncSuccess();
                 return true;
             }
-            await _sleep(120+attempt*100);
+            await _sleep(40+Math.random()*140+attempt*60);
         }
         if(!lastRoundMixFailReason) lastRoundMixFailReason='Perubahan belum tersimpan setelah beberapa kali percobaan karena banyak perubahan bersamaan di device lain. Tunggu sebentar lalu klik lagi.';
         markSyncError('Perubahan belum tersimpan setelah beberapa kali percobaan. Periksa koneksi lalu ulangi aksi.');
@@ -3017,7 +3110,8 @@ async function deletePicRole(roleId){
         // beberapa kali dalam waktu singkat karena device lain / realtime / save lain.
         // Sebelumnya hanya 16 percobaan dan error fetch langsung dianggap gagal,
         // sehingga alert "Skor mungkin belum tersimpan" terlalu sering muncul.
-        const MAX_ATTEMPT = 3;
+        const MAX_ATTEMPT = 10;
+        const MAX_NOTFOUND = 3;
         let notFoundStreak = 0;
         let lastError = null;
         for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
@@ -3047,7 +3141,7 @@ async function deletePicRole(roleId){
                 // "Tidak ketemu" bisa berarti match BARU dibuat & penyimpanannya belum landing di server.
                 // Tunggu & coba lagi dulu, jangan langsung menyerah.
                 notFoundStreak++;
-                if (notFoundStreak >= MAX_ATTEMPT) return false;
+                if (notFoundStreak >= MAX_NOTFOUND) return false;
                 await _sleep(60 + Math.random() * 90 + notFoundStreak * 25);
                 continue;
             }
@@ -3119,15 +3213,33 @@ async function deletePicRole(roleId){
                 if (lastSyncedRow) {
                     Object.keys(patch).forEach(col => {
                         if (col === 'updated_at') return;
+                        // rr_settings (registry penuh) sengaja TIDAK dimajukan: layar HP ini belum tentu
+                        // memuat seluruh isinya, dan memajukan baseline akan membuat bagian basi terlihat
+                        // sebagai "perubahan lokal" yang menimpa server pada simpan berikutnya.
+                        if (col === 'rr_settings') return;
                         lastSyncedRow[col] = cloneJSON(patch[col]);
                     });
+                    // Untuk registry: majukan baseline HANYA pada bagian match event ini (yang baru saja kita tulis).
+                    try {
+                        if (ev && lastSyncedRow.rr_settings) {
+                            const bReg = getEventRegistryFromSettings(lastSyncedRow.rr_settings);
+                            const bEv = bReg && bReg.events ? bReg.events.find(e => e.id === ev.id) : null;
+                            if (bEv) {
+                                bEv.snapshot = bEv.snapshot || {};
+                                bEv.snapshot.activeMatches = cloneJSON(view.active_matches);
+                                bEv.snapshot.rrMatches = cloneJSON(view.rr_matches);
+                                bEv.snapshot.rrBracket = cloneJSON(view.rr_bracket);
+                                bEv.updatedAt = nowIso;
+                            }
+                        }
+                    } catch (e) { console.error('baseline registry', e); }
                     lastSyncedRow.updated_at = nowIso;
                 }
                 markSyncSuccess();
                 return true;
             }
             // Backoff bertahap agar tidak terus menabrak write dari device lain.
-            await _sleep(100 + attempt * 100);
+            await _sleep(40 + Math.random() * 120 + attempt * 60);   // jitter: cegah beberapa HP bentrok terus-menerus
         }
         console.error('safeApplyToServer: gagal setelah retry. Error terakhir:', lastError);
         markSyncError('Perubahan belum tersimpan ke server. Periksa koneksi, lalu ulangi aksi.');
@@ -3194,7 +3306,7 @@ async function deletePicRole(roleId){
         pendingScoreOps++;
         scoreBatch.push(fn);
         if (!scoreBatchTimer) {
-            scoreBatchTimer = setTimeout(() => flushScoreBatch(), 120);
+            scoreBatchTimer = setTimeout(() => flushScoreBatch(), 250);   // jendela lebih lebar = lebih sedikit write berebut saat banyak HP
         }
         return scoreOpQueue;
     }
