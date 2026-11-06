@@ -1088,6 +1088,13 @@ body:has(#scoreDashboard.show) .mobile-bottom-nav{display:none!important}
                 class="btn-success">
                 🎯 Top Point
             </button>
+
+            <button
+                onclick="exportAwardsToExcel()"
+                class="btn-success"
+                title="Download rekap award pertandingan ke Excel">
+                📥 Download Excel
+            </button>
         </div>
     </div>
 
@@ -6322,6 +6329,160 @@ function togglePlayerActions(button) {
             link.href = canvas.toDataURL('image/png');
             link.click();
         });
+    }
+
+
+    // ================= EXPORT EXCEL: REKAP AWARD PERTANDINGAN =================
+    // Sumber data: matchesHistory pada event yang sedang aktif (sama dengan Klasemen & Riwayat).
+    function exportAwardsToExcel() {
+        if (typeof XLSX === 'undefined') { alert('Library Excel belum termuat. Periksa koneksi internet lalu coba lagi.'); return; }
+
+        const TIGHT_MARGIN = 2;    // Tightest Victory: selisih maksimal 2 poin
+        const SETTING_MIN  = 20;   // "Setting" = tim yang kalah sudah mencapai minimal 20 poin (deuce)
+        const MIN_PAIR     = 2;    // Best Partner: pasangan ideal minimal main 2 match
+
+        // 1) Riwayat valid, urut kronologis (pakai finishedAt bila semua tersedia, jika tidak urutan simpan)
+        let history = (matchesHistory || []).filter(m => m && Array.isArray(m.teamA) && Array.isArray(m.teamB) && m.teamA.length && m.teamB.length);
+        if (!history.length) { alert('Belum ada pertandingan selesai untuk di-download.'); return; }
+        if (history.every(m => Number.isFinite(Date.parse(m.finishedAt)))) {
+            history = history.map((m, i) => ({ m, i })).sort((a, b) => (Date.parse(a.m.finishedAt) - Date.parse(b.m.finishedAt)) || (a.i - b.i)).map(x => x.m);
+        }
+
+        // 2) Agregasi
+        const st = new Map(), pairs = new Map(), matchRows = [], marginRows = [];
+        const getP = mp => {
+            const id = String(mp.id);
+            if (!st.has(id)) {
+                const ref = players.find(p => String(p.id) === id);
+                st.set(id, { name: ref?.name || mp.name || '(tanpa nama)', played:0, wins:0, losses:0, draws:0, score:0, fault:0, out:0, streak:0, maxStreak:0, tight:0, tightAll:0 });
+            }
+            return st.get(id);
+        };
+        const nm = list => list.map(x => getP(x).name).join(' & ');
+        const fmtDetail = list => list.map(x => `${getP(x).name} (P${Number(x.matchPoints||0)}/F${Number(x.matchFaults||0)}/O${Number(x.matchOuts||0)})`).join(', ');
+
+        history.forEach((m, idx) => {
+            const a = Number(m.scoreA) || 0, b = Number(m.scoreB) || 0;
+            const winner = a > b ? 'A' : (b > a ? 'B' : 'D');
+            const margin = Math.abs(a - b), low = Math.min(a, b);
+            [['A', m.teamA], ['B', m.teamB]].forEach(([t, list]) => {
+                list.forEach(mp => {
+                    const s = getP(mp);
+                    s.played++;
+                    s.score += Number(mp.matchPoints || 0);
+                    s.fault += Number(mp.matchFaults || 0);
+                    s.out   += Number(mp.matchOuts || 0);
+                    if (winner === t) {
+                        s.wins++; s.streak++; s.maxStreak = Math.max(s.maxStreak, s.streak);
+                        if (margin <= TIGHT_MARGIN) { s.tightAll++; if (low >= SETTING_MIN) s.tight++; }
+                    } else {
+                        if (winner === 'D') s.draws++; else s.losses++;
+                        s.streak = 0;
+                    }
+                });
+                if (list.length === 2) {
+                    const key = list.map(x => String(x.id)).sort().join('|');
+                    if (!pairs.has(key)) pairs.set(key, { name: nm(list), games:0, wins:0, losses:0, draws:0 });
+                    const pr = pairs.get(key); pr.games++;
+                    if (winner === t) pr.wins++; else if (winner === 'D') pr.draws++; else pr.losses++;
+                }
+            });
+            const winTeam = winner === 'A' ? m.teamA : (winner === 'B' ? m.teamB : null);
+            matchRows.push([idx + 1, m.date || '', m.round || '', m.courtName || '', nm(m.teamA), a, b, nm(m.teamB),
+                winner === 'D' ? 'Seri' : nm(winTeam), margin, fmtDetail(m.teamA), fmtDetail(m.teamB)]);
+            if (winTeam) marginRows.push({ winner: nm(winTeam), loser: nm(winner === 'A' ? m.teamB : m.teamA), hi: Math.max(a, b), low, margin, round: m.round || '', court: m.courtName || '', date: m.date || '', no: idx + 1 });
+        });
+
+        const P = [...st.values()].map(s => ({ ...s, fo: s.fault + s.out, wr: s.played ? Math.round(s.wins / s.played * 1000) / 10 : 0, mvp: s.wins * 10 + s.score - (s.fault + s.out) }));
+
+        // 3) Helper ranking (peringkat sama untuk nilai sama)
+        const rankPlayers = (valFn, tieFn) => {
+            const sorted = [...P].sort((x, y) => (valFn(y) - valFn(x)) || (tieFn ? tieFn(y) - tieFn(x) : 0) || x.name.localeCompare(y.name));
+            let prev = null, rank = 0;
+            return sorted.map((p, i) => { const key = valFn(p) + '|' + (tieFn ? tieFn(p) : ''); if (key !== prev) { rank = i + 1; prev = key; } return { rank, p }; });
+        };
+        const topNames = (ranked, valFn) => {
+            const top = ranked.filter(r => r.rank === 1);
+            if (!top.length || valFn(top[0].p) <= 0) return ['-', 0];
+            return [top.map(r => r.p.name).join(', '), valFn(top[0].p)];
+        };
+        const sheet = (aoa, widths) => { const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = widths.map(w => ({ wch: w })); return ws; };
+        const playerSheet = (ranked, valHeader, valFn, extraHeaders, extraFn) => sheet(
+            [['Peringkat', 'Pemain', valHeader, ...extraHeaders], ...ranked.map(r => [r.rank, r.p.name, valFn(r.p), ...extraFn(r.p)])],
+            [10, 26, 16, ...extraHeaders.map(() => 14)]);
+
+        // 4) Ranking tiap award
+        const rScore  = rankPlayers(p => p.score, p => p.wins);
+        const rWin    = rankPlayers(p => p.wins, p => p.wr);
+        const rStreak = rankPlayers(p => p.maxStreak, p => p.wins);
+        const rTight  = rankPlayers(p => p.tight, p => p.tightAll);
+        const rMvp    = rankPlayers(p => p.mvp, p => p.wins);
+        const rFault  = rankPlayers(p => p.fo, p => p.fault);
+
+        const pairList = [...pairs.values()].map(x => ({ ...x, wr: x.games ? Math.round(x.wins / x.games * 1000) / 10 : 0, ok: x.games >= MIN_PAIR }))
+            .sort((x, y) => (y.ok - x.ok) || (y.wr - x.wr) || (y.wins - x.wins) || (y.games - x.games) || x.name.localeCompare(y.name));
+        marginRows.sort((x, y) => (y.margin - x.margin) || (y.hi - x.hi) || (x.no - y.no));
+
+        // 5) Ringkasan
+        const [wScore, vScore] = topNames(rScore, p => p.score);
+        const [wWin, vWin]     = topNames(rWin, p => p.wins);
+        const [wStr, vStr]     = topNames(rStreak, p => p.maxStreak);
+        const [wTight, vTight] = topNames(rTight, p => p.tight);
+        const [wMvp, vMvp]     = topNames(rMvp, p => p.mvp);
+        const [wFault, vFault] = topNames(rFault, p => p.fo);
+        const bp = pairList[0], bm = marginRows[0];
+        const bmTies = marginRows.filter(r => r.margin === bm?.margin).length - 1;
+        const summary = [
+            ['Award', 'Pemenang', 'Nilai', 'Keterangan'],
+            ['Most Score', wScore, vScore, 'Total poin terbanyak'],
+            ['Most Win', wWin, vWin, 'Jumlah kemenangan terbanyak'],
+            ['Most Winstreak', wStr, vStr, 'Kemenangan beruntun terpanjang (kronologis)'],
+            ['Tightest Victory', wTight, vTight, `Kemenangan margin <= ${TIGHT_MARGIN} poin saat setting (lawan >= ${SETTING_MIN} poin)`],
+            ['Best Partner', bp ? bp.name : '-', bp ? bp.wr + '%' : 0, bp ? `${bp.wins} menang dari ${bp.games} match${bp.ok ? '' : ' (belum memenuhi min. ' + MIN_PAIR + ' match)'}` : 'Belum ada match ganda'],
+            ['Kemenangan Telak', bm ? bm.winner : '-', bm ? bm.margin : 0, bm ? `${bm.winner} ${bm.hi}-${bm.low} ${bm.loser}${bmTies > 0 ? ` (+${bmTies} match lain dengan selisih sama, lihat sheet Kemenangan Telak)` : ''}` : 'Belum ada pemenang'],
+            ['MVP Overall', wMvp, vMvp, 'Total Win x10 + Total Score - Total Fault/Out'],
+            ['Most Fault/Out', wFault, vFault, 'Total kesalahan (Fault + Out) terbanyak']
+        ];
+
+        // 6) Susun workbook
+        const wb = XLSX.utils.book_new();
+        const add = (ws, name) => XLSX.utils.book_append_sheet(wb, ws, name);
+        add(sheet(summary, [20, 34, 10, 70]), 'Ringkasan Award');
+        add(sheet([['Pemain', 'Main', 'Menang', 'Kalah', 'Seri', 'WR (%)', 'Total Score', 'Fault', 'Out', 'Fault+Out', 'Max Winstreak', 'Menang Tipis (Setting)', 'Menang Margin<=2 (Semua)', 'MVP Overall'],
+            ...[...P].sort((x, y) => y.mvp - x.mvp || x.name.localeCompare(y.name)).map(p => [p.name, p.played, p.wins, p.losses, p.draws, p.wr, p.score, p.fault, p.out, p.fo, p.maxStreak, p.tight, p.tightAll, p.mvp])],
+            [26, 8, 8, 8, 8, 9, 12, 8, 8, 10, 14, 22, 24, 14]), 'Data Pemain');
+        add(playerSheet(rScore, 'Total Score', p => p.score, ['Menang', 'Main'], p => [p.wins, p.played]), 'Most Score');
+        add(playerSheet(rWin, 'Total Menang', p => p.wins, ['Main', 'WR (%)'], p => [p.played, p.wr]), 'Most Win');
+        add(playerSheet(rStreak, 'Max Winstreak', p => p.maxStreak, ['Total Menang'], p => [p.wins]), 'Most Winstreak');
+        add(playerSheet(rTight, 'Menang Tipis (Setting)', p => p.tight, ['Margin<=2 (Semua)'], p => [p.tightAll]), 'Tightest Victory');
+        add(sheet([['Peringkat', 'Pasangan', 'Win Rate (%)', 'Menang', 'Kalah', 'Seri', 'Main', `Min. ${MIN_PAIR} Match`],
+            ...pairList.map((x, i) => [i + 1, x.name, x.wr, x.wins, x.losses, x.draws, x.games, x.ok ? 'Ya' : 'Belum'])], [10, 40, 14, 9, 9, 8, 8, 14]), 'Best Partner');
+        add(sheet([['Peringkat', 'Pemenang', 'Skor', 'Lawan', 'Selisih', 'Ronde', 'Lapangan', 'Tanggal', 'Match ke-'],
+            ...marginRows.map((r, i) => [i + 1, r.winner, `${r.hi}-${r.low}`, r.loser, r.margin, r.round, r.court, r.date, r.no])], [10, 36, 10, 36, 9, 8, 14, 16, 10]), 'Kemenangan Telak');
+        add(playerSheet(rMvp, 'MVP Score', p => p.mvp, ['Menang x10', 'Total Score', 'Fault+Out'], p => [p.wins * 10, p.score, p.fo]), 'MVP Overall');
+        add(playerSheet(rFault, 'Fault + Out', p => p.fo, ['Fault', 'Out', 'Main'], p => [p.fault, p.out, p.played]), 'Most Fault-Out');
+        add(sheet([['No', 'Tanggal', 'Ronde', 'Lapangan', 'Tim A', 'Skor A', 'Skor B', 'Tim B', 'Pemenang', 'Selisih', 'Detail Tim A (P=Point/F=Fault/O=Out)', 'Detail Tim B (P=Point/F=Fault/O=Out)'], ...matchRows],
+            [6, 16, 8, 14, 32, 8, 8, 32, 32, 9, 48, 48]), 'Riwayat Match');
+
+        const evName = (typeof activeEvent === 'function' && activeEvent()?.name) ? String(activeEvent().name) : 'event';
+        add(sheet([
+            ['Keterangan Perhitungan'],
+            ['Event', evName],
+            ['Diunduh', new Date().toLocaleString('id-ID')],
+            ['Jumlah match', history.length],
+            [''],
+            ['Most Score', 'Jumlah matchPoints semua match'],
+            ['Most Win', 'Jumlah kemenangan (seri tidak dihitung menang)'],
+            ['Most Winstreak', 'Menang beruntun terpanjang urut waktu; kalah atau seri memutus streak'],
+            ['Tightest Victory', `Menang dengan selisih <= ${TIGHT_MARGIN} dan skor lawan >= ${SETTING_MIN} (setting/deuce). Kolom "Semua" menghitung tanpa syarat setting`],
+            ['Best Partner', `Win rate pasangan ganda (2 pemain). Pasangan dengan min. ${MIN_PAIR} match diutamakan; urutan: WR, menang, jumlah main`],
+            ['Kemenangan Telak', 'Selisih skor terbesar dalam 1 game'],
+            ['MVP Overall', '(Total Win x 10) + Total Score - (Fault + Out)'],
+            ['Most Fault/Out', 'Fault + Out']
+        ], [20, 100]), 'Info');
+
+        const safe = evName.replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'event';
+        XLSX.writeFile(wb, `Rekap_Award_${safe}_${todayISO()}.xlsx`);
     }
 
     // ================= STORY INSTAGRAM: MVP & BEST PARTNER =================
