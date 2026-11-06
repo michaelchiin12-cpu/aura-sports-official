@@ -3430,28 +3430,72 @@ async function deletePicRole(roleId){
         const total = Math.max(10, parseInt(opts.totalMinutes) || 120);
         const slot = total / sched.rounds;
         const t0 = toMin(opts.startTime);
-        const rows = [['Ronde', 'Jam', 'Lapangan', 'Tim A', 'Tim B', 'Skor A', 'Skor B', 'Menang', 'Istirahat ronde ini']];
-        sched.matches.forEach((m, i) => {
-            const r = rows.length + 1;
-            rows.push([
-                m.round, fmt(t0 + (m.round - 1) * slot) + '–' + fmt(t0 + m.round * slot), 'Lap ' + m.court,
-                m.A.map(p => p.name).join(' & '), m.B.map(p => p.name).join(' & '), '', '',
-                { f: `IF(AND(F${r}<>"",G${r}<>""),IF(F${r}>G${r},"Tim A",IF(G${r}>F${r},"Tim B","Seri")),"")` },
-                m.rest.map(p => p.name).join(', ')
-            ]);
-        });
-        const wsJ = XLSX.utils.aoa_to_sheet(rows.map(r => r.map(c => (c && c.f) ? '' : c)));
-        rows.forEach((r, i) => { if (r[7] && r[7].f) wsJ['H' + (i + 1)] = { t: 's', f: r[7].f, v: '' }; });
-        wsJ['!cols'] = [{ wch: 7 }, { wch: 13 }, { wch: 9 }, { wch: 30 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 45 }];
-        wsJ['!views'] = [{ state: 'frozen', ySplit: 1 }];
+        const M = sched.matches.length;
+        const L = M + 1;                       // baris terakhir data (baris 1 = header)
+        const colL = n => { let s = ''; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+        const setF = (ws, addr, f) => { ws[addr] = { t: 's', f, v: '' }; };
+        const PI = "'Poin Individu'";
 
-        const pr = [['Pemain', 'Level', 'Jumlah main', 'Jumlah istirahat', 'Ronde main']];
-        sched.players.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(p => {
-            const mine = sched.matches.filter(m => m.A.concat(m.B).some(x => x.id === p.id)).map(m => m.round);
-            pr.push([p.name, p.level, mine.length, sched.rounds - mine.length, mine.join(', ')]);
+        // ---------- Sheet 1: Jadwal ----------
+        // A Ronde | B Jam | C Lapangan | D,E Tim A | F,G Tim B | H Skor A | I Skor B | J Menang | K Istirahat
+        const jRows = [['Ronde', 'Jam', 'Lapangan', 'Tim A - Pemain 1', 'Tim A - Pemain 2', 'Tim B - Pemain 1', 'Tim B - Pemain 2', 'Skor A (otomatis)', 'Skor B (otomatis)', 'Menang', 'Istirahat (daftar awal, tidak ikut berubah)']];
+        sched.matches.forEach(m => {
+            jRows.push([m.round, fmt(t0 + (m.round - 1) * slot) + '–' + fmt(t0 + m.round * slot), 'Lap ' + m.court,
+                m.A[0].name, m.A[1].name, m.B[0].name, m.B[1].name, '', '', '', m.rest.map(p => p.name).join(', ')]);
         });
-        const wsP = XLSX.utils.aoa_to_sheet(pr);
-        wsP['!cols'] = [{ wch: 26 }, { wch: 7 }, { wch: 13 }, { wch: 16 }, { wch: 70 }];
+        const wsJ = XLSX.utils.aoa_to_sheet(jRows);
+        for (let r = 2; r <= L; r++) {
+            // Skor = point tim sendiri + (out + fault) lawan  (sama dengan aturan di aplikasi)
+            setF(wsJ, 'H' + r, `IF(COUNT(${PI}!D${r}:R${r})=0,"",${PI}!D${r}+${PI}!H${r}+${PI}!M${r}+${PI}!N${r}+${PI}!Q${r}+${PI}!R${r})`);
+            setF(wsJ, 'I' + r, `IF(COUNT(${PI}!D${r}:R${r})=0,"",${PI}!L${r}+${PI}!P${r}+${PI}!E${r}+${PI}!F${r}+${PI}!I${r}+${PI}!J${r})`);
+            setF(wsJ, 'J' + r, `IF(OR(H${r}="",I${r}=""),"",IF(H${r}>I${r},"Tim A",IF(I${r}>H${r},"Tim B","Seri")))`);
+        }
+        wsJ['!cols'] = [{ wch: 7 }, { wch: 13 }, { wch: 9 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 9 }, { wch: 45 }];
+
+        // ---------- Sheet 3: Rekap Pemain (otomatis dari Jadwal + Poin Individu) ----------
+        const spare = 20;
+        const nRows = sched.players.length + spare;
+        const rRows = [['No', 'Pemain', 'Jumlah main', 'Jumlah istirahat', 'Menang', 'Point', 'Out', 'Fault']];
+        for (let i = 1; i <= nRows; i++) rRows.push([i, '', '', '', '', '', '', '']);
+        const wsP = XLSX.utils.aoa_to_sheet(rRows);
+        const B_END = 4 * M + 1;
+        const sumSlots = (name, cols) => cols.map(c => `SUMIF(${PI}!$C$2:$C$${L},${name},${PI}!$${c}$2:$${c}$${L})`).join('+');
+        const sumSlots2 = (name, pairs) => pairs.map(c => `SUMIF(${PI}!$${c[0]}$2:$${c[0]}$${L},${name},${PI}!$${c[1]}$2:$${c[1]}$${L})`).join('+');
+        for (let r = 2; r <= nRows + 1; r++) {
+            const n = `$B${r}`;
+            setF(wsP, 'B' + r, `IFERROR(INDEX(Bantu!$B$2:$B$${B_END},MATCH($A${r},Bantu!$C$2:$C$${B_END},0)),"")`);
+            setF(wsP, 'C' + r, `IF(${n}="","",COUNTIF(Jadwal!$D$2:$G$${L},${n}))`);
+            setF(wsP, 'D' + r, `IF(${n}="","",MAX(Jadwal!$A$2:$A$${L})-C${r})`);
+            setF(wsP, 'E' + r, `IF(${n}="","",COUNTIFS(Jadwal!$D$2:$D$${L},${n},Jadwal!$J$2:$J$${L},"Tim A")+COUNTIFS(Jadwal!$E$2:$E$${L},${n},Jadwal!$J$2:$J$${L},"Tim A")+COUNTIFS(Jadwal!$F$2:$F$${L},${n},Jadwal!$J$2:$J$${L},"Tim B")+COUNTIFS(Jadwal!$G$2:$G$${L},${n},Jadwal!$J$2:$J$${L},"Tim B"))`);
+            setF(wsP, 'F' + r, `IF(${n}="","",${sumSlots2(n, [['C', 'D'], ['G', 'H'], ['K', 'L'], ['O', 'P']])})`);
+            setF(wsP, 'G' + r, `IF(${n}="","",${sumSlots2(n, [['C', 'E'], ['G', 'I'], ['K', 'M'], ['O', 'Q']])})`);
+            setF(wsP, 'H' + r, `IF(${n}="","",${sumSlots2(n, [['C', 'F'], ['G', 'J'], ['K', 'N'], ['O', 'R']])})`);
+        }
+        wsP['!cols'] = [{ wch: 5 }, { wch: 26 }, { wch: 13 }, { wch: 16 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 9 }];
+
+        // ---------- Sheet 2: Poin Individu (ISI DI SINI) ----------
+        // Nama otomatis ikut Jadwal. Isi Point / Out / Fault tiap pemain per pertandingan.
+        const slots = [['D', 'Tim A-1'], ['E', 'Tim A-2'], ['F', 'Tim B-1'], ['G', 'Tim B-2']];
+        const pHead = ['Ronde', 'Lap'];
+        slots.forEach(s => pHead.push(s[1] + ' Nama', s[1] + ' Point', s[1] + ' Out', s[1] + ' Fault'));
+        const pRows = [pHead];
+        for (let i = 2; i <= L; i++) pRows.push(new Array(pHead.length).fill(''));
+        const wsI = XLSX.utils.aoa_to_sheet(pRows);
+        for (let r = 2; r <= L; r++) {
+            setF(wsI, 'A' + r, `Jadwal!A${r}`);
+            setF(wsI, 'B' + r, `Jadwal!C${r}`);
+            slots.forEach((s, k) => setF(wsI, colL(2 + k * 4) + r, `Jadwal!${s[0]}${r}&""`));
+        }
+        wsI['!cols'] = [{ wch: 7 }, { wch: 8 }].concat(slots.flatMap(() => [{ wch: 16 }, { wch: 9 }, { wch: 7 }, { wch: 8 }]));
+
+        // ---------- Sheet 5: Bantu (daftar nama unik, otomatis) ----------
+        const bRows = [['k', 'Nama', 'Urutan unik']];
+        for (let k = 1; k <= 4 * M; k++) bRows.push([k, '', '']);
+        const wsB = XLSX.utils.aoa_to_sheet(bRows);
+        for (let r = 2; r <= B_END; r++) {
+            setF(wsB, 'B' + r, `TRIM(INDEX(Jadwal!$D$2:$G$${L},INT((A${r}-1)/4)+1,MOD(A${r}-1,4)+1)&"")`);
+            setF(wsB, 'C' + r, `IF(B${r}="","",IF(COUNTIF($B$2:B${r},B${r})=1,MAX($C$1:C${r - 1})+1,""))`);
+        }
 
         const info = [
             ['JADWAL CADANGAN AURA SPORT MANAGER'],
@@ -3460,21 +3504,29 @@ async function deletePicRole(roleId){
             ['Pemain hadir', sched.players.length],
             ['Lapangan', sched.courts],
             ['Ronde', sched.rounds + ' (tiap ronde ' + (Math.round(slot * 10) / 10) + ' menit)'],
-            ['Total pertandingan', sched.matches.length],
+            ['Total pertandingan', M],
             ['Mulai', opts.startTime || '19:00'],
             [],
             ['Cara pakai'],
-            ['1. Kalau aplikasi bermasalah, ikuti sheet "Jadwal" dari atas ke bawah.'],
-            ['2. Isi Skor A dan Skor B secara manual; kolom Menang terisi otomatis.'],
-            ['3. Pemain yang istirahat (kolom terakhir) bisa dipakai sebagai wasit / pengganti.'],
-            ['4. Kalau ada pemain pulang / datang terlambat, cukup lompati / ganti namanya di jadwal; sisanya tetap berjalan.']
+            ['1. Sheet "Jadwal": ikuti dari atas ke bawah. Mau ganti pemain? Cukup ketik nama baru di kolom Tim A/B (misal Vinson -> Celline).'],
+            ['2. Ganti nama di Jadwal otomatis ikut berubah di sheet "Poin Individu" dan "Rekap Pemain" (nama baru muncul sendiri di Rekap).'],
+            ['3. Sheet "Poin Individu": isi Point, Out, Fault tiap pemain per pertandingan (angka saja).'],
+            ['4. Skor A / Skor B / Menang di sheet "Jadwal" terhitung otomatis: Skor = Point tim sendiri + (Out + Fault) tim lawan, sama seperti aplikasi.'],
+            ['5. Sheet "Rekap Pemain" menjumlah main, istirahat, menang, Point, Out, Fault tiap pemain otomatis.'],
+            ['6. Mau isi skor langsung tanpa Poin Individu? Ketik angka di Skor A / Skor B (menimpa rumus di baris itu saja).'],
+            ['7. Kolom "Istirahat" di Jadwal adalah daftar awal dan tidak ikut berubah kalau nama diganti.'],
+            ['8. Jangan hapus sheet "Bantu" (tersembunyi), dipakai untuk daftar pemain otomatis.']
         ];
-        const wsI = XLSX.utils.aoa_to_sheet(info);
-        wsI['!cols'] = [{ wch: 22 }, { wch: 60 }];
+        const wsN = XLSX.utils.aoa_to_sheet(info);
+        wsN['!cols'] = [{ wch: 22 }, { wch: 80 }];
+
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, wsJ, 'Jadwal');
+        XLSX.utils.book_append_sheet(wb, wsI, 'Poin Individu');
         XLSX.utils.book_append_sheet(wb, wsP, 'Rekap Pemain');
-        XLSX.utils.book_append_sheet(wb, wsI, 'Info');
+        XLSX.utils.book_append_sheet(wb, wsN, 'Info');
+        XLSX.utils.book_append_sheet(wb, wsB, 'Bantu');
+        wb.Workbook = { CalcPr: { fullCalcOnLoad: true }, Sheets: [{}, {}, {}, {}, { Hidden: 1 }] };
         return wb;
     }
 
