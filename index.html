@@ -1054,6 +1054,7 @@ body:has(#scoreDashboard.show) .mobile-bottom-nav{display:none!important}
                     <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px;">
                         <div id="currentRoundBadge"></div>
                         <button onclick="generateMatches()" class="manual-generate-btn" style="padding:9px 12px;">⚙️ Generate Manual</button>
+                        <button onclick="openBackupScheduleModal()" style="padding:9px 12px;background:var(--border);color:#fff;">📋 Jadwal Cadangan</button>
                     </div>
                     <div id="courtsContainer"></div>
                 </div>
@@ -3366,6 +3367,153 @@ async function deletePicRole(roleId){
         saveData();
     }
 
+
+    // ============================================================================
+    // JADWAL CADANGAN (Excel) — daftar pertandingan yang sudah di-generate di muka
+    // ----------------------------------------------------------------------------
+    // Berdiri sendiri (tidak membaca/menulis data pertandingan aplikasi), jadi tetap
+    // bisa dipakai kalau aplikasi bermasalah di tengah acara.
+    // Aturan: tiap ronde mengisi semua lapangan; pemain dengan jumlah main paling sedikit
+    // dan yang istirahat paling lama dipilih dulu; tim diacak-cari yang levelnya seimbang
+    // dan paling jarang mengulang partner/lawan.
+    // ============================================================================
+    function auraBuildBackupSchedule(plist, opts) {
+        const courtsReq = Math.max(1, Math.min(10, parseInt(opts.courts) || 1));
+        const rounds = Math.max(1, Math.min(60, parseInt(opts.rounds) || 20));
+        const per = 4; // ganda: 2 vs 2
+        const ps = plist.map((p, i) => ({ id: p.id, name: p.name || ('Pemain ' + (i + 1)), level: Number(p.level) || 1 }));
+        if (ps.length < per) return { error: 'Pemain hadir kurang dari 4. Tandai pemain hadir dulu (minimal 4 orang).' };
+        const courts = Math.min(courtsReq, Math.floor(ps.length / per));
+        const played = {}, lastRound = {}, partnerCnt = {}, oppCnt = {};
+        ps.forEach(p => { played[p.id] = 0; lastRound[p.id] = -99; });
+        const pk = (a, b) => a < b ? a + '|' + b : b + '|' + a;
+        const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+        const out = [];
+        for (let r = 1; r <= rounds; r++) {
+            // urut: paling sedikit main, lalu paling lama istirahat, lalu acak
+            const minP = Math.min(...ps.map(p => played[p.id]));
+            const order = shuffle(ps).sort((a, b) => {
+                const ta = played[a.id] <= minP + 1 ? 0 : 1, tb = played[b.id] <= minP + 1 ? 0 : 1;
+                return (ta - tb) || (lastRound[a.id] - lastRound[b.id]) || (played[a.id] - played[b.id]);
+            });
+            const group = order.slice(0, courts * per);
+            let best = null, bestScore = Infinity;
+            const trials = courts === 1 ? 60 : 400;
+            for (let t = 0; t < trials; t++) {
+                const g = shuffle(group); let score = 0; const ms = [];
+                for (let c = 0; c < courts; c++) {
+                    const q = g.slice(c * per, c * per + per);
+                    const A = [q[0], q[1]], B = [q[2], q[3]];
+                    score += Math.abs((A[0].level + A[1].level) - (B[0].level + B[1].level)) * 3;
+                    score += (partnerCnt[pk(A[0].id, A[1].id)] || 0) * 5 + (partnerCnt[pk(B[0].id, B[1].id)] || 0) * 5;
+                    A.forEach(a => B.forEach(b => { score += (oppCnt[pk(a.id, b.id)] || 0) * 2; }));
+                    ms.push({ A, B });
+                }
+                if (score < bestScore) { bestScore = score; best = ms; if (score === 0) break; }
+            }
+            const playing = new Set();
+            best.forEach((m, c) => {
+                m.A.concat(m.B).forEach(p => { playing.add(p.id); played[p.id]++; lastRound[p.id] = r; });
+                partnerCnt[pk(m.A[0].id, m.A[1].id)] = (partnerCnt[pk(m.A[0].id, m.A[1].id)] || 0) + 1;
+                partnerCnt[pk(m.B[0].id, m.B[1].id)] = (partnerCnt[pk(m.B[0].id, m.B[1].id)] || 0) + 1;
+                m.A.forEach(a => m.B.forEach(b => { oppCnt[pk(a.id, b.id)] = (oppCnt[pk(a.id, b.id)] || 0) + 1; }));
+                out.push({ round: r, court: c + 1, A: m.A, B: m.B });
+            });
+            out.filter(x => x.round === r).forEach(x => { x.rest = ps.filter(p => !playing.has(p.id)); });
+        }
+        return { matches: out, players: ps, played, partnerCnt, courts, rounds };
+    }
+
+    function auraBackupWorkbook(sched, opts) {
+        const toMin = s => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '')); return m ? (+m[1]) * 60 + (+m[2]) : 19 * 60; };
+        const fmt = n => { n = ((Math.round(n) % 1440) + 1440) % 1440; return String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0'); };
+        const total = Math.max(10, parseInt(opts.totalMinutes) || 120);
+        const slot = total / sched.rounds;
+        const t0 = toMin(opts.startTime);
+        const rows = [['Ronde', 'Jam', 'Lapangan', 'Tim A', 'Tim B', 'Skor A', 'Skor B', 'Menang', 'Istirahat ronde ini']];
+        sched.matches.forEach((m, i) => {
+            const r = rows.length + 1;
+            rows.push([
+                m.round, fmt(t0 + (m.round - 1) * slot) + '–' + fmt(t0 + m.round * slot), 'Lap ' + m.court,
+                m.A.map(p => p.name).join(' & '), m.B.map(p => p.name).join(' & '), '', '',
+                { f: `IF(AND(F${r}<>"",G${r}<>""),IF(F${r}>G${r},"Tim A",IF(G${r}>F${r},"Tim B","Seri")),"")` },
+                m.rest.map(p => p.name).join(', ')
+            ]);
+        });
+        const wsJ = XLSX.utils.aoa_to_sheet(rows.map(r => r.map(c => (c && c.f) ? '' : c)));
+        rows.forEach((r, i) => { if (r[7] && r[7].f) wsJ['H' + (i + 1)] = { t: 's', f: r[7].f, v: '' }; });
+        wsJ['!cols'] = [{ wch: 7 }, { wch: 13 }, { wch: 9 }, { wch: 30 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 45 }];
+        wsJ['!views'] = [{ state: 'frozen', ySplit: 1 }];
+
+        const pr = [['Pemain', 'Level', 'Jumlah main', 'Jumlah istirahat', 'Ronde main']];
+        sched.players.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(p => {
+            const mine = sched.matches.filter(m => m.A.concat(m.B).some(x => x.id === p.id)).map(m => m.round);
+            pr.push([p.name, p.level, mine.length, sched.rounds - mine.length, mine.join(', ')]);
+        });
+        const wsP = XLSX.utils.aoa_to_sheet(pr);
+        wsP['!cols'] = [{ wch: 26 }, { wch: 7 }, { wch: 13 }, { wch: 16 }, { wch: 70 }];
+
+        const info = [
+            ['JADWAL CADANGAN AURA SPORT MANAGER'],
+            ['Acara', opts.eventName || '-'],
+            ['Dibuat', new Date().toLocaleString('id-ID')],
+            ['Pemain hadir', sched.players.length],
+            ['Lapangan', sched.courts],
+            ['Ronde', sched.rounds + ' (tiap ronde ' + (Math.round(slot * 10) / 10) + ' menit)'],
+            ['Total pertandingan', sched.matches.length],
+            ['Mulai', opts.startTime || '19:00'],
+            [],
+            ['Cara pakai'],
+            ['1. Kalau aplikasi bermasalah, ikuti sheet "Jadwal" dari atas ke bawah.'],
+            ['2. Isi Skor A dan Skor B secara manual; kolom Menang terisi otomatis.'],
+            ['3. Pemain yang istirahat (kolom terakhir) bisa dipakai sebagai wasit / pengganti.'],
+            ['4. Kalau ada pemain pulang / datang terlambat, cukup lompati / ganti namanya di jadwal; sisanya tetap berjalan.']
+        ];
+        const wsI = XLSX.utils.aoa_to_sheet(info);
+        wsI['!cols'] = [{ wch: 22 }, { wch: 60 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, wsJ, 'Jadwal');
+        XLSX.utils.book_append_sheet(wb, wsP, 'Rekap Pemain');
+        XLSX.utils.book_append_sheet(wb, wsI, 'Info');
+        return wb;
+    }
+
+    function openBackupScheduleModal() {
+        const ev = activeEvent();
+        if (!ev || ev.mode !== 'match') return alert('Buka dulu event Round Mix.');
+        const att = ensureEventAttendance(ev, true);
+        const present = (players || []).filter(p => p.status === 'active' && att[p.id]);
+        const courts = Math.max(1, Math.min(10, parseInt((rrSettings && rrSettings.totalCourts)) || 1));
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('backupScheduleOverlay')?.remove();
+        const ov = document.createElement('div'); ov.className = 'pic-modal-overlay'; ov.id = 'backupScheduleOverlay';
+        ov.innerHTML = `<div class="pic-modal"><h3>📋 Jadwal Cadangan (Excel)</h3>
+          <p>Membuat daftar pertandingan di muka dari <strong>${present.length} pemain hadir</strong>, untuk dipakai kalau aplikasi bermasalah.</p>
+          <label>Jumlah lapangan</label><input id="bkCourts" type="number" min="1" max="10" value="${courts}" style="width:100%;margin-bottom:10px;">
+          <label>Total waktu bermain (menit)</label><input id="bkMinutes" type="number" min="10" max="600" value="120" style="width:100%;margin-bottom:10px;">
+          <label>Pertandingan per lapangan (ronde)</label><input id="bkRounds" type="number" min="1" max="60" value="20" style="width:100%;margin-bottom:10px;">
+          <label>Jam mulai</label><input id="bkStart" type="time" value="${hh}" style="width:100%;margin-bottom:14px;">
+          <div class="pic-modal-actions"><button type="button" onclick="document.getElementById('backupScheduleOverlay')?.remove()">Batal</button><button type="button" onclick="downloadBackupSchedule()">⬇️ Download</button></div></div>`;
+        document.body.appendChild(ov);
+    }
+
+    function downloadBackupSchedule() {
+        if (typeof XLSX === 'undefined') return alert('Library Excel belum termuat. Cek koneksi internet lalu coba lagi.');
+        const ev = activeEvent();
+        const att = ensureEventAttendance(ev, true);
+        const present = (players || []).filter(p => p.status === 'active' && att[p.id]);
+        const opts = {
+            courts: document.getElementById('bkCourts').value, rounds: document.getElementById('bkRounds').value,
+            totalMinutes: document.getElementById('bkMinutes').value, startTime: document.getElementById('bkStart').value,
+            eventName: ev && ev.name
+        };
+        const sched = auraBuildBackupSchedule(present, opts);
+        if (sched.error) return alert(sched.error);
+        if (sched.courts < (parseInt(opts.courts) || 1)) alert(`Pemain hadir hanya cukup untuk ${sched.courts} lapangan. Jadwal dibuat untuk ${sched.courts} lapangan.`);
+        XLSX.writeFile(auraBackupWorkbook(sched, opts), `jadwal-cadangan-${todayISO()}.xlsx`);
+        document.getElementById('backupScheduleOverlay')?.remove();
+    }
 
     // ============================================================================
     // IMPORT / EXPORT MEMBER (Excel .xlsx / .csv)
