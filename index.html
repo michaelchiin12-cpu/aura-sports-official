@@ -3446,8 +3446,8 @@ async function deletePicRole(roleId){
         const wsJ = XLSX.utils.aoa_to_sheet(jRows);
         for (let r = 2; r <= L; r++) {
             // Skor = point tim sendiri + (out + fault) lawan  (sama dengan aturan di aplikasi)
-            setF(wsJ, 'H' + r, `IF(COUNT(${PI}!D${r}:R${r})=0,"",${PI}!D${r}+${PI}!H${r}+${PI}!M${r}+${PI}!N${r}+${PI}!Q${r}+${PI}!R${r})`);
-            setF(wsJ, 'I' + r, `IF(COUNT(${PI}!D${r}:R${r})=0,"",${PI}!L${r}+${PI}!P${r}+${PI}!E${r}+${PI}!F${r}+${PI}!I${r}+${PI}!J${r})`);
+            setF(wsJ, 'H' + r, `IF(COUNT(${PI}!D${r}:R${r})=0,"",N(${PI}!D${r})+N(${PI}!H${r})+N(${PI}!M${r})+N(${PI}!N${r})+N(${PI}!Q${r})+N(${PI}!R${r}))`);
+            setF(wsJ, 'I' + r, `IF(COUNT(${PI}!D${r}:R${r})=0,"",N(${PI}!L${r})+N(${PI}!P${r})+N(${PI}!E${r})+N(${PI}!F${r})+N(${PI}!I${r})+N(${PI}!J${r}))`);
             setF(wsJ, 'J' + r, `IF(OR(H${r}="",I${r}=""),"",IF(H${r}>I${r},"Tim A",IF(I${r}>H${r},"Tim B","Seri")))`);
         }
         wsJ['!cols'] = [{ wch: 7 }, { wch: 13 }, { wch: 9 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 9 }, { wch: 45 }];
@@ -3479,7 +3479,7 @@ async function deletePicRole(roleId){
         const pHead = ['Ronde', 'Lap'];
         slots.forEach(s => pHead.push(s[1] + ' Nama', s[1] + ' Point', s[1] + ' Out', s[1] + ' Fault'));
         const pRows = [pHead];
-        for (let i = 2; i <= L; i++) pRows.push(new Array(pHead.length).fill(''));
+        for (let i = 2; i <= L; i++) pRows.push(new Array(pHead.length).fill(null));   // sel input benar-benar kosong (bukan teks ""), kalau tidak Excel memberi #VALUE!
         const wsI = XLSX.utils.aoa_to_sheet(pRows);
         for (let r = 2; r <= L; r++) {
             setF(wsI, 'A' + r, `Jadwal!A${r}`);
