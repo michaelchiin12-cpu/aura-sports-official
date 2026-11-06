@@ -3377,51 +3377,55 @@ async function deletePicRole(roleId){
     // dan yang istirahat paling lama dipilih dulu; tim diacak-cari yang levelnya seimbang
     // dan paling jarang mengulang partner/lawan.
     // ============================================================================
-    function auraBuildBackupSchedule(plist, opts) {
+    function auraBuildBackupSchedule(opts) {
+        // Memakai FUNGSI GENERATE ASLI aplikasi (buildGeneratedMatchesForView) berulang kali pada salinan data,
+        // sehingga aturan jadwalnya sama persis: peserta hadir, pemain main paling sedikit duluan, istirahat,
+        // keseimbangan level, hindari partner/lawan berulang, dan rotasi wasit PIC.
+        const ev = activeEvent();
+        const teamSize = 2;
         const courtsReq = Math.max(1, Math.min(10, parseInt(opts.courts) || 1));
         const rounds = Math.max(1, Math.min(60, parseInt(opts.rounds) || 20));
-        const per = 4; // ganda: 2 vs 2
-        const ps = plist.map((p, i) => ({ id: p.id, name: p.name || ('Pemain ' + (i + 1)), level: Number(p.level) || 1 }));
-        if (ps.length < per) return { error: 'Pemain hadir kurang dari 4. Tandai pemain hadir dulu (minimal 4 orang).' };
-        const courts = Math.min(courtsReq, Math.floor(ps.length / per));
-        const played = {}, lastRound = {}, partnerCnt = {}, oppCnt = {};
-        ps.forEach(p => { played[p.id] = 0; lastRound[p.id] = -99; });
-        const pk = (a, b) => a < b ? a + '|' + b : b + '|' + a;
-        const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-        const out = [];
-        for (let r = 1; r <= rounds; r++) {
-            // urut: paling sedikit main, lalu paling lama istirahat, lalu acak
-            const minP = Math.min(...ps.map(p => played[p.id]));
-            const order = shuffle(ps).sort((a, b) => {
-                const ta = played[a.id] <= minP + 1 ? 0 : 1, tb = played[b.id] <= minP + 1 ? 0 : 1;
-                return (ta - tb) || (lastRound[a.id] - lastRound[b.id]) || (played[a.id] - played[b.id]);
+        const att = ensureEventAttendance(ev, true);
+        const view = {
+            event: { attendance: cloneJSON(att) },
+            players: cloneJSON(players || []),
+            matchesHistory: cloneJSON(matchesHistory || []),
+            activeMatches: []
+        };
+        view.players.forEach(p => {
+            if (!p.stats) p.stats = { played: 0, wins: 0, points: 0, out: 0, fault: 0, errors: 0 };
+            if (p.status === 'playing') p.status = 'active';
+        });
+        const finishRound = (ms) => ms.forEach(m => {
+            m.teamA.concat(m.teamB).forEach(mp => { const r = view.players.find(x => x.id === mp.id); if (r) { r.stats.played = Number(r.stats.played || 0) + 1; r.status = 'active'; } });
+            view.matchesHistory.push({ ...cloneJSON(m), scoreA: 1, scoreB: 0 });
+        });
+        // match yang sedang berjalan di aplikasi dianggap selesai dulu, jadwal lanjut setelahnya
+        const running = cloneJSON(activeMatches || []);
+        if (running.length) finishRound(running);
+        const eligible = view.players.filter(p => p.status === 'active' && view.event.attendance[p.id]);
+        if (eligible.length < teamSize * 2) return { error: 'Pemain hadir kurang dari 4. Tandai pemain hadir dulu (minimal 4 orang).' };
+        const ps = eligible.map(p => ({ id: p.id, name: p.name, level: Number(p.level) || 1 }));
+        const out = []; let courts = 0, note = '';
+        for (let r = 0; r < rounds; r++) {
+            const res = buildGeneratedMatchesForView(view, teamSize, courtsReq);
+            if (!res.matches.length) { note = res.reason || 'Tidak bisa membuat ronde berikutnya.'; break; }
+            const playing = new Set(res.matches.flatMap(m => m.teamA.concat(m.teamB).map(p => p.id)));
+            const rest = ps.filter(p => !playing.has(p.id));
+            courts = Math.max(courts, res.matches.length);
+            res.matches.forEach((m, c) => {
+                const pick = x => ({ id: x.id, name: x.name, level: Number(x.level) || 1 });
+                const wasitMain = m.roundWasitId && playing.has(m.roundWasitId);
+                out.push({
+                    round: m.round, idx: r, court: c + 1, A: m.teamA.map(pick), B: m.teamB.map(pick), rest,
+                    wasit: m.roundWasitName ? (m.roundWasitName + (wasitMain ? ' (ikut main, pilih pengganti dari yang istirahat)' : '')) : ''
+                });
             });
-            const group = order.slice(0, courts * per);
-            let best = null, bestScore = Infinity;
-            const trials = courts === 1 ? 60 : 400;
-            for (let t = 0; t < trials; t++) {
-                const g = shuffle(group); let score = 0; const ms = [];
-                for (let c = 0; c < courts; c++) {
-                    const q = g.slice(c * per, c * per + per);
-                    const A = [q[0], q[1]], B = [q[2], q[3]];
-                    score += Math.abs((A[0].level + A[1].level) - (B[0].level + B[1].level)) * 3;
-                    score += (partnerCnt[pk(A[0].id, A[1].id)] || 0) * 5 + (partnerCnt[pk(B[0].id, B[1].id)] || 0) * 5;
-                    A.forEach(a => B.forEach(b => { score += (oppCnt[pk(a.id, b.id)] || 0) * 2; }));
-                    ms.push({ A, B });
-                }
-                if (score < bestScore) { bestScore = score; best = ms; if (score === 0) break; }
-            }
-            const playing = new Set();
-            best.forEach((m, c) => {
-                m.A.concat(m.B).forEach(p => { playing.add(p.id); played[p.id]++; lastRound[p.id] = r; });
-                partnerCnt[pk(m.A[0].id, m.A[1].id)] = (partnerCnt[pk(m.A[0].id, m.A[1].id)] || 0) + 1;
-                partnerCnt[pk(m.B[0].id, m.B[1].id)] = (partnerCnt[pk(m.B[0].id, m.B[1].id)] || 0) + 1;
-                m.A.forEach(a => m.B.forEach(b => { oppCnt[pk(a.id, b.id)] = (oppCnt[pk(a.id, b.id)] || 0) + 1; }));
-                out.push({ round: r, court: c + 1, A: m.A, B: m.B });
-            });
-            out.filter(x => x.round === r).forEach(x => { x.rest = ps.filter(p => !playing.has(p.id)); });
+            finishRound(res.matches);
         }
-        return { matches: out, players: ps, played, partnerCnt, courts, rounds };
+        if (!out.length) return { error: note || 'Jadwal tidak bisa dibuat.' };
+        const doneRounds = new Set(out.map(m => m.idx)).size;
+        return { matches: out, players: ps, courts, rounds: doneRounds, note };
     }
 
     function auraBackupWorkbook(sched, opts) {
@@ -3438,10 +3442,10 @@ async function deletePicRole(roleId){
 
         // ---------- Sheet 1: Jadwal ----------
         // A Ronde | B Jam | C Lapangan | D,E Tim A | F,G Tim B | H Skor A | I Skor B | J Menang | K Istirahat
-        const jRows = [['Ronde', 'Jam', 'Lapangan', 'Tim A - Pemain 1', 'Tim A - Pemain 2', 'Tim B - Pemain 1', 'Tim B - Pemain 2', 'Skor A (otomatis)', 'Skor B (otomatis)', 'Menang', 'Istirahat (daftar awal, tidak ikut berubah)']];
+        const jRows = [['Ronde', 'Jam', 'Lapangan', 'Tim A - Pemain 1', 'Tim A - Pemain 2', 'Tim B - Pemain 1', 'Tim B - Pemain 2', 'Skor A (otomatis)', 'Skor B (otomatis)', 'Menang', 'Wasit (dari aplikasi)', 'Istirahat (daftar awal, tidak ikut berubah)']];
         sched.matches.forEach(m => {
-            jRows.push([m.round, fmt(t0 + (m.round - 1) * slot) + '–' + fmt(t0 + m.round * slot), 'Lap ' + m.court,
-                m.A[0].name, m.A[1].name, m.B[0].name, m.B[1].name, '', '', '', m.rest.map(p => p.name).join(', ')]);
+            jRows.push([m.round, fmt(t0 + m.idx * slot) + '–' + fmt(t0 + (m.idx + 1) * slot), 'Lap ' + m.court,
+                m.A[0].name, m.A[1].name, m.B[0].name, m.B[1].name, '', '', '', m.wasit || '-', m.rest.map(p => p.name).join(', ')]);
         });
         const wsJ = XLSX.utils.aoa_to_sheet(jRows);
         for (let r = 2; r <= L; r++) {
@@ -3450,7 +3454,7 @@ async function deletePicRole(roleId){
             setF(wsJ, 'I' + r, `IF(COUNT(${PI}!D${r}:R${r})=0,"",N(${PI}!L${r})+N(${PI}!P${r})+N(${PI}!E${r})+N(${PI}!F${r})+N(${PI}!I${r})+N(${PI}!J${r}))`);
             setF(wsJ, 'J' + r, `IF(OR(H${r}="",I${r}=""),"",IF(H${r}>I${r},"Tim A",IF(I${r}>H${r},"Tim B","Seri")))`);
         }
-        wsJ['!cols'] = [{ wch: 7 }, { wch: 13 }, { wch: 9 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 9 }, { wch: 45 }];
+        wsJ['!cols'] = [{ wch: 7 }, { wch: 13 }, { wch: 9 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 9 }, { wch: 34 }, { wch: 45 }];
 
         // ---------- Sheet 3: Rekap Pemain (otomatis dari Jadwal + Poin Individu) ----------
         const spare = 20;
@@ -3465,7 +3469,7 @@ async function deletePicRole(roleId){
             const n = `$B${r}`;
             setF(wsP, 'B' + r, `IFERROR(INDEX(Bantu!$B$2:$B$${B_END},MATCH($A${r},Bantu!$C$2:$C$${B_END},0)),"")`);
             setF(wsP, 'C' + r, `IF(${n}="","",COUNTIF(Jadwal!$D$2:$G$${L},${n}))`);
-            setF(wsP, 'D' + r, `IF(${n}="","",MAX(Jadwal!$A$2:$A$${L})-C${r})`);
+            setF(wsP, 'D' + r, `IF(${n}="","",${sched.rounds}-C${r})`);
             setF(wsP, 'E' + r, `IF(${n}="","",COUNTIFS(Jadwal!$D$2:$D$${L},${n},Jadwal!$J$2:$J$${L},"Tim A")+COUNTIFS(Jadwal!$E$2:$E$${L},${n},Jadwal!$J$2:$J$${L},"Tim A")+COUNTIFS(Jadwal!$F$2:$F$${L},${n},Jadwal!$J$2:$J$${L},"Tim B")+COUNTIFS(Jadwal!$G$2:$G$${L},${n},Jadwal!$J$2:$J$${L},"Tim B"))`);
             setF(wsP, 'F' + r, `IF(${n}="","",${sumSlots2(n, [['C', 'D'], ['G', 'H'], ['K', 'L'], ['O', 'P']])})`);
             setF(wsP, 'G' + r, `IF(${n}="","",${sumSlots2(n, [['C', 'E'], ['G', 'I'], ['K', 'M'], ['O', 'Q']])})`);
@@ -3514,7 +3518,8 @@ async function deletePicRole(roleId){
             ['4. Skor A / Skor B / Menang di sheet "Jadwal" terhitung otomatis: Skor = Point tim sendiri + (Out + Fault) tim lawan, sama seperti aplikasi.'],
             ['5. Sheet "Rekap Pemain" menjumlah main, istirahat, menang, Point, Out, Fault tiap pemain otomatis.'],
             ['6. Mau isi skor langsung tanpa Poin Individu? Ketik angka di Skor A / Skor B (menimpa rumus di baris itu saja).'],
-            ['7. Kolom "Istirahat" di Jadwal adalah daftar awal dan tidak ikut berubah kalau nama diganti.'],
+            ['7. Kolom "Wasit" dan "Istirahat" di Jadwal adalah daftar awal dari aplikasi dan tidak ikut berubah kalau nama diganti.'],
+            ['9. Jadwal disusun dengan aturan generate yang SAMA dengan aplikasi (pemain hadir, main paling sedikit dulu, istirahat, level seimbang, hindari partner/lawan berulang, rotasi wasit).'],
             ['8. Jangan hapus sheet "Bantu" (tersembunyi), dipakai untuk daftar pemain otomatis.']
         ];
         const wsN = XLSX.utils.aoa_to_sheet(info);
@@ -3534,7 +3539,7 @@ async function deletePicRole(roleId){
         const ev = activeEvent();
         if (!ev || ev.mode !== 'match') return alert('Buka dulu event Round Mix.');
         const att = ensureEventAttendance(ev, true);
-        const present = (players || []).filter(p => p.status === 'active' && att[p.id]);
+        const present = (players || []).filter(p => (p.status === 'active' || p.status === 'playing') && att[p.id]);
         const courts = Math.max(1, Math.min(10, parseInt((rrSettings && rrSettings.totalCourts)) || 1));
         const now = new Date();
         const hh = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
@@ -3560,9 +3565,10 @@ async function deletePicRole(roleId){
             totalMinutes: document.getElementById('bkMinutes').value, startTime: document.getElementById('bkStart').value,
             eventName: ev && ev.name
         };
-        const sched = auraBuildBackupSchedule(present, opts);
+        const sched = auraBuildBackupSchedule(opts);
         if (sched.error) return alert(sched.error);
         if (sched.courts < (parseInt(opts.courts) || 1)) alert(`Pemain hadir hanya cukup untuk ${sched.courts} lapangan. Jadwal dibuat untuk ${sched.courts} lapangan.`);
+        if (sched.rounds < (parseInt(opts.rounds) || 20) && sched.note) alert(`Jadwal hanya bisa dibuat ${sched.rounds} ronde.\n${sched.note}`);
         XLSX.writeFile(auraBackupWorkbook(sched, opts), `jadwal-cadangan-${todayISO()}.xlsx`);
         document.getElementById('backupScheduleOverlay')?.remove();
     }
@@ -4505,12 +4511,13 @@ async function deletePicRole(roleId){
         return count;
     }
 
-    function pickRoundMixReferee(roundNumber) {
+    function pickRoundMixReferee(roundNumber, view) {
         ensurePicRegistry();
         const ids=[...new Set(eventRegistry.picAssignments.hostwasitIds||[])].filter(id=>(players||[]).some(p=>p.id===id));
         if(!ids.length) return null;
         const ev=activeEvent();
-        const history=[...(matchesHistory||[]),...(activeMatches||[])].filter(m=>Number(m.round||0)<Number(roundNumber||0)&&m.roundWasitId);
+        const histSrc=view?[...(view.matchesHistory||[]),...(view.activeMatches||[])]:[...(matchesHistory||[]),...(activeMatches||[])];
+        const history=histSrc.filter(m=>Number(m.round||0)<Number(roundNumber||0)&&m.roundWasitId);
         const counts=Object.fromEntries(ids.map(id=>[id,0]));
         const byRound=new Map();
         history.forEach(m=>{const round=Number(m.round||0);if(!byRound.has(round))byRound.set(round,m.roundWasitId);});
@@ -4624,7 +4631,7 @@ async function deletePicRole(roleId){
         const generatedMatches = [];
         const rounds = [...(view.activeMatches || []), ...(view.matchesHistory || [])].map(m => Number(m.round || 0));
         const round = rounds.length ? Math.max(...rounds) + 1 : 1;
-        const roundReferee = pickRoundMixReferee(round);
+        const roundReferee = pickRoundMixReferee(round, view);
 
         for (let c = 0; c < needed; c++) {
             if (work.length < requiredPlayersPerMatch) break;
