@@ -6393,7 +6393,7 @@ function togglePlayerActions(button) {
             if (winTeam) marginRows.push({ winner: nm(winTeam), loser: nm(winner === 'A' ? m.teamB : m.teamA), hi: Math.max(a, b), low, margin, round: m.round || '', court: m.courtName || '', date: m.date || '', no: idx + 1 });
         });
 
-        const P = [...st.values()].map(s => ({ ...s, fo: s.fault + s.out, wr: s.played ? Math.round(s.wins / s.played * 1000) / 10 : 0, mvp: s.wins * 10 + s.score - (s.fault + s.out) }));
+        const P = [...st.values()].map(s => ({ ...s, fo: s.fault + s.out, wr: s.played ? Math.round(s.wins / s.played * 1000) / 10 : 0, net: s.score - (s.fault + s.out), mvp: s.wins * 10 + s.score - (s.fault + s.out) }));
 
         // 3) Helper ranking (peringkat sama untuk nilai sama)
         const rankPlayers = (valFn, tieFn) => {
@@ -6412,7 +6412,7 @@ function togglePlayerActions(button) {
             [10, 26, 16, ...extraHeaders.map(() => 14)]);
 
         // 4) Ranking tiap award
-        const rScore  = rankPlayers(p => p.score, p => p.wins);
+        const rScore  = rankPlayers(p => p.net, p => p.score);
         const rWin    = rankPlayers(p => p.wins, p => p.wr);
         const rStreak = rankPlayers(p => p.maxStreak, p => p.wins);
         const rTight  = rankPlayers(p => p.tight, p => p.tightAll);
@@ -6424,7 +6424,7 @@ function togglePlayerActions(button) {
         marginRows.sort((x, y) => (y.margin - x.margin) || (y.hi - x.hi) || (x.no - y.no));
 
         // 5) Ringkasan
-        const [wScore, vScore] = topNames(rScore, p => p.score);
+        const [wScore, vScore] = topNames(rScore, p => p.net);
         const [wWin, vWin]     = topNames(rWin, p => p.wins);
         const [wStr, vStr]     = topNames(rStreak, p => p.maxStreak);
         const [wTight, vTight] = topNames(rTight, p => p.tight);
@@ -6434,7 +6434,7 @@ function togglePlayerActions(button) {
         const bmTies = marginRows.filter(r => r.margin === bm?.margin).length - 1;
         const summary = [
             ['Award', 'Pemenang', 'Nilai', 'Keterangan'],
-            ['Most Score', wScore, vScore, 'Total poin terbanyak'],
+            ['Most Score', wScore, vScore, 'Poin bersih terbanyak: Total Point - (Fault + Out)'],
             ['Most Win', wWin, vWin, 'Jumlah kemenangan terbanyak'],
             ['Most Winstreak', wStr, vStr, 'Kemenangan beruntun terpanjang (kronologis)'],
             ['Tightest Victory', wTight, vTight, `Kemenangan margin <= ${TIGHT_MARGIN} poin saat setting (lawan >= ${SETTING_MIN} poin)`],
@@ -6448,10 +6448,10 @@ function togglePlayerActions(button) {
         const wb = XLSX.utils.book_new();
         const add = (ws, name) => XLSX.utils.book_append_sheet(wb, ws, name);
         add(sheet(summary, [20, 34, 10, 70]), 'Ringkasan Award');
-        add(sheet([['Pemain', 'Main', 'Menang', 'Kalah', 'Seri', 'WR (%)', 'Total Score', 'Fault', 'Out', 'Fault+Out', 'Max Winstreak', 'Menang Tipis (Setting)', 'Menang Margin<=2 (Semua)', 'MVP Overall'],
-            ...[...P].sort((x, y) => y.mvp - x.mvp || x.name.localeCompare(y.name)).map(p => [p.name, p.played, p.wins, p.losses, p.draws, p.wr, p.score, p.fault, p.out, p.fo, p.maxStreak, p.tight, p.tightAll, p.mvp])],
-            [26, 8, 8, 8, 8, 9, 12, 8, 8, 10, 14, 22, 24, 14]), 'Data Pemain');
-        add(playerSheet(rScore, 'Total Score', p => p.score, ['Menang', 'Main'], p => [p.wins, p.played]), 'Most Score');
+        add(sheet([['Pemain', 'Main', 'Menang', 'Kalah', 'Seri', 'WR (%)', 'Total Score', 'Fault', 'Out', 'Fault+Out', 'Poin Bersih', 'Max Winstreak', 'Menang Tipis (Setting)', 'Menang Margin<=2 (Semua)', 'MVP Overall'],
+            ...[...P].sort((x, y) => y.mvp - x.mvp || x.name.localeCompare(y.name)).map(p => [p.name, p.played, p.wins, p.losses, p.draws, p.wr, p.score, p.fault, p.out, p.fo, p.net, p.maxStreak, p.tight, p.tightAll, p.mvp])],
+            [26, 8, 8, 8, 8, 9, 12, 8, 8, 10, 12, 14, 22, 24, 14]), 'Data Pemain');
+        add(playerSheet(rScore, 'Poin Bersih', p => p.net, ['Total Point', 'Fault+Out', 'Menang', 'Main'], p => [p.score, p.fo, p.wins, p.played]), 'Most Score');
         add(playerSheet(rWin, 'Total Menang', p => p.wins, ['Main', 'WR (%)'], p => [p.played, p.wr]), 'Most Win');
         add(playerSheet(rStreak, 'Max Winstreak', p => p.maxStreak, ['Total Menang'], p => [p.wins]), 'Most Winstreak');
         add(playerSheet(rTight, 'Menang Tipis (Setting)', p => p.tight, ['Margin<=2 (Semua)'], p => [p.tightAll]), 'Tightest Victory');
@@ -6471,7 +6471,7 @@ function togglePlayerActions(button) {
             ['Diunduh', new Date().toLocaleString('id-ID')],
             ['Jumlah match', history.length],
             [''],
-            ['Most Score', 'Jumlah matchPoints semua match'],
+            ['Most Score', 'Poin bersih = jumlah matchPoints - (Fault + Out)'],
             ['Most Win', 'Jumlah kemenangan (seri tidak dihitung menang)'],
             ['Most Winstreak', 'Menang beruntun terpanjang urut waktu; kalah atau seri memutus streak'],
             ['Tightest Victory', `Menang dengan selisih <= ${TIGHT_MARGIN} dan skor lawan >= ${SETTING_MIN} (setting/deuce). Kolom "Semua" menghitung tanpa syarat setting`],
