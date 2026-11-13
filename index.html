@@ -41,6 +41,7 @@
     <!-- Supabase JS client - untuk penyimpanan data bersama + sinkronisasi realtime antar pengguna -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js" defer></script>
     <style>
         :root {
             /* Tema Warna: Glassy Navy + Sky Blue + Teal */
@@ -976,7 +977,7 @@ body:has(#scoreDashboard.show) .mobile-bottom-nav{display:none!important}
                     <option value="1">Beginner</option>
                 </select>
                 <input type="date" id="playerBirthDate" title="Tanggal lahir" style="flex:1;">
-                <input type="file" id="playerPhoto" accept="image/*" style="flex:1 1 100%;">
+                <input type="file" id="playerPhoto" accept="image/*,.heic,.heif" style="flex:1 1 100%;">
                 <button type="submit" id="playerFormSubmitBtn">+ Tambah Member</button>
             </form>
 
@@ -3793,8 +3794,25 @@ async function deletePicRole(roleId){
 
     // Unggah foto pemain ke Supabase Storage (bucket: player-photos) dan kembalikan URL publiknya.
     // Bucket ini harus dibuat manual sekali di Dashboard Supabase (Storage -> New Bucket -> "player-photos", set Public).
+    // Foto HEIC/HEIF (default iPhone) diubah ke JPEG agar bisa tampil di semua browser.
+    async function normalizePhotoFile(file) {
+        const name = (file.name || '').toLowerCase();
+        const isHeic = /image\/hei[cf]/i.test(file.type || '') || /\.hei[cf]$/.test(name);
+        if (!isHeic) return file;
+        if (typeof heic2any === 'undefined') throw new Error('Library HEIC belum termuat. Periksa koneksi internet lalu coba lagi.');
+        const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
+        const blob = Array.isArray(out) ? out[0] : out;
+        return new File([blob], name.replace(/\.hei[cf]$/, '') + '.jpg', { type: 'image/jpeg' });
+    }
+
     async function uploadPlayerPhoto(file) {
         try {
+            try { file = await normalizePhotoFile(file); }
+            catch (convErr) {
+                console.error('Gagal konversi HEIC:', convErr);
+                alert('Foto HEIC tidak bisa diproses: ' + (convErr.message || convErr) + '\n\nCoba pilih foto JPG/PNG.');
+                return null;
+            }
             const ext = file.name.split('.').pop();
             const path = `players/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
             const { error: uploadError } = await supabaseClient.storage.from('player-photos').upload(path, file, {
@@ -3819,7 +3837,7 @@ async function deletePicRole(roleId){
     function changePlayerPhoto(id) {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = 'image/*';
+        input.accept = 'image/*,.heic,.heif';
         input.onchange = async () => {
             const file = input.files[0];
             if(!file) return;
