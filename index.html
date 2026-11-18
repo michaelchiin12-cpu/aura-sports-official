@@ -361,6 +361,9 @@
         .score-next-team{font-size:.68rem;color:var(--text-muted);font-weight:800;margin-bottom:5px;text-align:center;}
         .score-next-vs{align-self:center;color:var(--text-muted);font-weight:800;}
         .score-next-player{display:flex;flex-direction:column;align-items:center;gap:3px;margin-bottom:8px;font-weight:700;font-size:.85rem;text-align:center;overflow-wrap:anywhere;}
+        .score-next-player .badge{font-size:.58rem;padding:1px 6px;border-radius:10px;}
+        .score-next-played{font-size:.64rem;color:var(--text-muted);font-weight:600;}
+        .picker-item .badge{font-size:.58rem;padding:1px 6px;border-radius:10px;}
         .score-next-player button{border:1px solid var(--border);background:transparent;color:var(--primary);border-radius:999px;padding:3px 10px;font-size:.7rem;cursor:pointer;font-family:inherit;}
         /* Pilihan lapangan cepat (1 2 3 4 5) */
         .court-pills{display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
@@ -4671,14 +4674,14 @@ async function deletePicRole(roleId){
         markSyncSuccess(`${person.name} ditetapkan sebagai wasit sementara untuk Ronde ${roundNumber}.`);
     }
 
-    function buildGeneratedMatchesForView(view, teamSize, maxCourts) {
+    function buildGeneratedMatchesForView(view, teamSize, maxCourts, opts = {}) {
         const requiredPlayersPerMatch = teamSize * 2;
         const attendance = (view.event && view.event.attendance) || {};
         const eligible = (view.players || []).filter(p =>
-            p.status === 'active' && attendance[p.id]
+            p.status === 'active' && attendance[p.id] && !(opts.excludeIds && opts.excludeIds.has(p.id))
         ).sort((a,b) => (Number(a.stats?.played || 0) - Number(b.stats?.played || 0)));
 
-        const needed = Math.min(maxCourts, Math.floor(eligible.length / requiredPlayersPerMatch));
+        const needed = Math.min(opts.courts ? opts.courts.length : maxCourts, Math.floor(eligible.length / requiredPlayersPerMatch));
         if (needed <= 0) return { matches: [], reason: `Pemain hadir & aktif tidak cukup. Butuh minimal ${requiredPlayersPerMatch} pemain, tersedia ${eligible.length}.` };
 
         const localPartnerRepeats = (team) => {
@@ -4717,8 +4720,8 @@ async function deletePicRole(roleId){
         const work = [...eligible];
         const generatedMatches = [];
         const rounds = [...(view.activeMatches || []), ...(view.matchesHistory || [])].map(m => Number(m.round || 0));
-        const round = rounds.length ? Math.max(...rounds) + 1 : 1;
-        const roundReferee = pickRoundMixReferee(round, view);
+        const round = opts.round != null ? opts.round : (rounds.length ? Math.max(...rounds) + 1 : 1);
+        const roundReferee = opts.referee !== undefined ? opts.referee : pickRoundMixReferee(round, view);
 
         for (let c = 0; c < needed; c++) {
             if (work.length < requiredPlayersPerMatch) break;
@@ -4776,7 +4779,7 @@ async function deletePicRole(roleId){
             const match = {
                 id: Date.now().toString() + '-' + c + '-' + Math.random().toString(36).slice(2,7),
                 round,
-                courtName: `Lapangan ${c + 1}`,
+                courtName: opts.courts ? opts.courts[c] : `Lapangan ${c + 1}`,
                 teamA: teamA.map(p => ({...cloneJSON(p), matchPoints:0, matchOuts:0, matchFaults:0})),
                 teamB: teamB.map(p => ({...cloneJSON(p), matchPoints:0, matchOuts:0, matchFaults:0})),
                 scoreA:0, scoreB:0, time:0, isRunning:false,
@@ -4791,45 +4794,123 @@ async function deletePicRole(roleId){
         return { matches: generatedMatches, reason: '' };
     }
 
+    // ===== LAPANGAN MANDIRI =====
+    // Tiap lapangan terisi sendiri begitu match-nya selesai, tanpa menunggu lapangan lain.
+    // Susunan NEXT disimpan per lapangan (roundMixPreview berisi 1 match per lapangan yang sedang dipakai).
+    function roundMixAllCourtNames(maxCourts) {
+        return Array.from({ length: Math.max(1, maxCourts) }, (_, i) => `Lapangan ${i + 1}`);
+    }
+    function previewPlayerIds(view, exceptCourt) {
+        return new Set((view.roundMixPreview || []).filter(m => m.courtName !== exceptCourt)
+            .flatMap(m => [...(m.teamA || []), ...(m.teamB || [])].map(p => p.id)));
+    }
+    // Wasit tetap satu per nomor ronde: kalau lapangan lain sudah di ronde yang sama, pakai wasit yang sama.
+    function applyCourtReferee(view, match) {
+        const same = (view.activeMatches || []).find(m => m.id !== match.id && Number(m.round || 0) === Number(match.round || 0) && m.roundWasitId);
+        ['roundWasitId', 'roundWasitName', 'roundWasitTempId', 'roundWasitTempName'].forEach(k => delete match[k]);
+        if (same) {
+            ['roundWasitId', 'roundWasitName', 'roundWasitTempId', 'roundWasitTempName'].forEach(k => { if (same[k] != null) match[k] = same[k]; });
+        } else {
+            const ref = pickRoundMixReferee(match.round, view);
+            if (ref) Object.assign(match, ref);
+        }
+    }
+    // Isi semua lapangan yang kosong (lapangan yang baru selesai didahulukan).
+    function fillEmptyCourtsInView(view, teamSize, maxCourts, priorityCourt, priorityRound) {
+        const att = (view.event && view.event.attendance) || {};
+        const used = new Set((view.activeMatches || []).map(m => m.courtName));
+        let empty = roundMixAllCourtNames(maxCourts).filter(n => !used.has(n));
+        if (priorityCourt && empty.includes(priorityCourt)) empty = [priorityCourt, ...empty.filter(n => n !== priorityCourt)];
+        const histMax = Math.max(0, ...(view.matchesHistory || []).map(m => Number(m.round || 0)));
+        const created = [];
+        for (const name of empty) {
+            const round = (name === priorityCourt && priorityRound)
+                ? priorityRound
+                : ((view.activeMatches || []).length ? Math.max(...view.activeMatches.map(m => Number(m.round || 0))) : histMax + 1);
+            const idx = (view.roundMixPreview || []).findIndex(m => m.courtName === name);
+            const pv = idx >= 0 ? view.roundMixPreview[idx] : null;
+            let match = null;
+            if (pv) {
+                view.roundMixPreview.splice(idx, 1);
+                const ids = [...(pv.teamA || []), ...(pv.teamB || [])].map(p => p.id);
+                const stillOk = ids.every(id => { const ref = view.players.find(p => p.id === id); return ref && ref.status === 'active' && att[id]; });
+                if (stillOk) {
+                    const fresh = mp => ({ ...cloneJSON(view.players.find(p => p.id === mp.id) || mp), matchPoints: 0, matchOuts: 0, matchFaults: 0 });
+                    match = { ...cloneJSON(pv), isPreview: false, isRunning: false, time: 0, scoreA: 0, scoreB: 0, courtName: name, round,
+                        teamA: (pv.teamA || []).map(fresh), teamB: (pv.teamB || []).map(fresh) };
+                    ids.forEach(id => { const ref = view.players.find(p => p.id === id); if (ref) ref.status = 'playing'; });
+                }
+            }
+            if (!match) {
+                const r = buildGeneratedMatchesForView(view, teamSize, 1, { courts: [name], round, excludeIds: previewPlayerIds(view) });
+                match = r.matches[0] || null;
+            }
+            if (match) {
+                applyCourtReferee(view, match);
+                view.activeMatches.push(match);
+                created.push(match);
+            }
+        }
+        view.activeMatches.sort((a, b) => courtNumOf(a, 0) - courtNumOf(b, 0));
+        return created;
+    }
+    // Susunan NEXT: 1 per lapangan yang sedang dipakai, dari pemain yang MENUNGGU (bukan yang sedang main).
+    // Susunan yang masih valid (termasuk yang diganti manual) dipertahankan; hanya yang kurang dibuatkan.
+    function refreshNextPreviewsInView(view, teamSize, maxCourts, resetAll) {
+        const att = (view.event && view.event.attendance) || {};
+        const activeCourts = new Map((view.activeMatches || []).map(m => [m.courtName, m]));
+        const seen = new Set();
+        const keep = resetAll ? [] : (view.roundMixPreview || []).filter(pv => {
+            if (!activeCourts.has(pv.courtName)) return false;
+            const ids = [...(pv.teamA || []), ...(pv.teamB || [])].map(p => p.id);
+            const ok = ids.every(id => { const ref = view.players.find(p => p.id === id); return ref && ref.status === 'active' && att[id] && !seen.has(id); });
+            if (ok) ids.forEach(id => seen.add(id));
+            return ok;
+        });
+        const work = cloneJSON(view);
+        (work.players || []).forEach(p => { if (seen.has(p.id)) p.status = 'playing'; });
+        const out = [...keep];
+        const have = new Set(keep.map(m => m.courtName));
+        [...activeCourts.values()].sort((a, b) => courtNumOf(a, 0) - courtNumOf(b, 0)).forEach(m => {
+            if (have.has(m.courtName)) return;
+            const r = buildGeneratedMatchesForView(work, teamSize, 1, { courts: [m.courtName], round: Number(m.round || 0) + 1 });
+            if (r.matches[0]) out.push({ ...r.matches[0], isPreview: true, isRunning: false, time: 0, scoreA: 0, scoreB: 0 });
+        });
+        out.sort((a, b) => courtNumOf(a, 0) - courtNumOf(b, 0));
+        view.roundMixPreview = out;
+    }
+
     async function generateMatches(options = {}) {
         const teamSize = parseInt(document.getElementById('playersPerTeam').value) || 2;
         const maxCourts = parseInt(document.getElementById('totalCourts').value) || 1;
         const ev = activeEvent();
         if (!ev || ev.mode !== 'match') { if(!options.auto) alert('Pilih event Round Mix terlebih dahulu.'); return false; }
         if (ev.status === 'finished') { if(!options.auto) alert('Event sudah selesai. Buka kembali event terlebih dahulu.'); return false; }
-        if (activeMatches.length > 0) {
-            if(!options.auto) alert('Masih ada match di ronde berjalan. Selesaikan semua match dulu agar ronde berikutnya tidak tercampur.');
-            return false;
-        }
-
         ensureEventAttendance(ev, true);
         const ok = await safeRoundMixMutation(view => {
-            const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
-            if (!result.matches.length) {
+            const usedCourts = new Set((view.activeMatches || []).map(m => m.courtName));
+            if (roundMixAllCourtNames(maxCourts).every(n => usedCourts.has(n))) {
+                lastRoundMixFailReason = 'Semua lapangan sedang dipakai. Lapangan yang selesai akan terisi otomatis dengan match berikutnya.';
+                return false;
+            }
+            const created = fillEmptyCourtsInView(view, teamSize, maxCourts, null, null);
+            if (!created.length) {
                 const att = (view.event && view.event.attendance) || {};
                 const joined = (view.players || []).filter(p => p.id in att);
                 const hadir = joined.filter(p => att[p.id]);
                 const playing = hadir.filter(p => p.status === 'playing').length;
                 const other = hadir.filter(p => p.status !== 'active' && p.status !== 'playing').length;
                 const need = teamSize * 2;
-                let msg = result.reason || 'Tidak ada match yang bisa dibuat.';
+                let msg = `Pemain yang menunggu belum cukup. Butuh minimal ${need} pemain siap main untuk 1 lapangan.`;
                 msg += `\n\nPeserta event: ${joined.length} · Hadir: ${hadir.length} · Siap main (aktif): ${hadir.length - playing - other}`;
                 if (playing) msg += ` · Berstatus "Sedang main": ${playing}`;
                 if (other) msg += ` · Status lain/nonaktif: ${other}`;
                 if (!hadir.length) msg += '\n\nTandai pemain "Hadir" di panel Peserta Event dulu.';
-                else if (playing) msg += '\n\nSelesaikan atau batalkan match yang sedang berjalan agar pemain kembali siap main.';
-                else if (hadir.length < need) msg += `\n\nButuh minimal ${need} pemain hadir untuk 1 lapangan.`;
+                else if (playing) msg += '\n\nLapangan akan terisi otomatis begitu ada match yang selesai.';
                 lastRoundMixFailReason = msg;
                 return false;
             }
-            view.activeMatches.push(...result.matches);
-            view.roundMixPreview = [];
-            {
-                const pv = cloneJSON(view);
-                (pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
-                const pr = buildGeneratedMatchesForView(pv, teamSize, maxCourts);
-                view.roundMixPreview = pr.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
-            }
+            refreshNextPreviewsInView(view, teamSize, maxCourts);
             rebuildRotationForView(view);
             return true;
         });
@@ -5029,15 +5110,9 @@ async function deletePicRole(roleId){
                 (view.players||[]).forEach(p=>{ if(p.status==='playing') p.status='active'; });
                 view.activeMatches.forEach(m=>[...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{const ref=view.players.find(p=>p.id===mp.id);if(ref)ref.status='playing';}));
                 rebuildRotationForView(view);
-                // Perubahan ronde aktif membatalkan preview lama; hitung ulang dari komposisi terbaru.
+                // Komposisi pemain yang sedang main berubah: susunan NEXT dihitung ulang (yang masih valid dipertahankan).
                 const courtsNow=parseInt(document.getElementById('totalCourts')?.value)||1;
-                if(view.activeMatches.length) {
-                    view.roundMixPreview=[];
-                    const pv=cloneJSON(view);
-                    (pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
-                    const previewResult=buildGeneratedMatchesForView(pv,parseInt(document.getElementById('playersPerTeam')?.value)||2,Math.max(1,courtsNow));
-                    view.roundMixPreview=previewResult.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
-                }
+                if(view.activeMatches.length) refreshNextPreviewsInView(view,parseInt(document.getElementById('playersPerTeam')?.value)||2,Math.max(1,courtsNow));
                 return true;
             }).then(ok=>{ if(!ok) requestRefresh(); renderCourts(); renderQueue(); if(window.scoreDashboardOpen) renderScoreDashboard(matchId); });
         });
@@ -5191,6 +5266,7 @@ async function deletePicRole(roleId){
         const teamSize = parseInt(document.getElementById('playersPerTeam')?.value) || 2;
         const maxCourts = parseInt(document.getElementById('totalCourts')?.value) || 1;
         let generatedNextRound = 0;
+        let courtRefilled = false;
 
         // Selesaikan match + (jika ini match terakhir di ronde) generate ronde berikutnya
         // dalam SATU transaksi logis ke server. Ini menghilangkan delay dua kali save.
@@ -5250,30 +5326,14 @@ async function deletePicRole(roleId){
             view.activeMatches = view.activeMatches.filter(m => m.id !== matchId);
             // Nomor lapangan TETAP (lapangan fisik tidak berpindah) walau match lain di ronde ini sudah selesai.
 
-            // Kalau ini match terakhir pada ronde, langsung bentuk ronde berikutnya
-            // dari data yang BARU saja dihitung. Tidak perlu request kedua.
-            if (view.activeMatches.length === 0) {
-                rebuildRotationForView(view);
-                if((view.roundMixPreview||[]).length){
-                    view.activeMatches=view.roundMixPreview.map((m,i)=>({...cloneJSON(m),isPreview:false,isRunning:false,time:0,scoreA:0,scoreB:0,courtName:`Lapangan ${i+1}`}));
-                    view.roundMixPreview=[];
-                    view.activeMatches.forEach(m=>[...(m.teamA||[]),...(m.teamB||[])].forEach(mp=>{const p=view.players.find(x=>x.id===mp.id);if(p)p.status='playing';}));
-                    generatedNextRound=view.activeMatches.length;
-                    const pv=cloneJSON(view);(pv.players||[]).forEach(p=>{if(p.status==='playing')p.status='active';});
-                    const pr=buildGeneratedMatchesForView(pv,teamSize,maxCourts);
-                    view.roundMixPreview=pr.matches.map(m=>({...m,isPreview:true,isRunning:false,time:0,scoreA:0,scoreB:0}));
-                    rebuildRotationForView(view);
-                } else {
-                    const result = buildGeneratedMatchesForView(view, teamSize, maxCourts);
-                    if (result.matches.length) {
-                        view.activeMatches.push(...result.matches);
-                        generatedNextRound = result.matches.length;
-                        rebuildRotationForView(view);
-                    }
-                }
-            } else {
-                rebuildRotationForView(view);
-            }
+            // LAPANGAN MANDIRI: lapangan yang baru selesai langsung diisi match berikutnya,
+            // tanpa menunggu lapangan lain. Lapangan kosong lain juga ikut dicoba diisi.
+            rebuildRotationForView(view);
+            const created = fillEmptyCourtsInView(view, teamSize, maxCourts, finishedCourtName, finishedRound + 1);
+            refreshNextPreviewsInView(view, teamSize, maxCourts);
+            rebuildRotationForView(view);
+            generatedNextRound = created.length;
+            courtRefilled = created.some(m => m.courtName === finishedCourtName);
             return true;
         });
 
@@ -5286,17 +5346,19 @@ async function deletePicRole(roleId){
         if (dashWasHere) closeScoreDashboard();
         renderCourts(); renderQueue(); renderStandings(); renderHistory();
         // Wasit tetap di lapangannya: kalau ronde berikutnya sudah dibuat otomatis, langsung buka lapangan yang sama.
-        if (dashWasHere && generatedNextRound > 0) {
+        if (dashWasHere && courtRefilled) {
             const nxt = activeMatches.find(m => m.courtName === finishedCourtName);
             if (nxt) setTimeout(() => openScoreDashboard(nxt.id), 250);
         } else if (dashWasHere && !isSkip) {
             // Lapangan lain masih main: tunggu ronde berikutnya, lalu otomatis buka lapangan ini lagi.
             window.auraWaitCourt = { name: finishedCourtName, round: finishedRound, at: Date.now() };
         }
-        if (generatedNextRound > 0) {
-            markSyncSuccess(isSkip ? `Pertandingan di-skip. Ronde berikutnya otomatis dibuat (${generatedNextRound} match).` : `Ronde berikutnya otomatis dibuat (${generatedNextRound} match).`);
+        if (courtRefilled) {
+            markSyncSuccess(isSkip ? `Pertandingan di-skip. ${finishedCourtName || 'Lapangan'} langsung terisi match berikutnya.` : `Match selesai. ${finishedCourtName || 'Lapangan'} langsung terisi match berikutnya.`);
+        } else if (generatedNextRound > 0) {
+            markSyncSuccess(`${isSkip ? 'Pertandingan di-skip' : 'Match selesai'}. ${finishedCourtName || 'Lapangan'} kosong (pemain menunggu belum cukup), tetapi ${generatedNextRound} lapangan lain terisi.`);
         } else {
-            markSyncSuccess(isSkip ? 'Pertandingan di-skip dan tidak masuk histori. Belum ada ronde berikutnya karena pemain belum cukup / kombinasi level belum memenuhi.' : 'Match selesai dan data tersimpan. Belum ada ronde berikutnya karena pemain belum cukup / kombinasi level belum memenuhi.');
+            markSyncSuccess(isSkip ? `Pertandingan di-skip dan tidak masuk histori. ${finishedCourtName || 'Lapangan'} kosong: pemain yang menunggu belum cukup. Akan terisi otomatis saat ada match lain selesai, atau tekan Isi Lapangan.` : `Match selesai dan data tersimpan. ${finishedCourtName || 'Lapangan'} kosong: pemain yang menunggu belum cukup. Akan terisi otomatis saat ada match lain selesai, atau tekan Isi Lapangan.`);
         }
         return true;
     }
@@ -5406,17 +5468,17 @@ async function deletePicRole(roleId){
 
     // Susunan pemain "NEXT" untuk lapangan ini (ronde berikutnya), bisa diganti langsung dari papan skor.
     function nextMatchHTML(match) {
-        const pv = (roundMixPreview || []);
-        if (!pv.length) return `<div class="score-next-box"><div class="score-next-title">⏭️ NEXT · RONDE ${Number(match.round || 0) + 1}</div><div class="score-next-empty">Belum ada susunan berikutnya (menunggu pemain / ronde berjalan).</div></div>`;
         const n = courtNumOf(match, activeMatches.indexOf(match));
-        const p = pv[n - 1] || null;
-        if (!p) return `<div class="score-next-box"><div class="score-next-title">⏭️ NEXT · RONDE ${Number(match.round || 0) + 1}</div><div class="score-next-empty">Lapangan ${n} tidak dipakai di ronde berikutnya.</div></div>`;
+        const nextRound = Number(match.round || 0) + 1;
+        const p = (roundMixPreview || []).find(x => x.courtName === match.courtName) || null;
+        if (!p) return `<div class="score-next-box"><div class="score-next-title">⏭️ NEXT · LAPANGAN ${n} · RONDE ${nextRound}</div><div class="score-next-empty">Belum ada susunan berikutnya: pemain yang menunggu belum cukup. Susunan dibuat otomatis begitu ada pemain yang selesai main.</div></div>`;
         const A = p.teamA || [], B = p.teamB || [];
         const bal = evaluateMatchBalance([...A, ...B], A.length || 2);
         const ok = bal && bal.badness < 20;
-        const row = (pl, team, i) => `<div class="score-next-player"><span>${escapeHTML(pl.name)} ${getLevelBadge(pl.level)}</span><button type="button" onclick="editRoundMixPreviewPlayer('${p.id}','${team}',${i})" title="Ganti pemain">✏️ Ganti</button></div>`;
+        const playedOf = pl => Number(((players.find(x => x.id === pl.id) || pl).stats || {}).played || 0);
+        const row = (pl, team, i) => `<div class="score-next-player"><span>${escapeHTML(pl.name)} ${getLevelBadge(pl.level)}</span><span class="score-next-played">sudah main ${playedOf(pl)}x</span><button type="button" onclick="editRoundMixPreviewPlayer('${p.id}','${team}',${i})" title="Ganti pemain">✏️ Ganti</button></div>`;
         return `<div class="score-next-box">
-            <div class="score-next-title">⏭️ NEXT · LAPANGAN ${n} · RONDE ${Number(match.round || 0) + 1} <span class="badge ${ok ? 'badge-adv' : 'badge-beg'}">${ok ? 'Seimbang' : 'Kurang seimbang'}</span></div>
+            <div class="score-next-title">⏭️ NEXT · LAPANGAN ${n} · RONDE ${nextRound} <span class="badge ${ok ? 'badge-adv' : 'badge-beg'}">${ok ? 'Seimbang' : 'Kurang seimbang'}</span></div>
             <div class="score-next-grid">
                 <div><div class="score-next-team">TIM A</div>${A.map((x, i) => row(x, 'teamA', i)).join('')}</div>
                 <div class="score-next-vs">VS</div>
@@ -5519,7 +5581,7 @@ async function deletePicRole(roleId){
 
             <div class="score-finish-box">
                 <button id="scoreFinishBtn" class="score-finish-btn" onclick="finishFromDashboard('${match.id}')">✓ SELESAIKAN MATCH</button>
-                <div class="score-finish-note">Setelah semua lapangan di ronde ini selesai, ronde berikutnya dibuat otomatis.</div>
+                <div class="score-finish-note">Begitu match ini selesai, lapangan ini langsung terisi match berikutnya (tidak perlu menunggu lapangan lain).</div>
                 <button class="score-skip-btn" onclick="skipMatch('${match.id}')">⏭️ Skip / batalkan pertandingan ini</button>
             </div>
 
@@ -5537,10 +5599,10 @@ async function deletePicRole(roleId){
         const preview=roundMixPreview.find(m=>m.id===matchId);
         if(!preview||!['teamA','teamB'].includes(teamKey))return;
         const current=preview[teamKey][playerIndex],ev=activeEvent(),attendance=(ev&&ev.attendance)||{};
-        const idsInPreview=[...(preview.teamA||[]),...(preview.teamB||[])].map(p=>p.id);
-        // Kandidat: hadir & aktif/bermain, belum ada di susunan ini (kecuali slot yang sedang diganti)
+        const idsInPreview=[...roundMixPreview.flatMap(m=>[...(m.teamA||[]),...(m.teamB||[])])].map(p=>p.id);
+        // Kandidat: hadir & sedang menunggu (status aktif), belum ada di susunan NEXT lapangan mana pun (kecuali slot yang sedang diganti)
         const candidates=players
-            .filter(p=>attendance[p.id]&&['active','playing'].includes(p.status)&&(p.id===current?.id||!idsInPreview.includes(p.id)))
+            .filter(p=>attendance[p.id]&&(p.id===current?.id||(p.status==='active'&&!idsInPreview.includes(p.id))))
             .sort((a,b)=>a.name.localeCompare(b.name));
         if(!candidates.length){alert('Tidak ada pemain yang bisa dipilih.');return;}
         openPlayerPicker(candidates,current?.id,async(selectedId)=>{
@@ -5551,7 +5613,7 @@ async function deletePicRole(roleId){
             const ok=await safeRoundMixMutation(view=>{
                 const m=(view.roundMixPreview||[]).find(x=>x.id===matchId);if(!m)return false;
                 const old=m[teamKey][playerIndex];
-                if([...(m.teamA||[]),...(m.teamB||[])].some(p=>p.id===selected.id&&p.id!==old?.id))return false;
+                if((view.roundMixPreview||[]).some(x=>[...(x.teamA||[]),...(x.teamB||[])].some(p=>p.id===selected.id&&p.id!==old?.id)))return false;
                 m[teamKey][playerIndex]={...cloneJSON(view.players.find(p=>p.id===selected.id)||selected),matchPoints:0,matchOuts:0,matchFaults:0};
                 m.isManuallyEdited=true;return true;
             });
@@ -5624,6 +5686,17 @@ async function deletePicRole(roleId){
             </div>
         `;
     }).join('') : '';
+    if (activeMatches.length) {
+        const maxC = parseInt(document.getElementById('totalCourts')?.value) || 0;
+        const usedNames = new Set(activeMatches.map(m => m.courtName));
+        let emptyHTML = '';
+        for (let i = 1; i <= maxC; i++) {
+            const nm = `Lapangan ${i}`;
+            if (usedNames.has(nm)) continue;
+            emptyHTML += `<div class="court" style="padding:16px;border-style:dashed;"><div style="color:var(--primary);font-weight:800;">🏸 ${nm} <span class="round-label" style="margin-left:6px;">KOSONG</span></div><div style="color:var(--text-muted);font-size:.8rem;margin:6px 0 10px;">Menunggu pemain yang cukup. Terisi otomatis saat ada match selesai.</div><button type="button" onclick="generateMatches()" class="manual-generate-btn" style="padding:9px 12px;">⚙️ Isi Lapangan</button></div>`;
+        }
+        container.innerHTML += emptyHTML;
+    }
     if (!activeMatches.length) {
         container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Tidak ada pertandingan yang sedang berjalan.</p>';
     }
