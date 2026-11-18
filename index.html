@@ -349,6 +349,21 @@
             padding: 16px;
         }
         #scoreDashboard.show { display: block; }
+        /* Pilihan lapangan cepat (1 2 3 4 5) */
+        .court-pills{display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+        .court-pills::-webkit-scrollbar{display:none;}
+        .court-pill{flex:0 0 auto;min-width:58px;padding:7px 10px;border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text-main);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.15;font-family:inherit;}
+        .court-pill b{font-size:1.05rem;}
+        .court-pill small{font-size:.66rem;opacity:.75;font-weight:700;white-space:nowrap;}
+        .court-pill.active{background:linear-gradient(135deg,#0ea5e9,#14b8a6);border-color:transparent;color:#04111c;}
+        .court-pill.active small{opacity:.9;}
+        .court-pill.mine::after{content:'★';font-size:.62rem;color:#facc15;}
+        .court-pill.active.mine::after{color:#04111c;}
+        .court-pill-run{width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:3px;}
+        .court-quickbar{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,var(--bg-main) 70%,transparent);padding:2px 0 6px;margin-bottom:6px;}
+        .court-quickbar-title{font-size:.72rem;color:var(--text-muted);font-weight:800;letter-spacing:.04em;margin-top:4px;display:flex;justify-content:space-between;align-items:center;}
+        .court-mine-btn{border:1px solid var(--border);background:transparent;color:var(--text-muted);border-radius:999px;font-size:.7rem;padding:3px 9px;cursor:pointer;font-family:inherit;}
+        .court-mine-btn.on{color:#facc15;border-color:#facc15;}
         .score-dashboard-shell {
             width: 100%;
             max-width: 760px;
@@ -919,6 +934,7 @@ body:has(#scoreDashboard.show) .mobile-bottom-nav{display:none!important}
                 </div>
                 <div style="width:76px;"></div>
             </div>
+            <div id="scoreCourtPicker"></div>
             <div id="scoreDashboardContent"></div>
         </div>
     </div>
@@ -5155,6 +5171,8 @@ async function deletePicRole(roleId){
         await scoreOpQueue;
         const localMatch = activeMatches.find(m => m.id === matchId);
         if (!localMatch) return;
+        const finishedCourtName = localMatch.courtName;
+        const finishedRound = Number(localMatch.round || 0);
         clearInterval(timers[matchId]);
 
         const teamSize = parseInt(document.getElementById('playersPerTeam')?.value) || 2;
@@ -5217,7 +5235,7 @@ async function deletePicRole(roleId){
                 if (ref) ref.status = 'active';
             });
             view.activeMatches = view.activeMatches.filter(m => m.id !== matchId);
-            view.activeMatches.forEach((m,i) => m.courtName = `Lapangan ${i+1}`);
+            // Nomor lapangan TETAP (lapangan fisik tidak berpindah) walau match lain di ronde ini sudah selesai.
 
             // Kalau ini match terakhir pada ronde, langsung bentuk ronde berikutnya
             // dari data yang BARU saja dihitung. Tidak perlu request kedua.
@@ -5251,8 +5269,17 @@ async function deletePicRole(roleId){
             return false;
         }
 
-        if (window.scoreDashboardOpen && window.scoreDashboardMatchId === matchId) closeScoreDashboard();
+        const dashWasHere = window.scoreDashboardOpen && window.scoreDashboardMatchId === matchId;
+        if (dashWasHere) closeScoreDashboard();
         renderCourts(); renderQueue(); renderStandings(); renderHistory();
+        // Wasit tetap di lapangannya: kalau ronde berikutnya sudah dibuat otomatis, langsung buka lapangan yang sama.
+        if (dashWasHere && generatedNextRound > 0) {
+            const nxt = activeMatches.find(m => m.courtName === finishedCourtName);
+            if (nxt) setTimeout(() => openScoreDashboard(nxt.id), 250);
+        } else if (dashWasHere && !isSkip) {
+            // Lapangan lain masih main: tunggu ronde berikutnya, lalu otomatis buka lapangan ini lagi.
+            window.auraWaitCourt = { name: finishedCourtName, round: finishedRound, at: Date.now() };
+        }
         if (generatedNextRound > 0) {
             markSyncSuccess(isSkip ? `Pertandingan di-skip. Ronde berikutnya otomatis dibuat (${generatedNextRound} match).` : `Ronde berikutnya otomatis dibuat (${generatedNextRound} match).`);
         } else {
@@ -5266,9 +5293,45 @@ async function deletePicRole(roleId){
     window.scoreDashboardOpen = false;
     window.scoreDashboardMatchId = null;
 
+    // ---------- Pilihan lapangan cepat + "Lapangan saya" ----------
+    function courtNumOf(m, idx) {
+        const n = parseInt(String(m && m.courtName || '').replace(/\D+/g, ''), 10);
+        return Number.isFinite(n) && n > 0 ? n : (idx + 1);
+    }
+    function getMyCourt() { try { return parseInt(localStorage.getItem('auraMyCourt'), 10) || 0; } catch (e) { return 0; } }
+    function toggleMyCourt(n) {
+        try { if (getMyCourt() === n) localStorage.removeItem('auraMyCourt'); else localStorage.setItem('auraMyCourt', String(n)); } catch (e) {}
+        renderCourts();
+    }
+    function courtPillsHTML(activeId) {
+        const my = getMyCourt();
+        const list = activeMatches.map((m, i) => ({ m, n: courtNumOf(m, i) })).sort((a, b) => a.n - b.n);
+        return list.map(({ m, n }) => `<button type="button" class="court-pill${m.id === activeId ? ' active' : ''}${n === my ? ' mine' : ''}" onclick="openCourtById('${m.id}')" title="Lapangan ${n}"><b>${n}</b><small>${m.isRunning ? '<span class="court-pill-run"></span>' : ''}${Number(m.scoreA || 0)}–${Number(m.scoreB || 0)}</small></button>`).join('');
+    }
+    function openCourtById(id) {
+        if (!activeMatches.find(m => m.id === id)) return;
+        if (window.scoreDashboardOpen) { window.scoreDashboardMatchId = id; renderScoreDashboard(id); const d = document.getElementById('scoreDashboard'); if (d) d.scrollTop = 0; }
+        else openScoreDashboard(id);
+    }
+    function openMyCourt() {
+        const my = getMyCourt();
+        const hit = activeMatches.map((m, i) => ({ m, n: courtNumOf(m, i) })).find(x => x.n === my);
+        if (hit) openCourtById(hit.m.id);
+    }
+    function renderScoreCourtPicker(match) {
+        const el = document.getElementById('scoreCourtPicker');
+        if (!el) return;
+        if (!match || activeMatches.length < 2) { el.innerHTML = ''; return; }
+        const n = courtNumOf(match, activeMatches.indexOf(match));
+        const mine = getMyCourt() === n;
+        el.innerHTML = `<div class="court-quickbar" style="position:static;background:none;"><div class="court-pills">${courtPillsHTML(match.id)}</div>
+            <div class="court-quickbar-title"><span>Pilih lapangan</span><button type="button" class="court-mine-btn${mine ? ' on' : ''}" onclick="toggleMyCourt(${n});renderScoreDashboard('${match.id}')">${mine ? '★ Lapangan saya' : '☆ Jadikan lapangan saya'}</button></div></div>`;
+    }
+
     function openScoreDashboard(matchId) {
         const match = activeMatches.find(m => m.id === matchId);
         if (!match) return;
+        window.auraWaitCourt = null;
 
         window.scoreDashboardOpen = true;
         window.scoreDashboardMatchId = matchId;
@@ -5324,10 +5387,15 @@ async function deletePicRole(roleId){
         const matchEl = document.getElementById('scoreDashboardMatch');
 
         if (!content || !match) {
+            // Ronde baru bisa menggantikan match ini: ikuti lapangan yang sama kalau ada.
+            const same = window.scoreDashboardCourtName ? activeMatches.find(m => m.courtName === window.scoreDashboardCourtName) : null;
+            if (window.scoreDashboardOpen && same) { window.scoreDashboardMatchId = same.id; renderScoreDashboard(same.id); return; }
             if (window.scoreDashboardOpen) closeScoreDashboard();
             return;
         }
+        window.scoreDashboardCourtName = match.courtName;
 
+        renderScoreCourtPicker(match);
         if (courtEl) courtEl.textContent = match.courtName || 'Lapangan';
         if (matchEl) matchEl.textContent = 'Update Skor Pertandingan';
 
@@ -5442,7 +5510,12 @@ async function deletePicRole(roleId){
     // berikutnya bisa tetap tersimpan dan perlu terlihat setelah refresh/sinkronisasi.
     if (!activeMatches.length && window.scoreDashboardOpen) closeScoreDashboard();
 
-    container.innerHTML = activeMatches.length ? activeMatches.map(match => {
+    const quickBar = (activeMatches.length > 1) ? (() => {
+        const my = getMyCourt();
+        const hasMine = activeMatches.some((m, i) => courtNumOf(m, i) === my);
+        return `<div class="court-quickbar"><div class="court-quickbar-title"><span>🏸 LAPANGAN — ketuk untuk buka papan skor</span>${hasMine ? `<button type="button" class="court-mine-btn on" onclick="openMyCourt()">★ Buka lapangan ${my}</button>` : ''}</div><div class="court-pills">${courtPillsHTML(null)}</div></div>`;
+    })() : '';
+    container.innerHTML = activeMatches.length ? quickBar + activeMatches.map(match => {
         const teamA = (match.teamA || []).map(p => p.name).join(' / ');
         const teamB = (match.teamB || []).map(p => p.name).join(' / ');
         return `
@@ -5532,6 +5605,15 @@ async function deletePicRole(roleId){
     }
     if (window.scoreDashboardOpen && window.scoreDashboardMatchId) {
         renderScoreDashboard(window.scoreDashboardMatchId);
+    }
+    // Wasit yang sudah menyelesaikan match-nya: begitu ronde berikutnya jadi, buka lagi lapangannya.
+    const w = window.auraWaitCourt;
+    if (w && !window.scoreDashboardOpen) {
+        if (Date.now() - w.at > 30 * 60 * 1000) window.auraWaitCourt = null;
+        else {
+            const nxt = activeMatches.find(m => m.courtName === w.name && Number(m.round || 0) > w.round);
+            if (nxt) { window.auraWaitCourt = null; setTimeout(() => openScoreDashboard(nxt.id), 200); }
+        }
     }
 }
 
