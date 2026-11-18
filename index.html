@@ -602,6 +602,15 @@
         @keyframes splashTextIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         /* --- STATUS SINKRONISASI DATA --- */
+        /* ===== Indikator online + jumlah device login, dan footer waktu update ===== */
+        .aura-online-badge { display:inline-flex; align-items:center; gap:7px; margin-top:6px; padding:4px 12px; border-radius:99px; font-size:.74rem; font-weight:700; letter-spacing:.2px; border:1px solid rgba(16,185,129,.45); background:rgba(16,185,129,.12); color:#6ee7b7; cursor:default; }
+        .aura-online-badge .aura-online-dot { width:8px; height:8px; border-radius:50%; background:currentColor; box-shadow:0 0 0 0 currentColor; animation:auraPulse 2s infinite; }
+        .aura-online-badge.is-connecting { border-color:rgba(245,158,11,.5); background:rgba(245,158,11,.12); color:#fcd34d; }
+        .aura-online-badge.is-offline { border-color:rgba(239,68,68,.55); background:rgba(239,68,68,.12); color:#fca5a5; }
+        .aura-online-badge.is-offline .aura-online-dot { animation:none; }
+        @keyframes auraPulse { 0%{box-shadow:0 0 0 0 rgba(110,231,183,.55);} 70%{box-shadow:0 0 0 7px rgba(110,231,183,0);} 100%{box-shadow:0 0 0 0 rgba(110,231,183,0);} }
+        #auraDeployFooter { text-align:center; font-size:.7rem; color:var(--text-muted); padding:18px 12px 20px; }
+        @media (max-width:768px) { #auraDeployFooter { padding-bottom:calc(88px + env(safe-area-inset-bottom)); } }
         #syncStatusToast {
             position: fixed;
             top: 16px;
@@ -970,6 +979,7 @@ body:has(#scoreDashboard.show) .mobile-bottom-nav{display:none!important}
         </div>
         <img src="logo.png" alt="Logo Aura Sport" style="width: 120px; height: auto; margin-bottom: 10px;">
         <h1 style="color: var(--primary);">AURA SPORT MANAGER</h1>
+        <div id="auraOnlineBadge" class="aura-online-badge is-connecting" role="status"><span class="aura-online-dot"></span><span class="aura-online-text">Menyambung…</span></div>
     </div>
 
     <!-- Navigasi Utama System Tab -->
@@ -8367,6 +8377,7 @@ async function generateBestPartnerStoryCard() {
         if (stateLoaded) {
             init();
             subscribeRealtime();
+            auraStartPresence(access);
             if (splash) {
                 splash.classList.add('hide');
                 setTimeout(() => splash.remove(), 400);
@@ -8408,9 +8419,80 @@ function auraShowLogin(message=''){const g=document.getElementById('auraAuthGate
 function auraHideLogin(){const g=document.getElementById('auraAuthGate');if(g)g.style.display='none';document.body.style.overflow='';}
 async function auraResolveAccess(session){if(!session?.user?.id)return null;const {data:admin,error}=await supabaseClient.rpc('is_aura_admin');if(!error&&admin===true)return'admin';const {data:member,error:me}=await supabaseClient.from('aura_members').select('user_id,active').eq('user_id',session.user.id).eq('active',true).maybeSingle();if(!me&&member)return'member';return null;}
 function auraApplyRole(role){auraCurrentRole=role;document.body.classList.toggle('aura-member',role==='member');document.body.classList.toggle('aura-admin',role==='admin');const bar=document.getElementById('auraAccountBar'),label=document.getElementById('auraAccountLabel');if(label)label.textContent=(role==='admin'?'ADMIN':'MEMBER')+' 🟢 Aktif';if(bar)bar.style.display='flex';if(role==='member'){document.querySelectorAll('#tab-finance,[data-admin-only="true"],.admin-only').forEach(el=>el.style.display='none');document.querySelectorAll('button,input,select,textarea').forEach(el=>{if(el.closest('#auraAuthGate')||el.closest('#auraAccountBar')||el.classList.contains('tab-btn')||el.classList.contains('mobile-tab-btn')||el.type==='search'||el.dataset.memberAllowed==='true')return;el.classList.add('aura-write-control');});}auraHideLogin();}
-async function auraSignOut(){try{await supabaseClient.auth.signOut();}finally{location.reload();}}
+// ===== INDIKATOR ONLINE + JUMLAH DEVICE LOGIN (Supabase Realtime Presence) =====
+// Tiap perangkat punya ID tetap (disimpan di perangkat), jadi 2 tab di HP yang sama dihitung 1 device.
+// Hanya aktif setelah login berhasil. Perangkat yang tutup aplikasi/putus koneksi hilang otomatis dari hitungan.
+let auraPresenceChannel = null, auraPresenceCount = 0, auraPresenceDetail = '', auraPresenceReady = false, auraPresenceRole = 'member';
+function auraDeviceId() {
+    try {
+        let id = localStorage.getItem('aura_device_id');
+        if (!id) { id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); localStorage.setItem('aura_device_id', id); }
+        return id;
+    } catch (e) { return 'd' + Math.random().toString(36).slice(2, 10); }
+}
+function auraRenderOnlineBadge() {
+    const el = document.getElementById('auraOnlineBadge');
+    if (!el) return;
+    let cls = 'is-connecting', text = 'Menyambung…', title = 'Menyambungkan ke server…';
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) { cls = 'is-offline'; text = 'Offline'; title = 'Tidak ada koneksi internet'; }
+    else if (auraPresenceReady) { cls = 'is-online'; text = 'Online · ' + auraPresenceCount + ' device login'; title = auraPresenceDetail || ''; }
+    el.className = 'aura-online-badge ' + cls;
+    const t = el.querySelector('.aura-online-text'); if (t) t.textContent = text;
+    el.title = title;
+}
+function auraTrackPresence() {
+    if (!auraPresenceChannel || !auraPresenceReady) return;
+    try { auraPresenceChannel.track({ role: auraPresenceRole, joinedAt: new Date().toISOString() }); } catch (e) { console.warn('Presence track gagal:', e); }
+}
+function auraStartPresence(role) {
+    if (!supabaseClient || auraPresenceChannel) return;
+    auraPresenceRole = role || 'member';
+    const ch = supabaseClient.channel('aura-online-presence', { config: { presence: { key: auraDeviceId() } } });
+    const sync = () => {
+        const st = ch.presenceState(), keys = Object.keys(st), roles = {};
+        keys.forEach(k => { const m = (st[k] && st[k][0]) || {}; const r = m.role || 'member'; roles[r] = (roles[r] || 0) + 1; });
+        auraPresenceCount = keys.length;
+        auraPresenceDetail = Object.entries(roles).map(([r, n]) => n + ' ' + r).join(' · ');
+        auraRenderOnlineBadge();
+    };
+    ch.on('presence', { event: 'sync' }, sync);
+    ch.subscribe(async status => {
+        if (status === 'SUBSCRIBED') {
+            auraPresenceReady = true;
+            try { await ch.track({ role: auraPresenceRole, joinedAt: new Date().toISOString() }); } catch (e) { console.warn('Presence track gagal:', e); }
+            sync();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            auraPresenceReady = false;
+            auraRenderOnlineBadge();
+        }
+    });
+    auraPresenceChannel = ch;
+    window.addEventListener('online', () => { auraRenderOnlineBadge(); auraTrackPresence(); });
+    window.addEventListener('offline', auraRenderOnlineBadge);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) auraTrackPresence(); });
+    auraRenderOnlineBadge();
+}
+function auraStopPresence() {
+    try { if (auraPresenceChannel) { auraPresenceChannel.untrack(); supabaseClient.removeChannel(auraPresenceChannel); } } catch (e) {}
+    auraPresenceChannel = null; auraPresenceReady = false;
+}
+async function auraSignOut(){auraStopPresence();try{await supabaseClient.auth.signOut();}finally{location.reload();}}
 document.getElementById('auraTogglePassword')?.addEventListener('click',()=>{const i=document.getElementById('auraAuthPassword');if(i)i.type=i.type==='password'?'text':'password';});
 document.getElementById('auraAuthForm')?.addEventListener('submit',async e=>{e.preventDefault();const b=document.getElementById('auraAuthSubmit'),err=document.getElementById('auraAuthError');b.disabled=true;b.textContent='MEMERIKSA...';err.textContent='';const email=document.getElementById('auraAuthEmail').value.trim().toLowerCase(),password=document.getElementById('auraAuthPassword').value,requested=document.getElementById('auraAuthRole').value;try{const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});if(error)throw error;const role=await auraResolveAccess(data.session);if(!role){await supabaseClient.auth.signOut();throw Error('Akun belum terdaftar. Hubungi admin untuk mengaktifkan akses member.');}if(role!==requested){await supabaseClient.auth.signOut();throw Error('Role akun adalah '+role.toUpperCase()+'. Pilih role yang sesuai.');}location.reload();}catch(x){err.textContent=x?.message||'Login gagal.';}finally{b.disabled=false;b.textContent='LOGIN →';}});
+</script>
+<div id="auraDeployFooter"></div>
+<script>
+(function () {
+    // STAMP diganti otomatis oleh stamp-build.js saat build di Vercel (waktu deploy, WIB).
+    var STAMP = '__AURA_DEPLOY_TIME__';
+    // Cadangan kalau stempel build belum aktif: waktu file ini dibuat.
+    var FILE_TIME = '18 Nov 2026, 17:13 WIB';
+    var stamped = STAMP.indexOf('__AURA_' + 'DEPLOY') !== 0;
+    var el = document.getElementById('auraDeployFooter');
+    if (!el) return;
+    el.textContent = 'Update: ' + (stamped ? STAMP : FILE_TIME);
+    el.title = stamped ? 'Waktu deploy terakhir ke Vercel (WIB)' : 'Perkiraan (waktu file dibuat). Stempel deploy otomatis aktif setelah vercel.json dan stamp-build.js ikut di-commit.';
+})();
 </script>
 <script>
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
