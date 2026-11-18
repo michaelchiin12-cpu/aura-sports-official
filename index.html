@@ -2462,7 +2462,26 @@ async function deletePicRole(roleId){
     function _m3obj(x) { return x !== null && typeof x === 'object' && !Array.isArray(x); }
     function _m3ids(a) { return Array.isArray(a) && a.every(x => _m3obj(x) && x.id !== undefined && x.id !== null); }
 
-    const _M3_COUNTERS = new Set(['a', 'b', 'scoreA', 'scoreB', 'matchPoints']);
+    const _M3_COUNTERS = new Set(['a', 'b', 'scoreA', 'scoreB', 'matchPoints', 'matchOuts', 'matchFaults']);
+    // Skor/poin HANYA berubah lewat jalur skor (queueScoreOp -> safeApplyToServer) yang selalu di atas data server.
+    // Nilai di layar HP bersifat sementara (optimis) dan bisa tertinggal dari server, jadi simpan umum
+    // TIDAK BOLEH menulis ulang angka itu. Setelah merge, angka penghitung dipaksa ikut server.
+    function forceServerCounters(m, srv, key) {
+        if (_M3_COUNTERS.has(key) && typeof srv === 'number' && typeof m === 'number') return srv;
+        if (Array.isArray(m) && Array.isArray(srv)) {
+            const sm = _m3ids(srv) ? new Map(srv.map(x => [x.id, x])) : null;
+            return m.map((x, i) => {
+                const sx = sm ? sm.get(x && x.id) : srv[i];
+                return sx === undefined ? x : forceServerCounters(x, sx);
+            });
+        }
+        if (_m3obj(m) && _m3obj(srv)) {
+            const out = {};
+            Object.keys(m).forEach(k => { out[k] = (k in srv) ? forceServerCounters(m[k], srv[k], k) : m[k]; });
+            return out;
+        }
+        return m;
+    }
     function merge3(b, l, s, key) {
         if (_m3eq(l, b)) return s;          // kita tidak mengubah -> ikut server
         if (_m3eq(s, b)) return l;          // server tidak berubah -> pakai milik kita
@@ -2933,7 +2952,7 @@ async function deletePicRole(roleId){
                 const base = lastSyncedRow ? lastSyncedRow[col] : undefined;
                 let m = merge3(base, changedCols[col], fresh[col]);
                 if (m === undefined) m = changedCols[col];
-                mergedCols[col] = m;
+                mergedCols[col] = forceServerCounters(m, fresh[col]);
             });
             if (mergedCols.rr_settings && mergedCols.rr_settings.__eventRegistry && changedCols.rr_settings && changedCols.rr_settings.__eventRegistry) {
                 // Event yang sedang dibuka bersifat per-HP; selalu pakai milik HP ini.
@@ -3291,13 +3310,19 @@ async function deletePicRole(roleId){
         const batch = scoreBatch.splice(0);
         scoreOpQueue = scoreOpQueue
             .then(async () => {
-                const ok = await safeApplyToServer(row => {
-                    for (const op of batch) {
-                        const result = op(row);
-                        if (result === false) return false;
-                    }
-                    return true;
-                });
+                // Jangan buang skor: kalau 10 percobaan gagal (banyak HP menulis bersamaan / sinyal jelek),
+                // ulangi seluruh batch beberapa putaran dengan jeda acak sebelum menyerah.
+                let ok = false;
+                for (let round = 0; round < 8 && !ok; round++) {
+                    ok = await safeApplyToServer(row => {
+                        for (const op of batch) {
+                            const result = op(row);
+                            if (result === false) return false;
+                        }
+                        return true;
+                    });
+                    if (!ok) await _sleep(400 + Math.random() * 1200 + round * 300);
+                }
                 if (!ok) {
                     markSyncError('Perubahan skor belum tersimpan ke server.');
                 } else {
