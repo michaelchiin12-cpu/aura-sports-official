@@ -159,7 +159,7 @@
         .picker-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.75);
             display: flex; align-items: center; justify-content: center;
-            z-index: 10000; padding: 20px;
+            z-index: 16000; padding: 20px;
         }
         .picker-box {
             background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
@@ -5081,7 +5081,7 @@ async function deletePicRole(roleId){
         container.innerHTML = list.map(p => `
             <div class="picker-item ${p.id === window._pickerCurrentId ? 'picker-item-active' : ''}" onclick="selectPickerPlayer('${p.id}')">
                 ${avatarHTML(p)}
-                <span>${p.name}</span>
+                <span>${escapeHTML(p.name)} ${getLevelBadge(p.level)}</span>
                 ${p.id === window._pickerCurrentId ? '<span style="margin-left:auto; color:var(--primary); font-size:0.75rem;">Saat Ini</span>' : `<span style="margin-left:auto; color:var(--text-muted); font-size:0.75rem;">${p.stats.played}x main</span>`}
             </div>
         `).join('');
@@ -5533,26 +5533,30 @@ async function deletePicRole(roleId){
         }
     }
 
-    async function editRoundMixPreviewPlayer(matchId,teamKey,playerIndex){
+    function editRoundMixPreviewPlayer(matchId,teamKey,playerIndex){
         const preview=roundMixPreview.find(m=>m.id===matchId);
         if(!preview||!['teamA','teamB'].includes(teamKey))return;
         const current=preview[teamKey][playerIndex],ev=activeEvent(),attendance=(ev&&ev.attendance)||{};
-        const candidates=players.filter(p=>attendance[p.id]&&['active','playing'].includes(p.status));
-        const chosen=prompt(`Pilih nomor pemain pengganti untuk ${current?.name||'slot'}:\n\n${candidates.map((p,i)=>`${i+1}. ${p.name} - ${({1:'Beginner',2:'Intermediate',3:'Advance',4:'Expert'})[levelScore(p)]}`).join('\n')}`,String(Math.max(1,candidates.findIndex(p=>p.id===current?.id)+1)));
-        if(chosen===null)return;
-        const idx=parseInt(chosen,10)-1;
-        if(!Number.isInteger(idx)||idx<0||idx>=candidates.length){alert('Pilihan pemain tidak valid.');return;}
-        const selected=candidates[idx];
-        if([...(preview.teamA||[]),...(preview.teamB||[])].some(p=>p.id===selected.id&&p.id!==current?.id)){alert('Pemain sudah ada di ronde preview.');return;}
-        if(getPlayerConsecutiveRounds(selected.id,{matchesHistory,activeMatches})>=2&&!([...(preview.teamA||[]),...(preview.teamB||[])].some(p=>p.id===selected.id))){alert('Pemain ini sudah bermain 2 ronde berturut-turut.');return;}
-        const ok=await safeRoundMixMutation(view=>{
-            const m=(view.roundMixPreview||[]).find(x=>x.id===matchId);if(!m)return false;
-            const old=m[teamKey][playerIndex];
-            if([...(m.teamA||[]),...(m.teamB||[])].some(p=>p.id===selected.id&&p.id!==old?.id))return false;
-            m[teamKey][playerIndex]={...cloneJSON(view.players.find(p=>p.id===selected.id)||selected),matchPoints:0,matchOuts:0,matchFaults:0};
-            m.isManuallyEdited=true;return true;
+        const idsInPreview=[...(preview.teamA||[]),...(preview.teamB||[])].map(p=>p.id);
+        // Kandidat: hadir & aktif/bermain, belum ada di susunan ini (kecuali slot yang sedang diganti)
+        const candidates=players
+            .filter(p=>attendance[p.id]&&['active','playing'].includes(p.status)&&(p.id===current?.id||!idsInPreview.includes(p.id)))
+            .sort((a,b)=>a.name.localeCompare(b.name));
+        if(!candidates.length){alert('Tidak ada pemain yang bisa dipilih.');return;}
+        openPlayerPicker(candidates,current?.id,async(selectedId)=>{
+            if(selectedId===current?.id)return;
+            const selected=players.find(p=>p.id===selectedId);
+            if(!selected)return;
+            if(getPlayerConsecutiveRounds(selected.id,{matchesHistory,activeMatches})>=2){alert('Pemain ini sudah bermain 2 ronde berturut-turut.');return;}
+            const ok=await safeRoundMixMutation(view=>{
+                const m=(view.roundMixPreview||[]).find(x=>x.id===matchId);if(!m)return false;
+                const old=m[teamKey][playerIndex];
+                if([...(m.teamA||[]),...(m.teamB||[])].some(p=>p.id===selected.id&&p.id!==old?.id))return false;
+                m[teamKey][playerIndex]={...cloneJSON(view.players.find(p=>p.id===selected.id)||selected),matchPoints:0,matchOuts:0,matchFaults:0};
+                m.isManuallyEdited=true;return true;
+            });
+            if(ok){renderCourts();if(window.scoreDashboardOpen&&typeof renderScoreDashboard==='function'){const open=window.scoreDashboardMatchId;if(open)renderScoreDashboard(open);}}
         });
-        if(ok)renderCourts();
     }
 
    function renderCourts() {
