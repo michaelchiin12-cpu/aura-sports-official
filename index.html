@@ -3183,8 +3183,9 @@ async function deletePicRole(roleId){
         let notFoundStreak = 0;
         let lastError = null;
         for (let attempt = 0; attempt < MAX_ATTEMPT; attempt++) {
+            const attemptStart = Date.now();
             const { data: fresh, error: fetchErr } = await supabaseClient
-                .from('sport_manager_state').select('*').eq('id', STATE_ROW_ID).single();
+                .from('sport_manager_state').select('id,updated_at,rr_settings,active_matches,rr_matches,rr_bracket').eq('id', STATE_ROW_ID).single();
             if (fetchErr || !fresh) {
                 lastError = fetchErr || new Error('Data server kosong');
                 // Error koneksi sementara juga di-retry. Jangan langsung memunculkan alert.
@@ -3303,11 +3304,16 @@ async function deletePicRole(roleId){
                     } catch (e) { console.error('baseline registry', e); }
                     lastSyncedRow.updated_at = nowIso;
                 }
+                lastApplyAttempts = attempt + 1;
+                applyCycleEma = 0.7 * applyCycleEma + 0.3 * (Date.now() - attemptStart);
                 markSyncSuccess();
                 return true;
             }
-            // Backoff bertahap agar tidak terus menabrak write dari device lain.
-            await _sleep(40 + Math.random() * 120 + attempt * 60);   // jitter: cegah beberapa HP bentrok terus-menerus
+            // Backoff sebanding dengan lamanya satu siklus baca-tulis ke server. Backoff tetap 40-160 ms
+            // jauh lebih pendek dari siklus (bisa 500 ms+ di sinyal HP), sehingga HP yang kalah langsung
+            // bentrok lagi dan membuang unduhan besar. Acak 0..(siklus x tingkat percobaan) menyebar mereka.
+            applyCycleEma = 0.7 * applyCycleEma + 0.3 * (Date.now() - attemptStart);
+            await _sleep(40 + Math.random() * Math.min(3000, applyCycleEma * (1 + attempt * 0.5)));
         }
         console.error('safeApplyToServer: gagal setelah retry. Error terakhir:', lastError);
         markSyncError('Perubahan belum tersimpan ke server. Periksa koneksi, lalu ulangi aksi.');
@@ -3331,6 +3337,12 @@ async function deletePicRole(roleId){
     let scoreOpQueue = Promise.resolve();
     let scoreBatch = [];
     let scoreBatchTimer = null;
+    // Jendela pengumpulan skor ADAPTIF: normalnya 250 ms (skor cepat tampil di HP lain). Begitu simpan mulai
+    // sering bentrok (banyak HP menulis bersamaan), jendela melebar sampai 3 dtk supaya ketukan dikumpulkan
+    // jadi lebih sedikit penulisan; kembali mengecil saat sepi. Layar HP yang mengetuk tetap berubah instan.
+    let scoreFlushDelay = 250;
+    let lastApplyAttempts = 1;   // berapa percobaan yang dibutuhkan simpan terakhir
+    let applyCycleEma = 500;     // rata-rata lama satu siklus baca-tulis (ms)
 
     function flushScoreBatch() {
         if (scoreBatchTimer) {
@@ -3353,7 +3365,14 @@ async function deletePicRole(roleId){
                         }
                         return true;
                     });
-                    if (!ok) await _sleep(400 + Math.random() * 1200 + round * 300);
+                    if (ok) {
+                        scoreFlushDelay = lastApplyAttempts > 1
+                            ? Math.min(3000, scoreFlushDelay * 1.5 + 150)
+                            : Math.max(250, scoreFlushDelay * 0.85);
+                    } else {
+                        scoreFlushDelay = Math.min(3000, scoreFlushDelay * 1.5 + 150);
+                        await _sleep(400 + Math.random() * 1200 + round * 300);
+                    }
                 }
                 if (!ok) {
                     markSyncError('Perubahan skor belum tersimpan ke server.');
@@ -3380,7 +3399,7 @@ async function deletePicRole(roleId){
         pendingScoreOps++;
         scoreBatch.push(fn);
         if (!scoreBatchTimer) {
-            scoreBatchTimer = setTimeout(() => flushScoreBatch(), 250);   // jendela lebih lebar = lebih sedikit write berebut saat banyak HP
+            scoreBatchTimer = setTimeout(() => flushScoreBatch(), scoreFlushDelay + Math.random() * scoreFlushDelay * 0.4);   // adaptif + jitter agar HP tidak serempak
         }
         return scoreOpQueue;
     }
