@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>AURA MANAGER⚙️</title>
     <link rel="icon" type="image/png" href="logo-favicon.png">
+    <!-- PWA: bisa di-install ke layar utama Android & iPhone -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#060d18">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="AURA">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <script>
     /* UKURAN TAMPILAN OTOMATIS (HP 360-430px): skala dihitung dari lebar layar. Pilihan manual lewat menu ⋮ -> "Ukuran Tampilan". */
     (function(){
@@ -8179,6 +8187,11 @@ function auraApplyRole(role){auraCurrentRole=role;document.body.classList.toggle
 async function auraSignOut(){try{await supabaseClient.auth.signOut();}finally{location.reload();}}
 document.getElementById('auraTogglePassword')?.addEventListener('click',()=>{const i=document.getElementById('auraAuthPassword');if(i)i.type=i.type==='password'?'text':'password';});
 document.getElementById('auraAuthForm')?.addEventListener('submit',async e=>{e.preventDefault();const b=document.getElementById('auraAuthSubmit'),err=document.getElementById('auraAuthError');b.disabled=true;b.textContent='MEMERIKSA...';err.textContent='';const email=document.getElementById('auraAuthEmail').value.trim().toLowerCase(),password=document.getElementById('auraAuthPassword').value,requested=document.getElementById('auraAuthRole').value;try{const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});if(error)throw error;const role=await auraResolveAccess(data.session);if(!role){await supabaseClient.auth.signOut();throw Error('Akun belum terdaftar. Hubungi admin untuk mengaktifkan akses member.');}if(role!==requested){await supabaseClient.auth.signOut();throw Error('Role akun adalah '+role.toUpperCase()+'. Pilih role yang sesuai.');}location.reload();}catch(x){err.textContent=x?.message||'Login gagal.';}finally{b.disabled=false;b.textContent='LOGIN →';}});
+</script>
+<script>
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('SW gagal:', e); }); });
+}
 </script>
 </body>
 </html>
