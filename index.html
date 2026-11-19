@@ -531,6 +531,55 @@
         }
         .score-extra-actions.show { display:flex; }
         .score-extra-actions button { margin:0; }
+        /* Baris pemain: nama + tombol koreksi (⋮) di atas, tombol aksi besar di bawah (nyaman untuk jempol) */
+        .score-player-row {
+            grid-template-columns:auto 1fr auto;
+            grid-template-areas:"av main more" "quick quick quick" "extra extra extra";
+            row-gap:8px;
+            padding:10px;
+        }
+        .score-player-row > :first-child { grid-area:av; }
+        .score-player-main { grid-area:main; }
+        .score-player-stats { font-size:.76rem; }
+        .score-more {
+            grid-area:more;
+            min-width:44px; min-height:40px;
+            padding:0 10px; margin:0;
+            font-size:1.2rem; line-height:1;
+            border-radius:10px;
+            touch-action:manipulation;
+        }
+        .score-quick {
+            grid-area:quick;
+            display:grid;
+            grid-template-columns:1.1fr 1fr;
+            gap:8px;
+        }
+        .score-quick button {
+            margin:0;
+            min-height:48px;
+            padding:8px 6px;
+            font-size:.9rem;
+            font-weight:800;
+            border-radius:10px;
+            touch-action:manipulation;
+            -webkit-tap-highlight-color:transparent;
+        }
+        .score-quick button:active { transform:scale(.96); }
+        .score-extra-actions { grid-area:extra; margin-top:0; }
+        .score-extra-actions button { min-height:42px; padding:8px 12px; font-size:.8rem; border-radius:9px; touch-action:manipulation; }
+        .score-extra-title { width:100%; color:var(--text-muted); font-size:.68rem; font-weight:700; letter-spacing:.04em; }
+        .score-swap-row { display:flex; justify-content:center; margin:2px 0 12px; }
+        .score-swap-btn {
+            display:inline-flex; align-items:center; gap:8px;
+            margin:0; padding:9px 16px; min-height:42px;
+            border-radius:99px; font-size:.82rem; font-weight:800;
+            background:rgba(56,189,248,.14) !important; color:#7dd3fc !important;
+            border:1px solid rgba(56,189,248,.5) !important;
+            touch-action:manipulation;
+        }
+        .score-swap-btn span { font-weight:600; font-size:.72rem; color:var(--text-muted); }
+        .score-swap-btn.is-swapped { background:rgba(245,158,11,.16) !important; color:#fcd34d !important; border-color:rgba(245,158,11,.55) !important; }
         .score-dashboard-controls {
             display:flex;
             gap:10px;
@@ -5473,6 +5522,26 @@ async function deletePicRole(roleId){
         document.body.style.overflow = '';
     }
 
+    // Tukar posisi kiri/kanan di papan skor (hanya tampilan di perangkat ini; tidak mengubah data/skor).
+    // Berguna kalau posisi pemain di lapangan, dilihat dari wasit, terbalik dari urutan Tim A/Tim B.
+    function scoreSwapOf(matchId) {
+        if (!window.scoreSwapState) {
+            window.scoreSwapState = {};
+            try { window.scoreSwapState = JSON.parse(localStorage.getItem('aura_score_swap') || '{}') || {}; } catch (e) {}
+        }
+        return !!window.scoreSwapState[matchId];
+    }
+    function toggleScoreSwap(matchId) {
+        const now = !scoreSwapOf(matchId);
+        const keep = new Set([matchId, ...activeMatches.map(m => m.id)]);
+        const next = {};
+        Object.keys(window.scoreSwapState).forEach(k => { if (keep.has(k) && window.scoreSwapState[k]) next[k] = true; });
+        if (now) next[matchId] = true; else delete next[matchId];
+        window.scoreSwapState = next;
+        try { localStorage.setItem('aura_score_swap', JSON.stringify(next)); } catch (e) {}
+        renderScoreDashboard(matchId);
+    }
+
     function toggleScorePlayerActions(button) {
         const row = button.closest('.score-player-row');
         if (!row) return;
@@ -5544,44 +5613,49 @@ async function deletePicRole(roleId){
                         P ${p.matchPoints || 0} · Out/Fault ${(Number(p.matchOuts || 0) + Number(p.matchFaults || 0))}
                     </div>
                 </div>
-                <div class="score-player-actions">
-                    <button
-                        class="btn-success"
-                        onclick="updateScore('${match.id}', '${team}', ${idx}, 'point', false)">
-                        + POINT
-                    </button>
-                    <button
-                        class="score-more"
-                        onclick="toggleScorePlayerActions(this)">
-                        ⋮
-                    </button>
+                <button type="button" class="score-more" aria-label="Koreksi / ganti pemain" onclick="toggleScorePlayerActions(this)">⋮</button>
+                <div class="score-quick">
+                    <button type="button" class="btn-success" onclick="updateScore('${match.id}', '${team}', ${idx}, 'point', false)">+ POINT</button>
+                    <button type="button" class="btn-danger" onclick="updateScore('${match.id}', '${team}', ${idx}, 'error', false)">+ OUT / FAULT</button>
                 </div>
                 <div class="score-extra-actions">
-                    <button onclick="updateScore('${match.id}', '${team}', ${idx}, 'point', true)">− Point</button>
-                    <button class="btn-danger" onclick="updateScore('${match.id}', '${team}', ${idx}, 'error', false)">+ OUT / FAULT</button>
-                    <button onclick="updateScore('${match.id}', '${team}', ${idx}, 'error', true)">− OUT / FAULT</button>
-                    <button onclick="editMatchPlayerName('${match.id}', '${team}', ${idx})">✏️ Ganti</button>
+                    <div class="score-extra-title">KOREKSI (salah tekan)</div>
+                    <button type="button" onclick="updateScore('${match.id}', '${team}', ${idx}, 'point', true)">− Point</button>
+                    <button type="button" onclick="updateScore('${match.id}', '${team}', ${idx}, 'error', true)">− OUT / FAULT</button>
+                    <button type="button" onclick="editMatchPlayerName('${match.id}', '${team}', ${idx})">✏️ Ganti</button>
                 </div>
             </div>
         `;
+
+        // Urutan tampilan kiri/kanan (bisa ditukar wasit). Label TIM A/TIM B tetap menempel di timnya.
+        const swapped = scoreSwapOf(match.id);
+        const order = swapped ? ['teamB', 'teamA'] : ['teamA', 'teamB'];
+        const teamLabel = t => (t === 'teamA' ? 'TIM A' : 'TIM B');
+        const sideHTML = t => `
+                <div class="score-side">
+                    <div class="score-side-label">${teamLabel(t)}</div>
+                    <div class="score-side-name">${(match[t] || []).map(p => escapeHTML(p.name)).join(' / ') || '-'}</div>
+                    <div class="score-number">${(t === 'teamA' ? match.scoreA : match.scoreB) || 0}</div>
+                </div>`;
+        const panelHTML = t => `
+                <div class="score-team-panel">
+                    <div class="score-team-panel-title">${teamLabel(t)}</div>
+                    ${(match[t] || []).map((p, idx) => renderPlayer(p, t, idx)).join('')}
+                </div>`;
 
         content.innerHTML = `
             <div class="score-dashboard-status">
                 ${match.round ? `🏸 RONDE ${match.round} · ` : ''}${match.isRunning ? '● SEDANG MAIN' : 'Ⅱ PAUSED'}
             </div>
 
+            <div class="score-swap-row">
+                <button type="button" class="score-swap-btn ${swapped ? 'is-swapped' : ''}" onclick="toggleScoreSwap('${match.id}')">⇄ TUKAR POSISI <span>${swapped ? 'Tim B di kiri' : 'Tim A di kiri'}</span></button>
+            </div>
+
             <div class="score-bigboard">
-                <div class="score-side">
-                    <div class="score-side-label">TIM A</div>
-                    <div class="score-side-name">${(match.teamA || []).map(p => escapeHTML(p.name)).join(' / ') || '-'}</div>
-                    <div class="score-number">${match.scoreA || 0}</div>
-                </div>
+                ${sideHTML(order[0])}
                 <div class="score-vs">VS</div>
-                <div class="score-side">
-                    <div class="score-side-label">TIM B</div>
-                    <div class="score-side-name">${(match.teamB || []).map(p => escapeHTML(p.name)).join(' / ') || '-'}</div>
-                    <div class="score-number">${match.scoreB || 0}</div>
-                </div>
+                ${sideHTML(order[1])}
             </div>
 
             <div class="score-dashboard-timer" id="score-dashboard-timer-${match.id}">
@@ -5589,14 +5663,8 @@ async function deletePicRole(roleId){
             </div>
 
             <div class="score-player-grid">
-                <div class="score-team-panel">
-                    <div class="score-team-panel-title">TIM A</div>
-                    ${(match.teamA || []).map((p, idx) => renderPlayer(p, 'teamA', idx)).join('')}
-                </div>
-                <div class="score-team-panel">
-                    <div class="score-team-panel-title">TIM B</div>
-                    ${(match.teamB || []).map((p, idx) => renderPlayer(p, 'teamB', idx)).join('')}
-                </div>
+                ${panelHTML(order[0])}
+                ${panelHTML(order[1])}
             </div>
 
             <div class="score-dashboard-controls">
@@ -8486,7 +8554,7 @@ document.getElementById('auraAuthForm')?.addEventListener('submit',async e=>{e.p
     // STAMP diganti otomatis oleh stamp-build.js saat build di Vercel (waktu deploy, WIB).
     var STAMP = '__AURA_DEPLOY_TIME__';
     // Cadangan kalau stempel build belum aktif: waktu file ini dibuat.
-    var FILE_TIME = '18 Nov 2026, 17:13 WIB';
+    var FILE_TIME = '19 Nov 2026, 16:35 WIB';
     var stamped = STAMP.indexOf('__AURA_' + 'DEPLOY') !== 0;
     var el = document.getElementById('auraDeployFooter');
     if (!el) return;
